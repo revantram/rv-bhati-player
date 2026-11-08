@@ -63,24 +63,34 @@ jobs:
             echo "Custom icon nahi mila, default icon use hoga"
           fi
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build release APK (optimized & split per ABI)
+        run: |
+          mkdir -p build/app/outputs/symbols
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/app/outputs/symbols
 
-      - name: Prepare APK for release
-        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/RV-Bhati-Player.apk
+      - name: Prepare APKs for release
+        run: |
+          cd build/app/outputs/flutter-apk
+          # Primary APK for modern phones (ARM64)
+          cp app-arm64-v8a-release.apk RV-Bhati-Player.apk
+          cp app-arm64-v8a-release.apk RV-Bhati-Player-arm64.apk
+          cp app-armeabi-v7a-release.apk RV-Bhati-Player-armv7-32bit.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: RV-Bhati-Player-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/RV-Bhati-Player.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.1.0
-          name: "RV Bhati Player v1.1.0"
-          files: build/app/outputs/flutter-apk/RV-Bhati-Player.apk
+          tag_name: v1.1.1
+          name: "RV Bhati Player v1.1.1 (Lite Size)"
+          files: |
+            build/app/outputs/flutter-apk/RV-Bhati-Player.apk
+            build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk
+            build/app/outputs/flutter-apk/RV-Bhati-Player-armv7-32bit.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
