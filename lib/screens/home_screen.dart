@@ -14,6 +14,7 @@ import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/radio_controller.dart';
 import '../services/media_scanner.dart';
+import '../services/update_service.dart';
 import '../utils/format.dart';
 import '../utils/id3_parser.dart';
 import '../widgets/add_to_playlist_dialog.dart';
@@ -118,6 +119,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loading = false;
       });
       Permission.notification.request();
+      // Auto-check for updates in background on app open
+      UpdateService.instance.checkAndPromptUpdate(context);
     } catch (e) {
       if (mounted) {
         setState(() {

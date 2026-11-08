@@ -47,13 +47,62 @@ jobs:
             cp -r /tmp/gen/android ./android
           fi
 
-      - name: Apply manifest, MainActivity and package name (com.rvbhati.player)
+      - name: Apply manifest, MainActivity, package name and permanent release signing
         run: |
           cp android_overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/res/xml
+          cp android_overrides/res/xml/filepaths.xml android/app/src/main/res/xml/filepaths.xml
           rm -rf android/app/src/main/kotlin android/app/src/main/java
           mkdir -p android/app/src/main/kotlin/com/rvbhati/player
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/com/rvbhati/player/MainActivity.kt
           sed -i 's/com\.rvbhati\.rv_bhati_player/com.rvbhati.player/g' android/app/build.gradle* || true
+
+          # Apply permanent release keystore so APK signature NEVER changes
+          cp android_overrides/keystore/release.jks android/app/release.jks
+          if [ -f android/app/build.gradle.kts ]; then
+            python3 -c '
+path = "android/app/build.gradle.kts"
+with open(path) as f:
+    c = f.read()
+signing_code = """
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.jks")
+            storePassword = "rvbhati123"
+            keyAlias = "rvbhati"
+            keyPassword = "rvbhati123"
+        }
+    }
+"""
+if "create(\"release\")" not in c:
+    c = c.replace("buildTypes {", signing_code + "\n    buildTypes {")
+    c = c.replace("signingConfigs.getByName(\"debug\")", "signingConfigs.getByName(\"release\")")
+    with open(path, "w") as f:
+        f.write(c)
+'
+          fi
+          if [ -f android/app/build.gradle ]; then
+            python3 -c '
+path = "android/app/build.gradle"
+with open(path) as f:
+    c = f.read()
+signing_code = """
+    signingConfigs {
+        release {
+            storeFile file("release.jks")
+            storePassword "rvbhati123"
+            keyAlias "rvbhati"
+            keyPassword "rvbhati123"
+        }
+    }
+"""
+if "release {" not in c:
+    c = c.replace("buildTypes {", signing_code + "\n    buildTypes {")
+    c = c.replace("signingConfigs.debug", "signingConfigs.release")
+    with open(path, "w") as f:
+        f.write(c)
+'
+          fi
 
       - name: Configure Gradle wrapper and mirror fallbacks
         run: |
@@ -141,8 +190,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.1.6
-          name: "RV Bhati Player v1.1.6 (Apple iOS Light Glassmorphism & Audio Preference System)"
+          tag_name: v1.1.7
+          name: "RV Bhati Player v1.1.7 (In-App Direct Updater & Permanent Keystore Signature)"
           files: |
             build/app/outputs/flutter-apk/RV-Bhati-Player.apk
             build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk

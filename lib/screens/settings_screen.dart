@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/app_state.dart';
 import '../services/settings_service.dart';
+import '../services/update_service.dart';
 import '../widgets/equalizer_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_background.dart';
@@ -32,8 +33,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  bool _isCheckingUpdate = false;
+
   void _onChanged() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _checkUpdate() async {
+    setState(() => _isCheckingUpdate = true);
+    HapticFeedback.lightImpact();
+    await UpdateService.instance.checkAndPromptUpdate(context, showUpToDate: true);
+    if (mounted) {
+      setState(() => _isCheckingUpdate = false);
+    }
   }
 
   @override
@@ -324,7 +336,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 22),
 
-                    // Section 4: About
+                    // Section 4: Software Updates
+                    _buildSectionHeader('APP UPDATES / ऐप अपडेट', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 14,
+                      child: _buildNavTile(
+                        icon: Icons.system_update_rounded,
+                        title: 'Check for Updates / नया अपडेट देखें',
+                        subtitle: 'Current: v${UpdateService.currentVersion} • GitHub Direct Update',
+                        onTap: _isCheckingUpdate ? null : _checkUpdate,
+                        textColor: textColor,
+                        secondaryTextColor: secondaryTextColor,
+                        accent: accent,
+                        trailing: _isCheckingUpdate
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(accent),
+                                ),
+                              )
+                            : Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: accent.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: accent.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  'Check',
+                                  style: TextStyle(
+                                    color: accent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Section 5: About
                     _buildSectionHeader('ABOUT', textColor),
                     LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(22),
@@ -366,7 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Version 1.1.6 (Apple Liquid Glassmorphism)',
+                                      'Version ${UpdateService.currentVersion} (Apple Liquid Glassmorphism)',
                                       style: TextStyle(
                                         color: secondaryTextColor,
                                         fontSize: 12,
@@ -538,13 +594,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
     required Color textColor,
     required Color secondaryTextColor,
     required Color accent,
+    Widget? trailing,
   }) {
     return iOSBounceButton(
-      onTap: onTap,
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -574,11 +631,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: secondaryTextColor.withValues(alpha: 0.5),
-              size: 14,
-            ),
+            trailing ??
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: secondaryTextColor.withValues(alpha: 0.5),
+                  size: 14,
+                ),
           ],
         ),
       ),
