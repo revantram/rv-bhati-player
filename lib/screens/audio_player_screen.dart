@@ -71,6 +71,7 @@ class _AudioTrackInfo {
 
 class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   final _ac = AudioController.instance;
+  AppState get app => AppState.instance;
 
   bool _showLyrics = false;
   List<LrcLine> _lyrics = [];

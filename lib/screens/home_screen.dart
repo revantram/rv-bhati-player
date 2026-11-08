@@ -69,6 +69,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Sort
   SortOption _sortOption = SortOption.dateDesc;
 
+  AppState get app => AppState.instance;
+
   @override
   void initState() {
     super.initState();

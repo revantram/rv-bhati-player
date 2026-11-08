@@ -24,6 +24,7 @@ class EqualizerSheet extends StatefulWidget {
 
 class _EqualizerSheetState extends State<EqualizerSheet> {
   final _eq = EqualizerService.instance;
+  AppState get app => AppState.instance;
 
   @override
   void initState() {

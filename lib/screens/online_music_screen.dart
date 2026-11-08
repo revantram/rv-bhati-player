@@ -43,6 +43,8 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   String _artistCategoryFilter = 'Modern Hits'; // 'Modern Hits', '90s Icons', 'Legends'
 
+  AppState get app => AppState.instance;
+
   @override
   void initState() {
     super.initState();
