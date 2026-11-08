@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/app_state.dart';
 import 'liquid_glass_container.dart';
 
 /// Floating frosted capsule used as the top app bar.
@@ -20,6 +21,8 @@ class GlassTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
+
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
       padding: const EdgeInsets.all(8),
@@ -37,10 +40,10 @@ class GlassTopBar extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: app.textColor,
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -51,7 +54,7 @@ class GlassTopBar extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.6),
+                        color: app.secondaryTextColor,
                       ),
                     ),
                 ],
@@ -86,9 +89,14 @@ class GlassBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
+    final isLight = app.isLight;
+    final accent = app.accentColor;
+
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
       padding: const EdgeInsets.all(6),
+      opacity: isLight ? 0.75 : 0.12,
       child: Row(
         children: [
           for (var i = 0; i < items.length; i++)
@@ -108,11 +116,15 @@ class GlassBottomNav extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(999),
                     color: i == index
-                        ? Colors.white.withValues(alpha: 0.20)
+                        ? (isLight
+                            ? accent.withValues(alpha: 0.18)
+                            : Colors.white.withValues(alpha: 0.20))
                         : Colors.transparent,
                     border: Border.all(
                       color: i == index
-                          ? Colors.white.withValues(alpha: 0.35)
+                          ? (isLight
+                              ? accent.withValues(alpha: 0.45)
+                              : Colors.white.withValues(alpha: 0.35))
                           : Colors.transparent,
                     ),
                   ),
@@ -122,8 +134,9 @@ class GlassBottomNav extends StatelessWidget {
                       Icon(
                         items[i].icon,
                         size: 24,
-                        color: Colors.white
-                            .withValues(alpha: i == index ? 1.0 : 0.6),
+                        color: i == index
+                            ? (isLight ? accent : Colors.white)
+                            : (isLight ? app.secondaryTextColor : Colors.white60),
                       ),
                       AnimatedSize(
                         duration: const Duration(milliseconds: 280),
@@ -133,9 +146,9 @@ class GlassBottomNav extends StatelessWidget {
                                 padding: const EdgeInsets.only(left: 8),
                                 child: Text(
                                   items[i].label,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
+                                  style: TextStyle(
+                                    color: isLight ? accent : Colors.white,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 14.5,
                                   ),
                                 ),

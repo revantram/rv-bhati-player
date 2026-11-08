@@ -50,13 +50,13 @@ class SaavnApiService {
       name: 'Jubin Nautiyal',
       category: 'Modern Hits',
       subtitle: 'Heart-touching Chartbusters',
-      avatarUrl: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20230526115945_500x500.jpg',
+      avatarUrl: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_500x500.jpg',
     ),
     SaavnArtist(
       name: 'Shreya Ghoshal',
       category: 'Modern Hits',
       subtitle: 'Melody Queen of Modern Era',
-      avatarUrl: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_004_20230323062024_500x500.jpg',
+      avatarUrl: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_500x500.jpg',
     ),
 
     // 90s Icons

@@ -1,3 +1,4 @@
+import '../services/settings_service.dart';
 import '../utils/des_cipher.dart';
 
 class OnlineSong {
@@ -46,7 +47,7 @@ class OnlineSong {
         .replaceAll('http://', 'https://');
   }
 
-  static OnlineSong? fromJson(Map<String, dynamic> json) {
+  static OnlineSong? fromJson(Map<String, dynamic> json, {int? bitrate}) {
     try {
       final id = json['id']?.toString() ?? '';
       if (id.isEmpty) return null;
@@ -103,7 +104,8 @@ class OnlineSong {
       final enc = (moreInfo['encrypted_media_url'] ?? json['encrypted_media_url'] ?? '').toString();
       if (enc.isEmpty) return null;
 
-      final streamUrl = DesCipher.decryptMediaUrl(enc, bitrate: 320);
+      final targetBitrate = bitrate ?? SettingsService.instance.audioQuality.kbps;
+      final streamUrl = DesCipher.decryptMediaUrl(enc, bitrate: targetBitrate);
       if (streamUrl == null || streamUrl.isEmpty) return null;
 
       return OnlineSong(

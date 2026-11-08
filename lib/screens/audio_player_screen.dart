@@ -23,6 +23,7 @@ import '../widgets/glass_seek_bar.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
 import '../widgets/sleep_timer_sheet.dart';
+import '../widgets/wave_visualizer.dart';
 
 class AudioPlayerScreen extends StatefulWidget {
   const AudioPlayerScreen({
@@ -482,20 +483,27 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
               final isFav = AppState.instance.isFavorite(track.id);
 
-              return Stack(
-                children: [
-                  Positioned.fill(child: LiquidBackground(accent: appAccent)),
-                  // Ambient reflection
-                  Positioned.fill(child: _BlurredArt(track: track)),
-                  SafeArea(
-                    child: LayoutBuilder(
-                      builder: (context, box) {
-                        final artSize = math.max(
-                          140.0,
-                          math.min(box.maxWidth - 70, box.maxHeight * 0.35),
-                        );
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              return GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragEnd: (details) {
+                  if (details.primaryVelocity != null && details.primaryVelocity! > 300) {
+                    Navigator.of(context).maybePop();
+                  }
+                },
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: LiquidBackground(accent: appAccent)),
+                    // Ambient reflection
+                    Positioned.fill(child: _BlurredArt(track: track)),
+                    SafeArea(
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          final artSize = math.max(
+                            140.0,
+                            math.min(box.maxWidth - 70, box.maxHeight * 0.35),
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
                           child: Column(
                             children: [
                               GlassTopBar(
@@ -601,8 +609,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           track.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: AppState.instance.textColor,
                                             fontSize: 21,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -613,7 +621,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.65),
+                                            color: AppState.instance.secondaryTextColor,
                                             fontSize: 14,
                                           ),
                                         ),
@@ -650,7 +658,23 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 10),
+                              StreamBuilder<PlayerState>(
+                                stream: player.playerStateStream,
+                                builder: (context, s) {
+                                  final playing = (s.data?.playing ?? false) &&
+                                      s.data?.processingState != ProcessingState.completed;
+                                  return WaveVisualizer(
+                                    barCount: 16,
+                                    height: 24,
+                                    barWidth: 3,
+                                    spacing: 3.5,
+                                    isPlaying: playing,
+                                    color: appAccent,
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
                               // Shuffle, Repeat, Speed & playback controls
                               StreamBuilder<PlayerState>(
                                 stream: player.playerStateStream,
@@ -761,7 +785,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     ),
                   ),
                 ],
-              );
+              ),
+            );
             },
           ),
         );

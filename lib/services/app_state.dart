@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../models/media_file.dart';
 import '../models/playlist_item.dart';
+import 'audio_controller.dart';
 import 'equalizer_service.dart';
+import 'settings_service.dart';
 
 enum AppLanguage { en, hi }
 
@@ -219,6 +221,30 @@ class AppStrings {
       'en': 'Accent Color',
       'hi': 'थीम रंग',
     },
+    'settings': {
+      'en': 'Settings',
+      'hi': 'सेटिंग्स',
+    },
+    'audio_quality': {
+      'en': 'Audio Streaming Quality',
+      'hi': 'ऑडियो स्ट्रीमिंग क्वालिटी',
+    },
+    'auto_quality': {
+      'en': 'Smart Auto Quality',
+      'hi': 'स्मार्ट ऑटो क्वालिटी',
+    },
+    'sleep_fade_out': {
+      'en': 'Sleep Timer Fade-Out',
+      'hi': 'स्लीप टाइमर फेड-आउट',
+    },
+    'crossfade': {
+      'en': 'DJ Crossfade Duration',
+      'hi': 'डीजे क्रॉसफ़ेड अवधि',
+    },
+    'theme_style': {
+      'en': 'Theme Style',
+      'hi': 'थीम शैली',
+    },
   };
 
   static String get(String key, AppLanguage lang) {
@@ -237,6 +263,12 @@ class AppState extends ChangeNotifier {
 
   Color _accentColor = const Color(0xFF7C6CFF);
   Color get accentColor => _accentColor;
+
+  bool get isLight => SettingsService.instance.isLight;
+  Color get textColor => isLight ? const Color(0xFF1D1D1F) : Colors.white;
+  Color get secondaryTextColor => isLight ? const Color(0xFF6E6E73) : Colors.white70;
+  Color get cardColor => isLight ? Colors.white.withValues(alpha: 0.65) : Colors.white.withValues(alpha: 0.10);
+  Color get cardBorderColor => isLight ? Colors.white.withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.15);
 
   final Set<String> _favorites = {};
   Set<String> get favorites => _favorites;
@@ -285,6 +317,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> init() async {
     try {
+      await SettingsService.instance.init();
+      SettingsService.instance.addListener(() => notifyListeners());
+
       final dir = Directory('/data/user/0/com.rvbhati.player/files');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -494,8 +529,19 @@ class AppState extends ChangeNotifier {
         _sleepTargetTime = null;
         _sleepEndOfSong = false;
         onTrigger();
+        try {
+          AudioController.instance.player.setVolume(1.0);
+        } catch (_) {}
         notifyListeners();
       } else {
+        final sec = diff.inSeconds;
+        // Last 10s smooth volume fade-out if enabled
+        if (SettingsService.instance.sleepFadeOut && sec <= 10 && sec > 0) {
+          final vol = (sec / 10.0).clamp(0.02, 1.0);
+          try {
+            AudioController.instance.player.setVolume(vol);
+          } catch (_) {}
+        }
         final mins = (diff.inSeconds / 60).ceil();
         if (mins != _sleepMinutesRemaining) {
           _sleepMinutesRemaining = mins;
@@ -511,6 +557,9 @@ class AppState extends ChangeNotifier {
     _sleepMinutesRemaining = 0;
     _sleepTargetTime = null;
     _sleepEndOfSong = false;
+    try {
+      AudioController.instance.player.setVolume(1.0);
+    } catch (_) {}
     notifyListeners();
   }
 

@@ -245,6 +245,8 @@ class DesCipher {
         url = url.replaceFirst(RegExp(r'_(96|160)\.mp4'), '_320.mp4');
       } else if (bitrate == 160) {
         url = url.replaceFirst(RegExp(r'_(96|320)\.mp4'), '_160.mp4');
+      } else if (bitrate == 96) {
+        url = url.replaceFirst(RegExp(r'_(160|320)\.mp4'), '_96.mp4');
       }
 
       return url;

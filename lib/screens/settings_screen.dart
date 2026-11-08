@@ -1,0 +1,648 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../services/app_state.dart';
+import '../services/settings_service.dart';
+import '../widgets/equalizer_sheet.dart';
+import '../widgets/ios_bounce_button.dart';
+import '../widgets/liquid_background.dart';
+import '../widgets/liquid_glass_container.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final _settings = SettingsService.instance;
+  final _app = AppState.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _settings.addListener(_onChanged);
+    _app.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    _settings.removeListener(_onChanged);
+    _app.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = _app.isLight;
+    final textColor = _app.textColor;
+    final secondaryTextColor = _app.secondaryTextColor;
+    final accent = _app.accentColor;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: LiquidBackground(
+        child: SafeArea(
+          top: true,
+          bottom: false,
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    iOSBounceButton(
+                      onTap: () => Navigator.pop(context),
+                      child: LiquidGlassContainer(
+                        borderRadius: BorderRadius.circular(20),
+                        padding: const EdgeInsets.all(10),
+                        blur: 16,
+                        child: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: textColor,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Text(
+                      AppState.translate('settings'),
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Grouped Settings List
+              Expanded(
+                child: ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 120),
+                  children: [
+                    // Section 1: Streaming Quality
+                    _buildSectionHeader('AUDIO STREAMING QUALITY', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 14,
+                      child: Column(
+                        children: [
+                          for (final q in AudioQuality.values) ...[
+                            _buildQualityTile(q, textColor, secondaryTextColor, accent),
+                            if (q != AudioQuality.values.last)
+                              _buildDivider(isLight),
+                          ],
+                          _buildDivider(isLight),
+                          _buildSwitchTile(
+                            title: AppState.translate('auto_quality'),
+                            subtitle: '320 kbps on Wi-Fi • 160 kbps on Mobile Data',
+                            value: _settings.autoQuality,
+                            onChanged: _settings.setAutoQuality,
+                            icon: Icons.wifi_tethering_rounded,
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Section 2: Audio & Playback Enhancements
+                    _buildSectionHeader('AUDIO & PLAYBACK', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 14,
+                      child: Column(
+                        children: [
+                          _buildNavTile(
+                            icon: Icons.equalizer_rounded,
+                            title: 'Built-in Equalizer & Bass Boost',
+                            subtitle: '5-Band EQ, 3D Surround & Bass presets',
+                            onTap: () => EqualizerSheet.show(context),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
+                          _buildSwitchTile(
+                            title: AppState.translate('sleep_fade_out'),
+                            subtitle: 'Smoothly fade out volume over last 10s',
+                            value: _settings.sleepFadeOut,
+                            onChanged: _settings.setSleepFadeOut,
+                            icon: Icons.bedtime_rounded,
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
+                          _buildCrossfadeTile(textColor, secondaryTextColor, accent),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Section 3: Appearance & Language
+                    _buildSectionHeader('APPEARANCE & LANGUAGE', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.all(16),
+                      blur: 14,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Theme Switcher Pills
+                          Text(
+                            AppState.translate('theme_style'),
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: AppThemeMode.values.map((mode) {
+                              final active = _settings.themeMode == mode;
+                              return Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: iOSBounceButton(
+                                    onTap: () => _settings.setThemeMode(mode),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: active
+                                            ? accent.withValues(alpha: 0.18)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: active
+                                              ? accent
+                                              : (isLight
+                                                  ? Colors.black.withValues(alpha: 0.08)
+                                                  : Colors.white.withValues(alpha: 0.12)),
+                                          width: active ? 1.5 : 1.0,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          mode == AppThemeMode.light
+                                              ? 'Light'
+                                              : mode == AppThemeMode.dark
+                                                  ? 'Dark'
+                                                  : 'System',
+                                          style: TextStyle(
+                                            color: active ? accent : textColor,
+                                            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+
+                          const SizedBox(height: 18),
+                          Divider(color: isLight ? Colors.black12 : Colors.white12, height: 1),
+                          const SizedBox(height: 16),
+
+                          // Accent Color Selector
+                          Text(
+                            AppState.translate('theme_color'),
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: AppState.accentOptions.map((color) {
+                              final active = _app.accentColor.toARGB32() == color.toARGB32();
+                              return iOSBounceButton(
+                                onTap: () => _app.setAccentColor(color),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: color.withValues(alpha: 0.45),
+                                        blurRadius: 8,
+                                        spreadRadius: active ? 2 : 0,
+                                      ),
+                                    ],
+                                    border: Border.all(
+                                      color: active ? Colors.white : Colors.transparent,
+                                      width: 3,
+                                    ),
+                                  ),
+                                  child: active
+                                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                                      : null,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+
+                          const SizedBox(height: 18),
+                          Divider(color: isLight ? Colors.black12 : Colors.white12, height: 1),
+                          const SizedBox(height: 16),
+
+                          // Language Toggle
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'App Language / भाषा',
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _app.language == AppLanguage.en ? 'English' : 'हिंदी (Hindi)',
+                                    style: TextStyle(
+                                      color: secondaryTextColor,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              iOSBounceButton(
+                                onTap: () => _app.setLanguage(
+                                  _app.language == AppLanguage.en ? AppLanguage.hi : AppLanguage.en,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: accent.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: accent.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Text(
+                                    _app.language == AppLanguage.en ? 'हिंदी में बदलें' : 'Switch to English',
+                                    style: TextStyle(
+                                      color: accent,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Section 4: About
+                    _buildSectionHeader('ABOUT', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.all(18),
+                      blur: 14,
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [accent, accent.withValues(alpha: 0.7)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Colors.white,
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'RV Bhati Player',
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Version 1.1.6 (Apple Liquid Glassmorphism)',
+                                      style: TextStyle(
+                                        color: secondaryTextColor,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'High-performance offline & online media player with lossless audio playback, 60/120 FPS liquid frosted aesthetics, and seamless background streaming.',
+                            style: TextStyle(
+                              color: secondaryTextColor,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String text, Color textColor) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, bottom: 8, top: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: textColor.withValues(alpha: 0.55),
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider(bool isLight) {
+    return Divider(
+      height: 1,
+      thickness: 0.6,
+      indent: 52,
+      endIndent: 16,
+      color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+    );
+  }
+
+  Widget _buildQualityTile(
+    AudioQuality q,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+  ) {
+    final selected = _settings.audioQuality == q;
+
+    return iOSBounceButton(
+      onTap: () => _settings.setAudioQuality(q),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? accent : secondaryTextColor.withValues(alpha: 0.4),
+                  width: 2,
+                ),
+                color: selected ? accent : Colors.transparent,
+              ),
+              child: selected
+                  ? const Center(
+                      child: Icon(Icons.check, size: 14, color: Colors.white),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    q.label,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    q.description,
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required IconData icon,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color accent,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: accent, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: secondaryTextColor,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeColor: accent,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color accent,
+  }) {
+    return iOSBounceButton(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: accent, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: secondaryTextColor.withValues(alpha: 0.5),
+              size: 14,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCrossfadeTile(
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+  ) {
+    final secs = _settings.crossfadeSeconds;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.graphic_eq_rounded, color: accent, size: 22),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  AppState.translate('crossfade'),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                secs == 0 ? 'Off' : '${secs}s',
+                style: TextStyle(
+                  color: accent,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: accent,
+              inactiveTrackColor: secondaryTextColor.withValues(alpha: 0.2),
+              thumbColor: accent,
+              overlayColor: accent.withValues(alpha: 0.15),
+              trackHeight: 3.5,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            ),
+            child: Slider(
+              value: secs.toDouble(),
+              min: 0,
+              max: 5,
+              divisions: 5,
+              onChanged: (v) {
+                HapticFeedback.selectionClick();
+                _settings.setCrossfadeSeconds(v.round());
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
