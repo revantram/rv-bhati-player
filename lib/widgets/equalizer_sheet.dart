@@ -44,7 +44,8 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = AppState.instance.accentColor;
+    final app = AppState.instance;
+    final accent = app.accentColor;
     final bands = _eq.bands;
 
     return Padding(
