@@ -9,6 +9,7 @@ import '../services/audio_controller.dart';
 import '../services/saavn_api_service.dart';
 import '../utils/format.dart';
 import '../widgets/add_to_playlist_dialog.dart';
+import '../widgets/artist_songs_sheet.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_glass_container.dart';
 
@@ -41,7 +42,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   bool _loadingCategory = false;
   List<OnlineSong> _categorySongs = [];
 
-  String _artistCategoryFilter = 'Modern Hits'; // 'Modern Hits', '90s Icons', 'Legends'
+  String _artistCategoryFilter = 'All'; // 'All', 'Modern Hits', '90s Icons', 'Legends', 'Rajasthani & Folk'
 
   AppState get app => AppState.instance;
 
@@ -130,13 +131,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   void _openArtistSheet(SaavnArtist artist) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return _ArtistSongsSheet(artist: artist);
-      },
+    ArtistSongsSheet.show(
+      context,
+      artist: artist,
+      artistName: artist.name,
+      avatarUrl: artist.avatarUrl,
+      subtitle: artist.subtitle,
     );
   }
 
@@ -348,6 +348,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 10, 16, widget.bottomOffset),
       children: [
+        // 1. Dedicated Singer Folders (Curated Artist Hub - directly below search bar)
+        _buildArtistHub(),
+        const SizedBox(height: 20),
+
         // 2. Curated Era Folders (Quick Filters)
         _buildCuratedEraFolders(),
         const SizedBox(height: 18),
@@ -358,10 +362,6 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
         // 4. Top Recommended / Trending Carousel
         _buildTrendingCarousel(),
-        const SizedBox(height: 22),
-
-        // 5. Dedicated Singer Folders (Curated Artist Hub)
-        _buildArtistHub(),
         const SizedBox(height: 22),
 
         // 5. Featured Trending Songs List
@@ -756,13 +756,34 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  song.artist,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: app.secondaryTextColor,
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => ArtistSongsSheet.show(
+                                    context,
+                                    artistName: song.artist,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          song.artist,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: app.accentColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        size: 8,
+                                        color: app.accentColor,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -782,10 +803,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   Widget _buildArtistHub() {
     final app = AppState.instance;
 
-    final categories = ['Modern Hits', '90s Icons', 'Legends'];
-    final currentArtists = SaavnApiService.curatedArtists
-        .where((a) => a.category == _artistCategoryFilter)
-        .toList();
+    final categories = ['All', 'Modern Hits', '90s Icons', 'Legends', 'Rajasthani & Folk'];
+    final currentArtists = _artistCategoryFilter == 'All'
+        ? SaavnApiService.curatedArtists
+        : SaavnApiService.curatedArtists
+            .where((a) => a.category == _artistCategoryFilter)
+            .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -794,14 +817,30 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           child: Row(
             children: [
-              Icon(Icons.mic_external_on_rounded, size: 20, color: app.accentColor),
+              Icon(Icons.stars_rounded, size: 21, color: app.accentColor),
               const SizedBox(width: 8),
               Text(
-                'Curated Singer Hub',
+                'Popular Artists',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.w700,
                   color: app.textColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: app.accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${currentArtists.length} Artists',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: app.accentColor,
+                  ),
                 ),
               ),
             ],
@@ -812,6 +851,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         // Category Pills for Artists
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
           child: Row(
             children: categories.map((cat) {
               final active = _artistCategoryFilter == cat;
@@ -842,11 +882,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Horizontal avatars
+        // Long Horizontal scrolling avatars list
         SizedBox(
-          height: 108,
+          height: 114,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             itemCount: currentArtists.length,
             itemBuilder: (context, i) {
               final artist = currentArtists[i];
@@ -858,12 +899,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   child: Column(
                     children: [
                       Container(
-                        width: 68,
-                        height: 68,
+                        width: 70,
+                        height: 70,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: app.accentColor.withValues(alpha: 0.5),
+                            color: app.accentColor.withValues(alpha: 0.6),
                             width: 2,
                           ),
                           boxShadow: [
@@ -880,14 +921,14 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                             errorBuilder: (_, __, ___) => Container(
                               color: app.accentColor.withValues(alpha: 0.2),
                               child: Icon(Icons.person_rounded,
-                                  color: app.secondaryTextColor, size: 36),
+                                  color: app.secondaryTextColor, size: 38),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 6),
                       SizedBox(
-                        width: 74,
+                        width: 76,
                         child: Text(
                           artist.name,
                           maxLines: 1,
@@ -998,13 +1039,34 @@ class _OnlineSongTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    song.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: app.secondaryTextColor,
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => ArtistSongsSheet.show(
+                      context,
+                      artistName: song.artist,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            song.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: app.accentColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 9,
+                          color: app.accentColor,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1063,6 +1125,8 @@ class _OnlineSongTile extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Added to queue: ${song.title}')),
                   );
+                } else if (val == 'view_artist') {
+                  ArtistSongsSheet.show(context, artistName: song.artist);
                 } else if (val == 'add_playlist') {
                   AddToPlaylistDialog.showForOnline(context, song);
                 }
@@ -1099,6 +1163,16 @@ class _OnlineSongTile extends StatelessWidget {
                   ),
                 ),
                 PopupMenuItem(
+                  value: 'view_artist',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_rounded, color: app.secondaryTextColor, size: 20),
+                      const SizedBox(width: 10),
+                      Text('View Artist', style: TextStyle(color: app.textColor)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
                   value: 'add_playlist',
                   child: Row(
                     children: [
@@ -1112,153 +1186,6 @@ class _OnlineSongTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// --- Dynamic Modal Sheet for Singer Catalog ---
-class _ArtistSongsSheet extends StatefulWidget {
-  const _ArtistSongsSheet({required this.artist});
-  final SaavnArtist artist;
-
-  @override
-  State<_ArtistSongsSheet> createState() => _ArtistSongsSheetState();
-}
-
-class _ArtistSongsSheetState extends State<_ArtistSongsSheet> {
-  bool _loading = true;
-  List<OnlineSong> _songs = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetch();
-  }
-
-  Future<void> _fetch() async {
-    final songs = await SaavnApiService.instance.getArtistSongs(widget.artist.name);
-    if (mounted) {
-      setState(() {
-        _songs = songs;
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final app = AppState.instance;
-    final accent = app.accentColor;
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
-      decoration: BoxDecoration(
-        color: app.isLight ? const Color(0xFFF2F4F7) : const Color(0xFF0D1224),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          // Drag handle
-          Container(
-            width: 44,
-            height: 4,
-            decoration: BoxDecoration(
-              color: app.isLight ? Colors.black12 : Colors.white24,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Artist Header Banner
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Container(
-                  width: 62,
-                  height: 62,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: accent, width: 2),
-                  ),
-                  child: ClipOval(
-                    child: Image.network(
-                      widget.artist.avatarUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(Icons.person, color: app.secondaryTextColor),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.artist.name,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: app.textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        widget.artist.subtitle,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: app.secondaryTextColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_songs.isNotEmpty)
-                  LiquidGlassButton(
-                    icon: Icons.play_arrow_rounded,
-                    label: 'Play All',
-                    size: 40,
-                    tint: accent,
-                    onTap: () {
-                      Navigator.pop(context);
-                      AudioController.instance.playOnlineQueue(_songs, 0);
-                    },
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Divider(color: app.isLight ? Colors.black12 : Colors.white12, height: 1),
-
-          // Songs List
-          Expanded(
-            child: _loading
-                ? Center(child: CircularProgressIndicator(color: accent))
-                : _songs.isEmpty
-                    ? Center(
-                        child: Text('No songs found for this artist',
-                            style: TextStyle(color: app.secondaryTextColor)),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
-                        itemCount: _songs.length,
-                        itemBuilder: (context, i) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _OnlineSongTile(
-                              song: _songs[i],
-                              onTap: () {
-                                Navigator.pop(context);
-                                AudioController.instance.playOnlineQueue(_songs, i);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-          ),
-        ],
       ),
     );
   }

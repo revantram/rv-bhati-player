@@ -33,7 +33,7 @@ class SaavnApiService {
 
   // Curated Artists Catalog as requested
   static const List<SaavnArtist> curatedArtists = [
-    // Modern Hits
+    // --- Modern Hits ---
     SaavnArtist(
       name: 'Arijit Singh',
       category: 'Modern Hits',
@@ -50,7 +50,7 @@ class SaavnApiService {
       name: 'Jubin Nautiyal',
       category: 'Modern Hits',
       subtitle: 'Heart-touching Chartbusters',
-      avatarUrl: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_500x500.jpg',
+      avatarUrl: 'https://c.saavncdn.com/259/Humnava-Mere-Hindi-2018-20180522-500x500.jpg',
     ),
     SaavnArtist(
       name: 'Shreya Ghoshal',
@@ -58,8 +58,74 @@ class SaavnApiService {
       subtitle: 'Melody Queen of Modern Era',
       avatarUrl: 'https://c.saavncdn.com/artists/Shreya_Ghoshal_500x500.jpg',
     ),
+    SaavnArtist(
+      name: 'Neha Kakkar',
+      category: 'Modern Hits',
+      subtitle: 'Party & Dance Anthem Queen',
+      avatarUrl: 'https://c.saavncdn.com/artists/Neha_Kakkar_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Darshan Raval',
+      category: 'Modern Hits',
+      subtitle: 'Monsoon Melodies & Romance',
+      avatarUrl: 'https://c.saavncdn.com/artists/Darshan_Raval_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Armaan Malik',
+      category: 'Modern Hits',
+      subtitle: 'Prince of Romance',
+      avatarUrl: 'https://c.saavncdn.com/artists/Armaan_Malik_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Diljit Dosanjh',
+      category: 'Modern Hits',
+      subtitle: 'Global Punjabi Sensation',
+      avatarUrl: 'https://c.saavncdn.com/artists/Diljit_Dosanjh_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Badshah',
+      category: 'Modern Hits',
+      subtitle: 'Desi Hip-Hop & Party Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Badshah_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Yo Yo Honey Singh',
+      category: 'Modern Hits',
+      subtitle: 'Desi Kalakaar & Rap King',
+      avatarUrl: 'https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Sunidhi Chauhan',
+      category: 'Modern Hits',
+      subtitle: 'Powerhouse of Bollywood',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sunidhi_Chauhan_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Mohit Chauhan',
+      category: 'Modern Hits',
+      subtitle: 'Soulful Indie & Rock Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Mohit_Chauhan_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'KK',
+      category: 'Modern Hits',
+      subtitle: 'Voice of Pure Emotions & Youth',
+      avatarUrl: 'https://c.saavncdn.com/artists/KK_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'A.R. Rahman',
+      category: 'Modern Hits',
+      subtitle: 'The Mozart of Madras',
+      avatarUrl: 'https://c.saavncdn.com/artists/AR_Rahman_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Anuv Jain',
+      category: 'Modern Hits',
+      subtitle: 'Indie Acoustic Sensation',
+      avatarUrl: 'https://c.saavncdn.com/436/Husn-Hindi-2023-20231129054140-500x500.jpg',
+    ),
 
-    // 90s Icons
+    // --- 90s Icons ---
     SaavnArtist(
       name: 'Kumar Sanu',
       category: '90s Icons',
@@ -81,11 +147,53 @@ class SaavnApiService {
     SaavnArtist(
       name: 'Sonu Nigam',
       category: '90s Icons',
-      subtitle: 'The Voice of Bollywood',
+      subtitle: 'The Lord of Melody',
       avatarUrl: 'https://c.saavncdn.com/artists/Sonu_Nigam_500x500.jpg',
     ),
+    SaavnArtist(
+      name: 'Shaan',
+      category: '90s Icons',
+      subtitle: 'Golden Voice & Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Shaan_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Anuradha Paudwal',
+      category: '90s Icons',
+      subtitle: 'Bhakti & 90s Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Anuradha_Paudwal_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Kavita Krishnamurthy',
+      category: '90s Icons',
+      subtitle: 'Classic 90s Bollywood Diva',
+      avatarUrl: 'https://c.saavncdn.com/artists/Kavita_Krishnamurthy_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Abhijeet Bhattacharya',
+      category: '90s Icons',
+      subtitle: 'Voice of Shah Rukh Khan Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Abhijeet_Bhattacharya_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Himesh Reshammiya',
+      category: '90s Icons',
+      subtitle: '2000s High-Pitch Sensation',
+      avatarUrl: 'https://c.saavncdn.com/artists/Himesh_Reshammiya_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Lucky Ali',
+      category: '90s Icons',
+      subtitle: 'Soulful Indie Nomad',
+      avatarUrl: 'https://c.saavncdn.com/artists/Lucky_Ali_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Sukhwinder Singh',
+      category: '90s Icons',
+      subtitle: 'Chaiyya Chaiyya & Power Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sukhwinder_Singh_500x500.jpg',
+    ),
 
-    // Legends
+    // --- Legends ---
     SaavnArtist(
       name: 'Kishore Kumar',
       category: 'Legends',
@@ -110,7 +218,68 @@ class SaavnApiService {
       subtitle: 'The Soulful Legend',
       avatarUrl: 'https://c.saavncdn.com/artists/Mukesh_500x500.jpg',
     ),
+    SaavnArtist(
+      name: 'Asha Bhosle',
+      category: 'Legends',
+      subtitle: 'Versatile Evergreen Queen',
+      avatarUrl: 'https://c.saavncdn.com/artists/Asha_Bhosle_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Jagjit Singh',
+      category: 'Legends',
+      subtitle: 'The Ghazal King of India',
+      avatarUrl: 'https://c.saavncdn.com/artists/Jagjit_Singh_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Pankaj Udhas',
+      category: 'Legends',
+      subtitle: 'Velvet Voice of Ghazals',
+      avatarUrl: 'https://c.saavncdn.com/artists/Pankaj_Udhas_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Manna Dey',
+      category: 'Legends',
+      subtitle: 'Classical Playback Legend',
+      avatarUrl: 'https://c.saavncdn.com/artists/Manna_Dey_500x500.jpg',
+    ),
+
+    // --- Rajasthani & Folk ---
+    SaavnArtist(
+      name: 'Prakash Mali',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Bhajan Samrat of Marwar',
+      avatarUrl: 'https://c.saavncdn.com/artists/Prakash_Mali_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Seema Mishra',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Veena Cassettes Folk Queen',
+      avatarUrl: 'https://c.saavncdn.com/artists/Seema_Mishra_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Chhotu Singh Rawna',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Veer Ras & Rajputana Hits',
+      avatarUrl: 'https://c.saavncdn.com/640/Teen-Baan-Ke-Dhari-Hindi-2025-20260602191940-500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Mame Khan',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Coke Studio Chaudhary & Sufi',
+      avatarUrl: 'https://c.saavncdn.com/668/Coke-Studio-S2-Hindi-2023-20260606091636-500x500.jpg',
+    ),
   ];
+
+  static SaavnArtist? findCuratedArtist(String name) {
+    final clean = name.trim().toLowerCase();
+    for (final artist in curatedArtists) {
+      final aName = artist.name.toLowerCase();
+      if (aName == clean || clean.contains(aName) || aName.contains(clean)) {
+        return artist;
+      }
+    }
+    return null;
+  }
 
   Future<String?> _get(String url) async {
     try {

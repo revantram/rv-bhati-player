@@ -17,6 +17,7 @@ import '../utils/id3_parser.dart';
 import '../utils/lrc_parser.dart';
 import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/art_box.dart';
+import '../widgets/artist_songs_sheet.dart';
 import '../widgets/equalizer_sheet.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/glass_seek_bar.dart';
@@ -361,10 +362,20 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             color: isPlaying ? AppState.instance.accentColor : AppState.instance.textColor,
                                           ),
                                         ),
-                                        Text(
-                                          track.artist,
-                                          maxLines: 1,
-                                          style: TextStyle(fontSize: 12, color: AppState.instance.secondaryTextColor),
+                                        GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () {
+                                            if (track.artist.isNotEmpty && track.artist != 'Unknown') {
+                                              Navigator.pop(context);
+                                              ArtistSongsSheet.show(context, artistName: track.artist);
+                                            }
+                                          },
+                                          child: Text(
+                                            track.artist,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(fontSize: 12, color: AppState.instance.accentColor, fontWeight: FontWeight.w500),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -635,13 +646,35 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 4),
-                                        Text(
-                                          track.artist,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: AppState.instance.secondaryTextColor,
-                                            fontSize: 14,
+                                        GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () {
+                                            if (track.artist.isNotEmpty && track.artist != 'Unknown') {
+                                              ArtistSongsSheet.show(context, artistName: track.artist);
+                                            }
+                                          },
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  track.artist,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: AppState.instance.accentColor,
+                                                    fontSize: 14.5,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.arrow_forward_ios_rounded,
+                                                size: 11,
+                                                color: AppState.instance.accentColor.withValues(alpha: 0.8),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ],

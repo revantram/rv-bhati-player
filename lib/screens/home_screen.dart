@@ -19,6 +19,7 @@ import '../utils/format.dart';
 import '../utils/id3_parser.dart';
 import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/art_box.dart';
+import '../widgets/artist_songs_sheet.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
@@ -1448,17 +1449,54 @@ class _MediaCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    item.artist != null
-                        ? '${item.artist!}  -  ${formatDuration(item.duration)}'
-                        : '${formatDuration(item.duration)}  -  ${item.extension}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: app.secondaryTextColor,
-                    ),
-                  ),
+                  item.artist != null && item.artist!.isNotEmpty && item.artist != 'Unknown'
+                      ? GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            ArtistSongsSheet.show(context, artistName: item.artist!);
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  item.artist!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: app.accentColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 9,
+                                color: app.accentColor,
+                              ),
+                              Text(
+                                '  •  ${formatDuration(item.duration)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: app.secondaryTextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Text(
+                          item.artist != null
+                              ? '${item.artist!}  -  ${formatDuration(item.duration)}'
+                              : '${formatDuration(item.duration)}  -  ${item.extension}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: app.secondaryTextColor,
+                          ),
+                        ),
                 ],
               ),
             ),
@@ -1478,9 +1516,22 @@ class _MediaCard extends StatelessWidget {
                 onSelected: (val) {
                   if (val == 'playlist') {
                     AddToPlaylistDialog.showForMedia(context, item);
+                  } else if (val == 'view_artist' && item.artist != null) {
+                    ArtistSongsSheet.show(context, artistName: item.artist!);
                   }
                 },
                 itemBuilder: (context) => [
+                  if (item.artist != null && item.artist!.isNotEmpty && item.artist != 'Unknown')
+                    PopupMenuItem(
+                      value: 'view_artist',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_rounded, color: app.secondaryTextColor, size: 20),
+                          const SizedBox(width: 10),
+                          Text('View Artist', style: TextStyle(color: app.textColor)),
+                        ],
+                      ),
+                    ),
                   PopupMenuItem(
                     value: 'playlist',
                     child: Row(
@@ -1578,15 +1629,32 @@ class _PlaylistItemTile extends StatelessWidget {
                           ),
                         ),
                       Expanded(
-                        child: Text(
-                          item.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: app.secondaryTextColor,
-                          ),
-                        ),
+                        child: item.artist.isNotEmpty && item.artist != 'Unknown'
+                            ? GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  ArtistSongsSheet.show(context, artistName: item.artist);
+                                },
+                                child: Text(
+                                  item.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: app.accentColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                item.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: app.secondaryTextColor,
+                                ),
+                              ),
                       ),
                       Text(
                         formatDuration(item.duration),
