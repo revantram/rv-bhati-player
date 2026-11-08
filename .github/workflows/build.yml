@@ -57,9 +57,12 @@ jobs:
 
       - name: Configure Gradle wrapper and mirror fallbacks
         run: |
+          # Pre-download Gradle binary distribution to /tmp with retries to avoid GitHub 504 timeouts
+          curl -fL --retry 5 --retry-delay 3 -o /tmp/gradle-9.3.1-bin.zip https://services.gradle.org/distributions/gradle-9.3.1-bin.zip || \
+          curl -fL --retry 5 --retry-delay 3 -o /tmp/gradle-9.3.1-bin.zip https://mirrors.cloud.tencent.com/gradle/gradle-9.3.1-bin.zip
+
           if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
-            # Ensure official Fastly CDN and binary zip (100MB lighter)
-            sed -i 's|-all\.zip|-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
+            sed -i 's|^distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-9.3.1-bin.zip|' android/gradle/wrapper/gradle-wrapper.properties
             cat android/gradle/wrapper/gradle-wrapper.properties
           fi
           # Pre-configure Maven mirrors so any temporary outage on Maven Central has an immediate fallback
