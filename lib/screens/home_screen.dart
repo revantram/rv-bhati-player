@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_file.dart';
+import '../models/playlist_item.dart';
 import '../models/radio_station.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
@@ -14,6 +15,7 @@ import '../services/radio_controller.dart';
 import '../services/media_scanner.dart';
 import '../utils/format.dart';
 import '../utils/id3_parser.dart';
+import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/art_box.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_background.dart';
@@ -131,10 +133,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _openNowPlaying() {
-    final ac = AudioController.instance;
-    Navigator.of(context).push(glassRoute(AudioPlayerScreen(
-      queue: ac.queue,
-      startIndex: ac.player.currentIndex ?? 0,
+    Navigator.of(context).push(glassRoute(const AudioPlayerScreen(
+      startPlayback: false,
+    )));
+  }
+
+  void _openHybrid(List<PlaylistItem> items, int i, {bool shuffle = false}) {
+    AudioController.instance.playHybridQueue(items, i, shuffle: shuffle);
+    Navigator.of(context).push(glassRoute(const AudioPlayerScreen(
       startPlayback: false,
     )));
   }
@@ -430,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     _MiniPlayer(
                       onOpen: _openNowPlaying,
                       onOpenRadio: () => setState(() => _tab = 3),
-                      onOpenOnline: () => setState(() => _tab = 2),
+                      onOpenOnline: _openNowPlaying,
                     ),
                     GlassBottomNav(
                       index: _tab,
@@ -750,9 +756,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // If viewing inside a custom playlist
     if (_selectedPlaylist != null) {
-      final songIds = app.playlists[_selectedPlaylist] ?? [];
-      final playlistSongs = _audios.where((s) => songIds.contains(s.id)).toList();
-      final items = _filterAndSort(playlistSongs);
+      final customList = app.customPlaylists[_selectedPlaylist] ?? [];
+      final legacyIds = app.playlists[_selectedPlaylist] ?? [];
+      final List<PlaylistItem> displayItems = List.from(customList);
+      for (final id in legacyIds) {
+        if (!displayItems.any((t) => t.id == id)) {
+          final local = _audios.where((s) => s.id == id).firstOrNull;
+          if (local != null) {
+            displayItems.add(PlaylistItem.fromMediaFile(local));
+          }
+        }
+      }
 
       return Column(
         children: [
@@ -769,11 +783,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    _selectedPlaylist!,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedPlaylist!,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                      Text(
+                        '${displayItems.length} songs',
+                        style: const TextStyle(fontSize: 12, color: Colors.white54),
+                      ),
+                    ],
                   ),
                 ),
+                if (displayItems.isNotEmpty) ...[
+                  LiquidGlassButton(
+                    icon: Icons.shuffle_rounded,
+                    size: 38,
+                    iconSize: 20,
+                    onTap: () => _openHybrid(displayItems, 0, shuffle: true),
+                  ),
+                  const SizedBox(width: 8),
+                  LiquidGlassButton(
+                    icon: Icons.play_arrow_rounded,
+                    label: 'Play All',
+                    size: 38,
+                    tint: app.accentColor,
+                    onTap: () => _openHybrid(displayItems, 0),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 LiquidGlassButton(
                   icon: Icons.delete_outline_rounded,
                   size: 38,
@@ -788,15 +828,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           Expanded(
-            child: items.isEmpty
+            child: displayItems.isEmpty
                 ? const Center(child: Text('Playlist is empty', style: TextStyle(color: Colors.white54)))
                 : ListView.builder(
                     padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
-                    itemCount: items.length,
-                    itemBuilder: (_, i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _MediaCard(item: items[i], onTap: () => _open(items, i)),
-                    ),
+                    itemCount: displayItems.length,
+                    itemBuilder: (_, i) {
+                      final track = displayItems[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _PlaylistItemTile(
+                          item: track,
+                          onTap: () => _openHybrid(displayItems, i),
+                          onDelete: () {
+                            app.removeFromCustomPlaylist(_selectedPlaylist!, track.id);
+                            setState(() {});
+                          },
+                        ),
+                      );
+                    },
                   ),
           ),
         ],
@@ -906,8 +956,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildPlaylistsGrid(double bottomOffset) {
-    final playlists = AppState.instance.playlists;
-    final keys = playlists.keys.toList();
+    final customPlaylists = AppState.instance.customPlaylists;
+    final legacyPlaylists = AppState.instance.playlists;
+    final keys = <String>{...customPlaylists.keys, ...legacyPlaylists.keys}.toList();
+
     if (keys.isEmpty) {
       return Center(
         child: _GlassMessage(
@@ -929,7 +981,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       itemCount: keys.length,
       itemBuilder: (context, i) {
         final name = keys[i];
-        final count = playlists[name]?.length ?? 0;
+        final count = customPlaylists[name]?.length ?? legacyPlaylists[name]?.length ?? 0;
         return PressableScale(
           onTap: () => setState(() => _selectedPlaylist = name),
           child: LiquidGlassContainer(
@@ -963,43 +1015,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _showAddToPlaylistSheet(MediaFile item) {
-    final playlists = AppState.instance.playlists.keys.toList();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return LiquidGlassContainer(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 16),
-              Text(AppState.instance.tr('add_to_playlist'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-              const SizedBox(height: 16),
-              if (playlists.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('No playlists available. Create one first.', style: TextStyle(color: Colors.white54)),
-                )
-              else
-                ...playlists.map((pl) => ListTile(
-                      leading: Icon(Icons.playlist_add_rounded, color: AppState.instance.accentColor),
-                      title: Text(pl, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                      onTap: () {
-                        AppState.instance.addToPlaylist(pl, item.id);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Added to $pl')),
-                        );
-                      },
-                    )),
-            ],
-          ),
-        );
-      },
-    );
+    AddToPlaylistDialog.showForMedia(context, item);
   }
 
   List<MediaFile> _getRecentlyPlayed(MediaKind kind) {
@@ -1363,7 +1379,7 @@ class _MediaCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (!isVideo)
+            if (!isVideo) ...[
               IconButton(
                 icon: Icon(
                   isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -1372,12 +1388,138 @@ class _MediaCard extends StatelessWidget {
                 ),
                 onPressed: () => AppState.instance.toggleFavorite(item.id),
               ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.white60, size: 20),
+                color: const Color(0xFF14192B),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                onSelected: (val) {
+                  if (val == 'playlist') {
+                    AddToPlaylistDialog.showForMedia(context, item);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'playlist',
+                    child: Row(
+                      children: [
+                        Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 20),
+                        SizedBox(width: 10),
+                        Text('Add to Playlist', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
             Icon(
               Icons.play_circle_fill_rounded,
               color: Colors.white.withValues(alpha: 0.85),
               size: 34,
             ),
             const SizedBox(width: 4),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaylistItemTile extends StatelessWidget {
+  const _PlaylistItemTile({
+    required this.item,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final PlaylistItem item;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      hapticOnDown: false,
+      onTap: onTap,
+      child: LiquidGlassContainer(
+        borderRadius: BorderRadius.circular(22),
+        padding: const EdgeInsets.all(10),
+        blur: 0,
+        glow: false,
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                width: 60,
+                height: 60,
+                child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        item.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => ArtBox(seed: item.title, radius: 0, iconSize: 24),
+                      )
+                    : ArtBox(seed: item.title, radius: 0, iconSize: 24),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (item.isOnline)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00D2FF).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'ONLINE',
+                            style: TextStyle(fontSize: 9.5, color: Color(0xFF00D2FF), fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      Expanded(
+                        child: Text(
+                          item.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        formatDuration(item.duration),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
+              onPressed: onDelete,
+            ),
           ],
         ),
       ),

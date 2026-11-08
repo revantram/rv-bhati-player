@@ -3,33 +3,86 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 import '../models/media_file.dart';
 import '../models/online_song.dart';
+import '../models/playlist_item.dart';
+import 'app_state.dart';
 import 'radio_controller.dart';
 
 /// Single app-wide audio player. just_audio_background supports exactly one
 /// AudioPlayer, and keeping it global lets music continue (notification +
 /// lock-screen controls) after the screen closes or the app is minimised.
 class AudioController {
-  AudioController._();
+  AudioController._() {
+    _initSleepListener();
+  }
   static final AudioController instance = AudioController._();
 
   final AudioPlayer player = AudioPlayer();
   List<MediaFile> queue = const [];
   List<OnlineSong> onlineQueue = const [];
+  List<PlaylistItem> hybridQueue = const [];
 
-  bool get isPlayingOnline => onlineQueue.isNotEmpty;
+  bool get isPlayingOnline => onlineQueue.isNotEmpty || (isPlayingHybrid && currentPlaylistItem?.isOnline == true);
+  bool get isPlayingHybrid => hybridQueue.isNotEmpty;
+
+  int? _lastPlayedIndex;
+
+  void _initSleepListener() {
+    player.currentIndexStream.listen((idx) {
+      if (_lastPlayedIndex != null && idx != null && idx != _lastPlayedIndex) {
+        if (AppState.instance.isSleepEndOfSong) {
+          player.pause();
+          AppState.instance.cancelSleepTimer();
+        }
+      }
+      _lastPlayedIndex = idx;
+    });
+
+    player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) {
+        if (AppState.instance.isSleepEndOfSong) {
+          player.pause();
+          AppState.instance.cancelSleepTimer();
+        }
+      }
+    });
+  }
 
   OnlineSong? get currentOnlineSong {
     final idx = player.currentIndex ?? 0;
     if (onlineQueue.isNotEmpty && idx >= 0 && idx < onlineQueue.length) {
       return onlineQueue[idx];
     }
+    if (hybridQueue.isNotEmpty && idx >= 0 && idx < hybridQueue.length) {
+      final item = hybridQueue[idx];
+      if (item.isOnline && item.streamUrl != null) {
+        return OnlineSong(
+          id: item.id,
+          title: item.title,
+          artist: item.artist,
+          album: item.album ?? '',
+          duration: item.duration,
+          streamUrl: item.streamUrl!,
+          imageUrl: item.imageUrl ?? '',
+        );
+      }
+    }
     return null;
   }
 
-  Future<void> playQueue(List<MediaFile> items, int startIndex) async {
+  PlaylistItem? get currentPlaylistItem {
+    final idx = player.currentIndex ?? 0;
+    if (hybridQueue.isNotEmpty && idx >= 0 && idx < hybridQueue.length) {
+      return hybridQueue[idx];
+    }
+    return null;
+  }
+
+  Future<void> playQueue(List<MediaFile> items, int startIndex, {bool shuffle = false}) async {
     RadioController.instance.clear();
     onlineQueue = const [];
+    hybridQueue = const [];
     queue = items;
+    _lastPlayedIndex = startIndex;
     final source = ConcatenatingAudioSource(
       children: [
         for (final m in items)
@@ -46,13 +99,21 @@ class AudioController {
       ],
     );
     await player.setAudioSource(source, initialIndex: startIndex);
+    if (shuffle) {
+      await player.setShuffleModeEnabled(true);
+      await player.shuffle();
+    } else {
+      await player.setShuffleModeEnabled(false);
+    }
     player.play(); // not awaited: completes only when playback ends
   }
 
-  Future<void> playOnlineQueue(List<OnlineSong> items, int startIndex) async {
+  Future<void> playOnlineQueue(List<OnlineSong> items, int startIndex, {bool shuffle = false}) async {
     RadioController.instance.clear();
     queue = const [];
+    hybridQueue = const [];
     onlineQueue = items;
+    _lastPlayedIndex = startIndex;
 
     final source = ConcatenatingAudioSource(
       children: [
@@ -71,6 +132,57 @@ class AudioController {
       ],
     );
     await player.setAudioSource(source, initialIndex: startIndex);
+    if (shuffle) {
+      await player.setShuffleModeEnabled(true);
+      await player.shuffle();
+    } else {
+      await player.setShuffleModeEnabled(false);
+    }
+    player.play();
+  }
+
+  Future<void> playHybridQueue(List<PlaylistItem> items, int startIndex, {bool shuffle = false}) async {
+    RadioController.instance.clear();
+    queue = const [];
+    onlineQueue = const [];
+    hybridQueue = items;
+    _lastPlayedIndex = startIndex;
+
+    final source = ConcatenatingAudioSource(
+      children: [
+        for (final item in items)
+          if (item.isOnline && item.streamUrl != null)
+            AudioSource.uri(
+              Uri.parse(item.streamUrl!),
+              tag: MediaItem(
+                id: item.id,
+                title: item.title,
+                artist: item.artist,
+                album: item.album ?? 'Custom Playlist',
+                duration: item.duration,
+                artUri: item.imageUrl != null ? Uri.tryParse(item.imageUrl!) : null,
+              ),
+            )
+          else if (item.localPath != null)
+            AudioSource.uri(
+              Uri.file(item.localPath!),
+              tag: MediaItem(
+                id: item.id,
+                title: item.title,
+                artist: item.artist,
+                album: item.album ?? 'RV Bhati Player',
+                duration: item.duration,
+              ),
+            ),
+      ],
+    );
+    await player.setAudioSource(source, initialIndex: startIndex);
+    if (shuffle) {
+      await player.setShuffleModeEnabled(true);
+      await player.shuffle();
+    } else {
+      await player.setShuffleModeEnabled(false);
+    }
     player.play();
   }
 
@@ -120,3 +232,4 @@ class AudioController {
     }
   }
 }
+

@@ -236,4 +236,95 @@ class SaavnApiService {
     }
     return songs;
   }
+
+  /// 5. Dynamic Mood & Regional Playlists:
+  /// - Rajasthani & Marwari Hits (Veena classics, chang/dhamal, lokgeet)
+  /// - Bhakti & Bhajan (Krishna, Ram dhun, Aarti)
+  /// - Deshbhakti & Motivation (Patriotic Hindi anthems)
+  /// - 90s Romantic & Melodies (Evergreen love classics)
+  static const List<Map<String, String>> moodCategories = [
+    {
+      'id': 'rajasthani',
+      'title': 'Rajasthani & Marwari',
+      'subtitle': 'Veena Classics, Lokgeet & Dhamal',
+      'icon': '🪕',
+      'query': 'Rajasthani Marwari Top Hits Veena',
+      'color1': '0xFFFF8C00', // Saffron / Marwari Orange
+      'color2': '0xFFFF3D00',
+    },
+    {
+      'id': 'bhakti',
+      'title': 'Bhakti & Bhajan',
+      'subtitle': 'Krishna, Ram Dhun & Daily Aarti',
+      'icon': '🪔',
+      'query': 'Bhakti Bhajan Krishna Ram Aarti',
+      'color1': '0xFFFFD700', // Gold / Divine Amber
+      'color2': '0xFFFF6D00',
+    },
+    {
+      'id': 'deshbhakti',
+      'title': 'Deshbhakti & Motivation',
+      'subtitle': 'Patriotic Anthems & Energy',
+      'icon': '🇮🇳',
+      'query': 'Deshbhakti Hindi Patriotic Songs',
+      'color1': '0xFF00C853', // Indian Flag Green
+      'color2': '0xFF1E88E5',
+    },
+    {
+      'id': '90s_romantic',
+      'title': '90s Romantic & Melodies',
+      'subtitle': 'Golden Era Love Songs & Melodies',
+      'icon': '💖',
+      'query': '90s Romantic Hits Bollywood Melodies',
+      'color1': '0xFFFF4081', // Romantic Pink / Purple
+      'color2': '0xFF7C4DFF',
+    },
+  ];
+
+  Future<List<OnlineSong>> getMoodPlaylist(String moodId, {int limit = 35}) async {
+    final cat = moodCategories.firstWhere(
+      (c) => c['id'] == moodId,
+      orElse: () => moodCategories.first,
+    );
+    final query = cat['query'] ?? 'Hindi Hits';
+    return searchSongs(query, limit: limit);
+  }
+
+  // In-memory cache for song lyrics
+  final Map<String, String> _cachedLyrics = {};
+
+  /// 6. Synced / Live Lyrics:
+  /// Fetch lyrics from JioSaavn API using song ID or lyrics ID
+  Future<String?> getLyrics(String songId) async {
+    if (songId.isEmpty) return null;
+    if (_cachedLyrics.containsKey(songId)) {
+      return _cachedLyrics[songId];
+    }
+
+    try {
+      final url = '$_baseUrl?__call=lyrics.getLyrics&lyrics_id=$songId&_format=json&api_version=4&_marker=0';
+      final body = await _get(url);
+      if (body != null) {
+        final data = json.decode(body);
+        if (data is Map && data['lyrics'] != null) {
+          String lyrics = data['lyrics'].toString();
+          // Clean HTML tags and entities
+          lyrics = lyrics
+              .replaceAll('<br />', '\n')
+              .replaceAll('<br/>', '\n')
+              .replaceAll('<br>', '\n')
+              .replaceAll('&quot;', '"')
+              .replaceAll('&#039;', "'")
+              .replaceAll('&amp;', '&');
+          lyrics = lyrics.trim();
+          if (lyrics.isNotEmpty) {
+            _cachedLyrics[songId] = lyrics;
+            return lyrics;
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
 }

@@ -18,7 +18,7 @@ import '../widgets/glass_bars.dart';
 import '../widgets/glass_seek_bar.dart';
 import '../widgets/liquid_glass_container.dart';
 
-enum VideoFitMode { fit, fill, widescreen }
+enum VideoFitMode { original, fill, widescreen, ultrawide }
 
 class _Hud {
   const _Hud(this.icon, this.label, this.alignment, [this.level]);
@@ -55,7 +55,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _touchLocked = false;
 
   // Aspect ratio fit mode
-  VideoFitMode _fitMode = VideoFitMode.fit;
+  VideoFitMode _fitMode = VideoFitMode.original;
+
+  // Pinch-to-zoom & Pan
+  double _zoomScale = 1.0;
+  double _baseZoom = 1.0;
+  Offset _panOffset = Offset.zero;
+  Offset _basePan = Offset.zero;
+  bool _isPinching = false;
+  String? _dragMode; // 'vertical', 'horizontal', 'pinch'
 
   // Playback speed
   double _playbackSpeed = 1.0;
@@ -306,9 +314,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     setState(() {
       _fitMode = VideoFitMode.values[(_fitMode.index + 1) % VideoFitMode.values.length];
     });
-    final label = _fitMode == VideoFitMode.fit
-        ? 'Fit (Default)'
-        : (_fitMode == VideoFitMode.fill ? 'Fill (No Bars)' : '16:9 Wide');
+    final String label;
+    switch (_fitMode) {
+      case VideoFitMode.original:
+        label = 'Original (Boxed)';
+        break;
+      case VideoFitMode.fill:
+        label = 'Fit to Screen (Cover)';
+        break;
+      case VideoFitMode.widescreen:
+        label = '16:9 Wide';
+        break;
+      case VideoFitMode.ultrawide:
+        label = '18:9 Ultrawide';
+        break;
+    }
     _showHud(_Hud(Icons.aspect_ratio_rounded, label, const Alignment(0, 0)));
   }
 
@@ -329,7 +349,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } catch (_) {}
   }
 
-  // ---- gestures ------------------------------------------------------------
+  // ---- gestures (pinch-to-zoom, pan, brightness, volume, seek) -------------
 
   void _adjust(double delta) {
     if (_touchLocked) return;
@@ -356,39 +376,105 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  void _onHorizontalDragStart(DragStartDetails d) {
+  void _onScaleStart(ScaleStartDetails d) {
     if (_touchLocked || _controller == null) return;
-    _isHorizontalDragging = true;
-    _horizontalSeekTarget = _controller!.value.position;
+    _baseZoom = _zoomScale;
+    _basePan = _panOffset;
+    _dragMode = null;
+    if (d.pointerCount >= 2) {
+      _isPinching = true;
+      _dragMode = 'pinch';
+    } else {
+      _isPinching = false;
+      _dragLeft = d.localFocalPoint.dx < (MediaQuery.maybeOf(context)?.size.width ?? 400) / 2;
+    }
   }
 
-  void _onHorizontalDragUpdate(DragUpdateDetails d, double screenWidth) {
-    if (!_isHorizontalDragging || _controller == null) return;
-    final dur = _controller!.value.duration;
-    if (dur.inSeconds <= 0) return;
+  void _onScaleUpdate(ScaleUpdateDetails d, double screenWidth, double screenHeight) {
+    if (_touchLocked || _controller == null) return;
 
-    // Full screen horizontal swipe = 90 seconds scrub
-    final deltaSec = (d.primaryDelta ?? 0) / screenWidth * 90;
-    var targetSec = _horizontalSeekTarget.inMilliseconds + (deltaSec * 1000).round();
-    if (targetSec < 0) targetSec = 0;
-    if (targetSec > dur.inMilliseconds) targetSec = dur.inMilliseconds;
+    // 2-finger pinch-to-zoom & pan
+    if (d.pointerCount >= 2 || _isPinching) {
+      _isPinching = true;
+      _dragMode = 'pinch';
+      final newScale = (_baseZoom * d.scale).clamp(1.0, 3.5);
+      final newPan = _basePan + d.focalPointDelta;
+      setState(() {
+        _zoomScale = newScale;
+        _panOffset = newScale > 1.05 ? newPan : Offset.zero;
+      });
+      _showHud(_Hud(Icons.zoom_in_rounded, '${_zoomScale.toStringAsFixed(1)}x', const Alignment(0, 0)));
+      return;
+    }
 
-    setState(() => _horizontalSeekTarget = Duration(milliseconds: targetSec));
+    // 1-finger gesture: determine if vertical or horizontal
+    if (_dragMode == null) {
+      final dx = d.focalPointDelta.dx.abs();
+      final dy = d.focalPointDelta.dy.abs();
+      if (dx < 0.6 && dy < 0.6) return;
+      if (dx > dy) {
+        _dragMode = 'horizontal';
+        _isHorizontalDragging = true;
+        _horizontalSeekTarget = _controller!.value.position;
+      } else {
+        _dragMode = 'vertical';
+      }
+    }
 
-    final diff = _horizontalSeekTarget - _controller!.value.position;
-    final prefix = diff.isNegative ? '-' : '+';
+    if (_dragMode == 'vertical') {
+      _adjust(-d.focalPointDelta.dy / (screenHeight * 0.7));
+    } else if (_dragMode == 'horizontal') {
+      final dur = _controller!.value.duration;
+      if (dur.inSeconds <= 0) return;
+      final deltaSec = d.focalPointDelta.dx / screenWidth * 90;
+      var targetSec = _horizontalSeekTarget.inMilliseconds + (deltaSec * 1000).round();
+      if (targetSec < 0) targetSec = 0;
+      if (targetSec > dur.inMilliseconds) targetSec = dur.inMilliseconds;
+      setState(() => _horizontalSeekTarget = Duration(milliseconds: targetSec));
+      final diff = _horizontalSeekTarget - _controller!.value.position;
+      final prefix = diff.isNegative ? '-' : '+';
+      _showHud(_Hud(
+        diff.isNegative ? Icons.replay_rounded : Icons.forward_rounded,
+        '$prefix${formatDuration(diff.abs())}  (${formatDuration(_horizontalSeekTarget)} / ${formatDuration(dur)})',
+        const Alignment(0, -0.2),
+      ));
+    }
+  }
+
+  void _onScaleEnd(ScaleEndDetails d) {
+    if (_touchLocked) return;
+    if (_dragMode == 'horizontal' && _isHorizontalDragging && _controller != null) {
+      _isHorizontalDragging = false;
+      _controller!.seekTo(_horizontalSeekTarget);
+      _poke();
+    }
+    _isPinching = false;
+    _dragMode = null;
+    if (_zoomScale <= 1.05) {
+      setState(() {
+        _zoomScale = 1.0;
+        _panOffset = Offset.zero;
+      });
+    }
+  }
+
+  void _handleDoubleTap(double screenWidth) {
+    if (_touchLocked) return;
+    if (_zoomScale > 1.05) {
+      setState(() {
+        _zoomScale = 1.0;
+        _panOffset = Offset.zero;
+      });
+      _showHud(const _Hud(Icons.zoom_out_map_rounded, 'Zoom 1.0x (Reset)', Alignment(0, 0)));
+      return;
+    }
+    final left = _doubleTapPos.dx < screenWidth / 2;
+    _seekBy(left ? -10 : 10);
     _showHud(_Hud(
-      diff.isNegative ? Icons.replay_rounded : Icons.forward_rounded,
-      '$prefix${formatDuration(diff.abs())}  (${formatDuration(_horizontalSeekTarget)} / ${formatDuration(dur)})',
-      const Alignment(0, -0.2),
+      left ? Icons.replay_10_rounded : Icons.forward_10_rounded,
+      left ? '-10s' : '+10s',
+      Alignment(left ? -0.6 : 0.6, 0),
     ));
-  }
-
-  void _onHorizontalDragEnd(DragEndDetails d) {
-    if (!_isHorizontalDragging || _controller == null) return;
-    _isHorizontalDragging = false;
-    _controller!.seekTo(_horizontalSeekTarget);
-    _poke();
   }
 
   void _showHud(_Hud hud) {
@@ -558,16 +644,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 behavior: HitTestBehavior.opaque,
                 onTap: _toggleControls,
                 onDoubleTapDown: (d) => _doubleTapPos = d.localPosition,
-                onDoubleTap: () {
-                  if (_touchLocked) return;
-                  final left = _doubleTapPos.dx < w / 2;
-                  _seekBy(left ? -10 : 10);
-                  _showHud(_Hud(
-                    left ? Icons.replay_10_rounded : Icons.forward_10_rounded,
-                    left ? '-10s' : '+10s',
-                    Alignment(left ? -0.6 : 0.6, 0),
-                  ));
-                },
+                onDoubleTap: () => _handleDoubleTap(w),
                 // YouTube style hold 2x speed
                 onLongPressStart: (_) {
                   if (_touchLocked || c == null) return;
@@ -582,11 +659,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   c.setPlaybackSpeed(_preHoldSpeed);
                   if (mounted) setState(() => _hud = null);
                 },
-                onVerticalDragStart: (d) => _dragLeft = d.localPosition.dx < w / 2,
-                onVerticalDragUpdate: (d) => _adjust(-d.delta.dy / (h * 0.7)),
-                onHorizontalDragStart: _onHorizontalDragStart,
-                onHorizontalDragUpdate: (d) => _onHorizontalDragUpdate(d, w),
-                onHorizontalDragEnd: _onHorizontalDragEnd,
+                onScaleStart: _onScaleStart,
+                onScaleUpdate: (d) => _onScaleUpdate(d, w, h),
+                onScaleEnd: _onScaleEnd,
               ),
               // Subtitle overlay
               if (_currentSubtitleText != null && !_isHorizontalDragging)
@@ -644,7 +719,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       sharpVideo = Center(
         child: AspectRatio(
           aspectRatio: 16 / 9,
-          child: FittedBox(fit: BoxFit.fill, child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(c))),
+          child: FittedBox(
+            fit: BoxFit.fill,
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(c)),
+          ),
+        ),
+      );
+    } else if (_fitMode == VideoFitMode.ultrawide) {
+      sharpVideo = Center(
+        child: AspectRatio(
+          aspectRatio: 18 / 9,
+          child: FittedBox(
+            fit: BoxFit.fill,
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(c)),
+          ),
         ),
       );
     } else {
@@ -658,7 +748,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
     return ColoredBox(
       color: Colors.black,
-      child: sharpVideo,
+      child: ClipRect(
+        child: Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..translate(_panOffset.dx, _panOffset.dy)
+            ..scale(_zoomScale),
+          child: sharpVideo,
+        ),
+      ),
     );
   }
 

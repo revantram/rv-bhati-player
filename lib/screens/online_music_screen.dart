@@ -8,6 +8,7 @@ import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/saavn_api_service.dart';
 import '../utils/format.dart';
+import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_glass_container.dart';
 
@@ -102,6 +103,22 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     });
 
     final songs = await SaavnApiService.instance.getCategorizedPlaylist(category);
+    if (mounted) {
+      setState(() {
+        _categorySongs = songs;
+        _loadingCategory = false;
+      });
+    }
+  }
+
+  Future<void> _openMoodCategory(String moodId, String title) async {
+    setState(() {
+      _selectedCategory = title;
+      _loadingCategory = true;
+      _categorySongs = [];
+    });
+
+    final songs = await SaavnApiService.instance.getMoodPlaylist(moodId);
     if (mounted) {
       setState(() {
         _categorySongs = songs;
@@ -328,13 +345,17 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       children: [
         // 2. Curated Era Folders (Quick Filters)
         _buildCuratedEraFolders(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
 
-        // 3. Top Recommended / Trending Carousel
+        // 3. Dynamic Mood & Regional Playlists (Rajasthani, Bhakti, etc.)
+        _buildMoodAndRegionalPlaylists(),
+        const SizedBox(height: 22),
+
+        // 4. Top Recommended / Trending Carousel
         _buildTrendingCarousel(),
         const SizedBox(height: 22),
 
-        // 4. Dedicated Singer Folders (Curated Artist Hub)
+        // 5. Dedicated Singer Folders (Curated Artist Hub)
         _buildArtistHub(),
         const SizedBox(height: 22),
 
@@ -494,6 +515,134 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                 ],
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- Dynamic Mood & Regional Playlists ---
+  Widget _buildMoodAndRegionalPlaylists() {
+    final categories = SaavnApiService.moodCategories;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            children: [
+              Text('✨', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 8),
+              Text(
+                'Mood & Regional Classics',
+                style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 120,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: categories.length,
+            itemBuilder: (context, i) {
+              final cat = categories[i];
+              final c1 = Color(int.parse(cat['color1']!));
+              final c2 = Color(int.parse(cat['color2']!));
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: PressableScale(
+                  hapticOnDown: false,
+                  onTap: () => _openMoodCategory(cat['id']!, cat['title']!),
+                  child: Container(
+                    width: 170,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          c1.withValues(alpha: 0.35),
+                          c2.withValues(alpha: 0.15),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: c1.withValues(alpha: 0.45),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              cat['icon'] ?? '🎵',
+                              style: const TextStyle(fontSize: 26),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 10,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cat['title']!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              cat['subtitle']!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: Colors.white.withValues(alpha: 0.65),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -908,6 +1057,8 @@ class _OnlineSongTile extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Added to queue: ${song.title}')),
                   );
+                } else if (val == 'add_playlist') {
+                  AddToPlaylistDialog.showForOnline(context, song);
                 }
               },
               itemBuilder: (context) => [
@@ -938,6 +1089,16 @@ class _OnlineSongTile extends StatelessWidget {
                       Icon(Icons.queue_music_rounded, color: Colors.white70, size: 20),
                       SizedBox(width: 10),
                       Text('Add to Queue', style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'add_playlist',
+                  child: Row(
+                    children: [
+                      Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 20),
+                      SizedBox(width: 10),
+                      Text('Add to Custom Playlist', style: TextStyle(color: Colors.white)),
                     ],
                   ),
                 ),

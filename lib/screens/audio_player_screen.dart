@@ -1,27 +1,34 @@
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../models/media_file.dart';
+import '../models/online_song.dart';
+import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/equalizer_service.dart';
+import '../services/saavn_api_service.dart';
 import '../utils/id3_parser.dart';
 import '../utils/lrc_parser.dart';
+import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/art_box.dart';
+import '../widgets/equalizer_sheet.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/glass_seek_bar.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/sleep_timer_sheet.dart';
 
 class AudioPlayerScreen extends StatefulWidget {
   const AudioPlayerScreen({
     super.key,
-    required this.queue,
-    required this.startIndex,
+    this.queue = const [],
+    this.startIndex = 0,
     this.startPlayback = true,
   });
 
@@ -33,18 +40,47 @@ class AudioPlayerScreen extends StatefulWidget {
   State<AudioPlayerScreen> createState() => _AudioPlayerScreenState();
 }
 
+class _AudioTrackInfo {
+  final String id;
+  final String title;
+  final String artist;
+  final String album;
+  final Duration duration;
+  final Uint8List? embeddedArt;
+  final String? imageUrl;
+  final bool isOnline;
+  final MediaFile? mediaFile;
+  final OnlineSong? onlineSong;
+  final PlaylistItem? playlistItem;
+
+  const _AudioTrackInfo({
+    required this.id,
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.duration,
+    this.embeddedArt,
+    this.imageUrl,
+    required this.isOnline,
+    this.mediaFile,
+    this.onlineSong,
+    this.playlistItem,
+  });
+}
+
 class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   final _ac = AudioController.instance;
 
   bool _showLyrics = false;
   List<LrcLine> _lyrics = [];
-  String? _lyricsFile;
+  String? _plainLyrics;
+  bool _loadingLyrics = false;
   final ScrollController _lyricsScroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    if (widget.startPlayback) {
+    if (widget.startPlayback && widget.queue.isNotEmpty) {
       _ac.playQueue(widget.queue, widget.startIndex).catchError((_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -54,13 +90,14 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       });
     }
 
-    _loadLyricsForIndex(widget.startIndex);
+    _loadLyricsForIndex(_ac.player.currentIndex ?? widget.startIndex);
 
     _ac.player.currentIndexStream.listen((idx) {
       if (idx != null && mounted) {
         _loadLyricsForIndex(idx);
-        if (idx >= 0 && idx < _ac.queue.length) {
-          AppState.instance.markPlayed(_ac.queue[idx].id);
+        final track = _getCurrentTrack(idx);
+        if (track != null) {
+          AppState.instance.markPlayed(track.id);
         }
       }
     });
@@ -72,35 +109,105 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     super.dispose();
   }
 
-  Future<void> _loadLyricsForIndex(int idx) async {
-    final queue = _ac.queue;
-    if (idx < 0 || idx >= queue.length) return;
-    final item = queue[idx];
+  _AudioTrackInfo? _getCurrentTrack(int idx) {
+    if (_ac.isPlayingHybrid) {
+      final hq = _ac.hybridQueue;
+      if (idx >= 0 && idx < hq.length) {
+        final item = hq[idx];
+        return _AudioTrackInfo(
+          id: item.id,
+          title: item.title,
+          artist: item.artist,
+          album: item.album ?? 'Custom Playlist',
+          duration: item.duration,
+          imageUrl: item.imageUrl,
+          isOnline: item.isOnline,
+          playlistItem: item,
+        );
+      }
+    } else if (_ac.isPlayingOnline) {
+      final oq = _ac.onlineQueue;
+      if (idx >= 0 && idx < oq.length) {
+        final song = oq[idx];
+        return _AudioTrackInfo(
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          album: song.album.isNotEmpty ? song.album : 'JioSaavn Online',
+          duration: song.duration,
+          imageUrl: song.imageUrl,
+          isOnline: true,
+          onlineSong: song,
+        );
+      }
+    } else {
+      final lq = _ac.queue;
+      if (idx >= 0 && idx < lq.length) {
+        final file = lq[idx];
+        return _AudioTrackInfo(
+          id: file.id,
+          title: file.displayTitle,
+          artist: file.artist ?? 'Local Music',
+          album: file.album ?? 'RV Bhati Player',
+          duration: file.duration,
+          embeddedArt: file.embeddedArt,
+          isOnline: false,
+          mediaFile: file,
+        );
+      }
+    }
+    return null;
+  }
 
-    try {
-      final dot = item.path.lastIndexOf('.');
-      if (dot > 0) {
-        final base = item.path.substring(0, dot);
-        final candidates = ['$base.lrc', '$base.LRC', '$base.txt'];
-        for (final p in candidates) {
-          if (File(p).existsSync()) {
-            final parsed = await LrcParser.parseFile(p);
-            if (parsed.isNotEmpty && mounted) {
-              setState(() {
-                _lyrics = parsed;
-                _lyricsFile = p.split('/').last;
-              });
-              return;
+  Future<void> _loadLyricsForIndex(int idx) async {
+    final track = _getCurrentTrack(idx);
+    if (track == null) return;
+
+    setState(() {
+      _loadingLyrics = true;
+      _lyrics = [];
+      _plainLyrics = null;
+    });
+
+    if (track.isOnline) {
+      try {
+        final lyrics = await SaavnApiService.instance.getLyrics(track.id);
+        if (lyrics != null && lyrics.isNotEmpty && mounted) {
+          setState(() {
+            _plainLyrics = lyrics;
+            _loadingLyrics = false;
+          });
+          return;
+        }
+      } catch (_) {}
+    } else if (track.mediaFile != null) {
+      try {
+        final path = track.mediaFile!.path;
+        final dot = path.lastIndexOf('.');
+        if (dot > 0) {
+          final base = path.substring(0, dot);
+          final candidates = ['$base.lrc', '$base.LRC', '$base.txt'];
+          for (final p in candidates) {
+            if (File(p).existsSync()) {
+              final parsed = await LrcParser.parseFile(p);
+              if (parsed.isNotEmpty && mounted) {
+                setState(() {
+                  _lyrics = parsed;
+                  _loadingLyrics = false;
+                });
+                return;
+              }
             }
           }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
         _lyrics = [];
-        _lyricsFile = null;
+        _plainLyrics = null;
+        _loadingLyrics = false;
       });
     }
   }
@@ -142,66 +249,6 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     _ac.player.setLoopMode(next);
   }
 
-  void _openSleepTimerSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return LiquidGlassContainer(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 16),
-              Text(AppState.instance.tr('sleep_timer'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: [
-                  _timerPill('15 min', 15),
-                  _timerPill('30 min', 30),
-                  _timerPill('45 min', 45),
-                  _timerPill('60 min', 60),
-                  _timerPill(AppState.instance.tr('timer_off'), 0),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _timerPill(String label, int minutes) {
-    final active = AppState.instance.sleepMinutesRemaining == minutes && minutes > 0;
-    return GestureDetector(
-      onTap: () {
-        AppState.instance.setSleepTimer(minutes, () {
-          _ac.player.pause();
-        });
-        Navigator.pop(context);
-      },
-      child: LiquidGlassContainer(
-        borderRadius: BorderRadius.circular(20),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        borderColor: active ? AppState.instance.accentColor : Colors.white12,
-        tint: active ? AppState.instance.accentColor.withValues(alpha: 0.25) : null,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppState.instance.accentColor : Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
   void _openQueueSheet() {
     showModalBottomSheet(
       context: context,
@@ -213,33 +260,55 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           maxChildSize: 0.9,
           minChildSize: 0.4,
           builder: (context, scrollCtrl) {
-            final queue = _ac.queue;
             final currentIdx = _ac.player.currentIndex ?? 0;
+            final count = _ac.isPlayingHybrid
+                ? _ac.hybridQueue.length
+                : (_ac.isPlayingOnline ? _ac.onlineQueue.length : _ac.queue.length);
+
             return LiquidGlassContainer(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
               child: Column(
                 children: [
-                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                   const SizedBox(height: 14),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(AppState.instance.tr('queue'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-                      Text('${queue.length} songs', style: const TextStyle(fontSize: 13, color: Colors.white54)),
+                      Text(
+                        AppState.instance.tr('queue'),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        '$count tracks',
+                        style: const TextStyle(fontSize: 13, color: Colors.white54),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Expanded(
                     child: ListView.builder(
                       controller: scrollCtrl,
-                      itemCount: queue.length,
+                      itemCount: count,
                       itemBuilder: (context, i) {
-                        final song = queue[i];
+                        final track = _getCurrentTrack(i);
+                        if (track == null) return const SizedBox.shrink();
                         final isPlaying = i == currentIdx;
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: GestureDetector(
+                          child: PressableScale(
                             onTap: () {
                               _ac.player.seek(Duration.zero, index: i);
                               Navigator.pop(context);
@@ -256,9 +325,23 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                     child: SizedBox(
                                       width: 44,
                                       height: 44,
-                                      child: song.embeddedArt != null
-                                          ? Image.memory(song.embeddedArt!, fit: BoxFit.cover)
-                                          : ArtBox(seed: song.displayTitle, radius: 0, iconSize: 20),
+                                      child: track.imageUrl != null && track.imageUrl!.isNotEmpty
+                                          ? Image.network(
+                                              track.imageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => ArtBox(
+                                                seed: track.title,
+                                                radius: 0,
+                                                iconSize: 20,
+                                              ),
+                                            )
+                                          : (track.embeddedArt != null
+                                              ? Image.memory(track.embeddedArt!, fit: BoxFit.cover)
+                                              : ArtBox(
+                                                  seed: track.title,
+                                                  radius: 0,
+                                                  iconSize: 20,
+                                                )),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -267,7 +350,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          song.displayTitle,
+                                          track.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
@@ -277,7 +360,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           ),
                                         ),
                                         Text(
-                                          song.artist ?? 'Local Music',
+                                          track.artist,
                                           maxLines: 1,
                                           style: const TextStyle(fontSize: 12, color: Colors.white54),
                                         ),
@@ -325,7 +408,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                 alignment: WrapAlignment.center,
                 children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) {
                   final active = (currentSpeed - s).abs() < 0.01;
-                  return GestureDetector(
+                  return PressableScale(
                     onTap: () {
                       _ac.player.setSpeed(s);
                       Navigator.pop(context);
@@ -354,6 +437,27 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     );
   }
 
+  void _addToPlaylist(BuildContext context, _AudioTrackInfo track) {
+    if (track.playlistItem != null) {
+      AddToPlaylistDialog.showForItem(context, track.playlistItem!);
+    } else if (track.onlineSong != null) {
+      AddToPlaylistDialog.showForOnline(context, track.onlineSong!);
+    } else if (track.mediaFile != null) {
+      AddToPlaylistDialog.showForMedia(context, track.mediaFile!);
+    } else {
+      final item = PlaylistItem(
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        duration: track.duration,
+        isOnline: track.isOnline,
+        imageUrl: track.imageUrl,
+      );
+      AddToPlaylistDialog.showForItem(context, item);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = _ac.player;
@@ -365,23 +469,30 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           body: StreamBuilder<int?>(
             stream: player.currentIndexStream,
             builder: (context, snap) {
-              final queue = _ac.queue;
-              if (queue.isEmpty) return const SizedBox.shrink();
-              final idx = (snap.data ?? widget.startIndex).clamp(0, queue.length - 1).toInt();
-              final item = queue[idx];
-              final isFav = AppState.instance.isFavorite(item.id);
+              final idx = (snap.data ?? widget.startIndex);
+              final track = _getCurrentTrack(idx);
+              if (track == null) {
+                return Stack(
+                  children: [
+                    Positioned.fill(child: LiquidBackground(accent: appAccent)),
+                    const Center(child: CircularProgressIndicator(color: Colors.white)),
+                  ],
+                );
+              }
+
+              final isFav = AppState.instance.isFavorite(track.id);
 
               return Stack(
                 children: [
                   Positioned.fill(child: LiquidBackground(accent: appAccent)),
-                  // Blurred album art reflection
-                  Positioned.fill(child: _BlurredArt(item: item)),
+                  // Ambient reflection
+                  Positioned.fill(child: _BlurredArt(track: track)),
                   SafeArea(
                     child: LayoutBuilder(
                       builder: (context, box) {
                         final artSize = math.max(
-                          130.0,
-                          math.min(box.maxWidth - 80, box.maxHeight * 0.36),
+                          140.0,
+                          math.min(box.maxWidth - 70, box.maxHeight * 0.35),
                         );
                         return Padding(
                           padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
@@ -396,20 +507,40 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                   onTap: () => Navigator.of(context).maybePop(),
                                 ),
                                 actions: [
-                                  // Sleep timer
+                                  // Equalizer button
                                   LiquidGlassButton(
-                                    icon: Icons.timer_outlined,
+                                    icon: Icons.tune_rounded,
+                                    size: 44,
+                                    iconSize: 20,
+                                    tint: EqualizerService.instance.isEnabled ? appAccent : null,
+                                    onTap: () => EqualizerSheet.show(context),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  // Sleep timer with countdown badge
+                                  LiquidGlassButton(
+                                    icon: Icons.bedtime_rounded,
+                                    size: 44,
+                                    iconSize: 20,
+                                    tint: AppState.instance.isSleepTimerActive ? appAccent : null,
+                                    label: AppState.instance.isSleepTimerActive
+                                        ? AppState.instance.sleepTimerFormatted
+                                        : null,
+                                    onTap: () => SleepTimerSheet.show(context),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  // Add to Custom Playlist
+                                  LiquidGlassButton(
+                                    icon: Icons.playlist_add_rounded,
                                     size: 44,
                                     iconSize: 22,
-                                    tint: AppState.instance.isSleepTimerActive ? appAccent : null,
-                                    onTap: _openSleepTimerSheet,
+                                    onTap: () => _addToPlaylist(context, track),
                                   ),
                                   const SizedBox(width: 6),
                                   // Queue
                                   LiquidGlassButton(
                                     icon: Icons.queue_music_rounded,
                                     size: 44,
-                                    iconSize: 22,
+                                    iconSize: 20,
                                     onTap: _openQueueSheet,
                                   ),
                                 ],
@@ -425,9 +556,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                 GestureDetector(
                                   onTap: () => setState(() => _showLyrics = !_showLyrics),
                                   child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 400),
+                                    duration: const Duration(milliseconds: 350),
                                     child: LiquidGlassContainer(
-                                      key: ValueKey('${item.id}_${item.embeddedArt != null}'),
+                                      key: ValueKey('${track.id}_${track.imageUrl}_${track.embeddedArt != null}'),
                                       borderRadius: BorderRadius.circular(40),
                                       padding: const EdgeInsets.all(12),
                                       child: SizedBox(
@@ -435,13 +566,23 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                         height: artSize,
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(30),
-                                          child: item.embeddedArt != null
-                                              ? Image.memory(item.embeddedArt!, fit: BoxFit.cover)
-                                              : ArtBox(
-                                                  seed: item.displayTitle,
-                                                  radius: 0,
-                                                  iconSize: artSize * 0.35,
-                                                ),
+                                          child: track.imageUrl != null && track.imageUrl!.isNotEmpty
+                                              ? Image.network(
+                                                  track.imageUrl!,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => ArtBox(
+                                                    seed: track.title,
+                                                    radius: 0,
+                                                    iconSize: artSize * 0.35,
+                                                  ),
+                                                )
+                                              : (track.embeddedArt != null
+                                                  ? Image.memory(track.embeddedArt!, fit: BoxFit.cover)
+                                                  : ArtBox(
+                                                      seed: track.title,
+                                                      radius: 0,
+                                                      iconSize: artSize * 0.35,
+                                                    )),
                                         ),
                                       ),
                                     ),
@@ -457,7 +598,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          item.displayTitle,
+                                          track.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
@@ -468,7 +609,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          item.artist ?? (item.album ?? 'Local Music'),
+                                          track.artist,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
@@ -484,7 +625,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                     size: 44,
                                     iconSize: 24,
                                     tint: isFav ? const Color(0xFFFF2A85) : null,
-                                    onTap: () => AppState.instance.toggleFavorite(item.id),
+                                    onTap: () => AppState.instance.toggleFavorite(track.id),
                                   ),
                                   const SizedBox(width: 6),
                                   LiquidGlassButton(
@@ -503,7 +644,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                   stream: player.positionStream,
                                   builder: (context, p) => GlassSeekBar(
                                     position: p.data ?? Duration.zero,
-                                    duration: d.data ?? item.duration,
+                                    duration: d.data ?? track.duration,
                                     accent: appAccent,
                                     onSeek: player.seek,
                                   ),
@@ -629,65 +770,126 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   }
 
   Widget _buildLyricsView(AudioPlayer player) {
-    if (_lyrics.isEmpty) {
+    if (_loadingLyrics) {
       return Center(
         child: LiquidGlassContainer(
           borderRadius: BorderRadius.circular(24),
           padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.music_note_rounded, color: Colors.white54, size: 36),
-              const SizedBox(height: 8),
-              Text(
-                AppState.instance.tr('no_lyrics'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.white70),
-              ),
-            ],
-          ),
+          child: const CircularProgressIndicator(color: Colors.white),
         ),
       );
     }
 
-    return StreamBuilder<Duration>(
-      stream: player.positionStream,
-      builder: (context, posSnap) {
-        final currentPos = posSnap.data ?? Duration.zero;
-        final activeIdx = LrcParser.findActiveIndex(_lyrics, currentPos);
-
-        return ListView.builder(
+    // JioSaavn plain lyrics
+    if (_plainLyrics != null && _plainLyrics!.isNotEmpty) {
+      final lines = _plainLyrics!.split('\n');
+      return LiquidGlassContainer(
+        borderRadius: BorderRadius.circular(28),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: ListView.builder(
           controller: _lyricsScroll,
-          itemCount: _lyrics.length,
+          physics: const BouncingScrollPhysics(),
+          itemCount: lines.length,
           itemBuilder: (context, i) {
-            final line = _lyrics[i];
-            final isActive = i == activeIdx;
+            final line = lines[i].trim();
+            if (line.isEmpty) return const SizedBox(height: 12);
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text(
-                line.text,
+                line,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: isActive ? 20 : 15,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                  color: isActive ? AppState.instance.accentColor : Colors.white38,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  letterSpacing: 0.3,
+                  shadows: [
+                    Shadow(color: Colors.black54, blurRadius: 4),
+                  ],
                 ),
               ),
             );
           },
-        );
-      },
+        ),
+      );
+    }
+
+    // Local synced LRC lyrics
+    if (_lyrics.isNotEmpty) {
+      return StreamBuilder<Duration>(
+        stream: player.positionStream,
+        builder: (context, posSnap) {
+          final currentPos = posSnap.data ?? Duration.zero;
+          final activeIdx = LrcParser.findActiveIndex(_lyrics, currentPos);
+
+          return LiquidGlassContainer(
+            borderRadius: BorderRadius.circular(28),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: ListView.builder(
+              controller: _lyricsScroll,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _lyrics.length,
+              itemBuilder: (context, i) {
+                final line = _lyrics[i];
+                final isActive = i == activeIdx;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 250),
+                    style: TextStyle(
+                      fontSize: isActive ? 21 : 15,
+                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w400,
+                      color: isActive ? AppState.instance.accentColor : Colors.white38,
+                      shadows: isActive
+                          ? [
+                              Shadow(
+                                color: AppState.instance.accentColor.withValues(alpha: 0.6),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Text(
+                      line.text,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      );
+    }
+
+    return Center(
+      child: LiquidGlassContainer(
+        borderRadius: BorderRadius.circular(24),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.music_note_rounded, color: Colors.white54, size: 36),
+            const SizedBox(height: 8),
+            Text(
+              AppState.instance.tr('no_lyrics'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _BlurredArt extends StatelessWidget {
-  const _BlurredArt({required this.item});
-  final MediaFile item;
+  const _BlurredArt({required this.track});
+  final _AudioTrackInfo track;
 
   @override
   Widget build(BuildContext context) {
-    final accent = accentFor(item.displayTitle);
+    final accent = accentFor(track.title);
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(

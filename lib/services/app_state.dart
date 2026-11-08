@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../models/media_file.dart';
+import '../models/playlist_item.dart';
+import 'equalizer_service.dart';
 
 enum AppLanguage { en, hi }
 
@@ -91,19 +93,19 @@ class AppStrings {
     },
     'sort_date_desc': {
       'en': 'Date (Newest first)',
-      'hi': 'तारीख (नए पहले)',
+      'hi': 'तारीख (नई पहले)',
     },
     'sort_date_asc': {
       'en': 'Date (Oldest first)',
-      'hi': 'तारीख (पुराने पहले)',
+      'hi': 'तारीख (पुरानी पहले)',
     },
     'sort_duration_desc': {
-      'en': 'Duration (Longest first)',
-      'hi': 'अवधि (लंबे पहले)',
+      'en': 'Duration (Longest)',
+      'hi': 'अवधि (सबसे लंबी)',
     },
     'sort_duration_asc': {
-      'en': 'Duration (Shortest first)',
-      'hi': 'अवधि (छोटे पहले)',
+      'en': 'Duration (Shortest)',
+      'hi': 'अवधि (सबसे छोटी)',
     },
     'no_videos': {
       'en': 'No videos found',
@@ -114,8 +116,8 @@ class AppStrings {
       'hi': 'कोई गाना नहीं मिला',
     },
     'no_favorites': {
-      'en': 'No favorite songs yet',
-      'hi': 'कोई पसंदीदा गाना नहीं है',
+      'en': 'No favorites added yet',
+      'hi': 'अभी तक कोई पसंदीदा नहीं जोड़ा',
     },
     'no_playlists': {
       'en': 'No playlists created',
@@ -145,9 +147,25 @@ class AppStrings {
       'en': 'Sleep Timer',
       'hi': 'स्लीप टाइमर',
     },
+    'end_of_song': {
+      'en': 'End of this song',
+      'hi': 'इस गाने के अंत में',
+    },
     'timer_off': {
       'en': 'Turn Off',
       'hi': 'बंद करें',
+    },
+    'equalizer': {
+      'en': 'Equalizer & Bass',
+      'hi': 'इक्वलाइज़र और बास',
+    },
+    'bass_boost': {
+      'en': 'Bass Booster',
+      'hi': 'बास बूस्टर',
+    },
+    'virtualizer': {
+      'en': '3D Surround Sound',
+      'hi': '3D सराउंड साउंड',
     },
     'speed': {
       'en': 'Playback Speed',
@@ -178,8 +196,8 @@ class AppStrings {
       'hi': 'गीत के बोल',
     },
     'no_lyrics': {
-      'en': 'No .lrc lyrics file found for this song',
-      'hi': 'इस गाने के लिए कोई .lrc फ़ाइल नहीं मिली',
+      'en': 'No lyrics available for this track',
+      'hi': 'इस गाने के बोल उपलब्ध नहीं हैं',
     },
     'resumed_playback': {
       'en': 'Resumed from',
@@ -226,6 +244,10 @@ class AppState extends ChangeNotifier {
   final Map<String, List<String>> _playlists = {};
   Map<String, List<String>> get playlists => _playlists;
 
+  // Hybrid Custom Playlists containing both local and online tracks
+  final Map<String, List<PlaylistItem>> _customPlaylists = {};
+  Map<String, List<PlaylistItem>> get customPlaylists => Map.unmodifiable(_customPlaylists);
+
   final List<String> _recentlyPlayed = [];
   List<String> get recentlyPlayed => _recentlyPlayed;
 
@@ -236,7 +258,19 @@ class AppState extends ChangeNotifier {
   DateTime? _sleepTargetTime;
   int _sleepMinutesRemaining = 0;
   int get sleepMinutesRemaining => _sleepMinutesRemaining;
-  bool get isSleepTimerActive => _sleepMinutesRemaining > 0;
+  bool _sleepEndOfSong = false;
+  bool get isSleepEndOfSong => _sleepEndOfSong;
+  bool get isSleepTimerActive => _sleepMinutesRemaining > 0 || _sleepEndOfSong;
+
+  String get sleepTimerFormatted {
+    if (_sleepEndOfSong) return 'End of Song';
+    if (_sleepTargetTime == null) return '';
+    final diff = _sleepTargetTime!.difference(DateTime.now());
+    if (diff.isNegative) return '';
+    final m = diff.inMinutes;
+    final s = diff.inSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
 
   File? _storageFile;
 
@@ -275,11 +309,33 @@ class AppState extends ChangeNotifier {
             }
           }
         }
+        if (map['customPlaylists'] is Map) {
+          final cp = map['customPlaylists'] as Map<String, dynamic>;
+          for (final e in cp.entries) {
+            if (e.value is List) {
+              _customPlaylists[e.key] = (e.value as List)
+                  .map((item) => PlaylistItem.fromJson(item as Map<String, dynamic>))
+                  .toList();
+            }
+          }
+        }
         if (map['videoPositions'] is Map) {
           final vp = map['videoPositions'] as Map<String, dynamic>;
           for (final e in vp.entries) {
             _videoPositions[e.key] = (e.value as num).toInt();
           }
+        }
+
+        // Initialize Equalizer from storage
+        if (map['eq_enabled'] != null) {
+          EqualizerService.instance.initFromStorage(
+            isEnabled: map['eq_enabled'] as bool?,
+            preset: map['eq_preset'] as String?,
+            bands: (map['eq_bands'] as List?)?.cast<int>(),
+            bass: map['eq_bass'] as int?,
+            virtualizer: map['eq_virtualizer'] as int?,
+            surround: map['eq_surround'] as bool?,
+          );
         }
       }
     } catch (_) {}
@@ -289,13 +345,23 @@ class AppState extends ChangeNotifier {
   void _save() {
     try {
       if (_storageFile == null) return;
+      final eq = EqualizerService.instance;
       final data = {
         'language': _language == AppLanguage.hi ? 'hi' : 'en',
         'accent': _accentColor.toARGB32(),
         'favorites': _favorites.toList(),
         'recentlyPlayed': _recentlyPlayed,
         'playlists': _playlists,
+        'customPlaylists': _customPlaylists.map(
+          (k, v) => MapEntry(k, v.map((item) => item.toJson()).toList()),
+        ),
         'videoPositions': _videoPositions,
+        'eq_enabled': eq.isEnabled,
+        'eq_preset': eq.currentPreset,
+        'eq_bands': eq.bands,
+        'eq_bass': eq.bassStrength,
+        'eq_virtualizer': eq.virtualizerStrength,
+        'eq_surround': eq.surround3D,
       };
       _storageFile!.writeAsStringSync(jsonEncode(data));
     } catch (_) {}
@@ -327,9 +393,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Hybrid Custom Playlists ---
   void createPlaylist(String name) {
-    if (name.trim().isEmpty) return;
-    _playlists.putIfAbsent(name.trim(), () => []);
+    final clean = name.trim();
+    if (clean.isEmpty) return;
+    _playlists.putIfAbsent(clean, () => []);
+    _customPlaylists.putIfAbsent(clean, () => []);
+    _save();
+    notifyListeners();
+  }
+
+  void deletePlaylist(String playlistName) {
+    _playlists.remove(playlistName);
+    _customPlaylists.remove(playlistName);
     _save();
     notifyListeners();
   }
@@ -343,19 +419,23 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void removeFromPlaylist(String playlistName, String pathOrId) {
-    final list = _playlists[playlistName];
-    if (list != null) {
-      list.remove(pathOrId);
+  void addToCustomPlaylist(String playlistName, PlaylistItem item) {
+    _customPlaylists.putIfAbsent(playlistName, () => []);
+    final list = _customPlaylists[playlistName]!;
+    if (!list.any((t) => t.id == item.id)) {
+      list.add(item);
       _save();
       notifyListeners();
     }
   }
 
-  void deletePlaylist(String playlistName) {
-    _playlists.remove(playlistName);
-    _save();
-    notifyListeners();
+  void removeFromCustomPlaylist(String playlistName, String itemId) {
+    final list = _customPlaylists[playlistName];
+    if (list != null) {
+      list.removeWhere((t) => t.id == itemId);
+      _save();
+      notifyListeners();
+    }
   }
 
   void markPlayed(String pathOrId) {
@@ -382,12 +462,19 @@ class AppState extends ChangeNotifier {
   }
 
   // --- Sleep timer ---
-  void setSleepTimer(int minutes, VoidCallback onTrigger) {
+  void setSleepTimer(int minutes, VoidCallback onTrigger, {bool endOfSong = false}) {
     _sleepTimer?.cancel();
-    if (minutes <= 0) {
+    _sleepEndOfSong = endOfSong;
+
+    if (endOfSong) {
       _sleepMinutesRemaining = 0;
       _sleepTargetTime = null;
       notifyListeners();
+      return;
+    }
+
+    if (minutes <= 0) {
+      cancelSleepTimer();
       return;
     }
 
@@ -405,16 +492,30 @@ class AppState extends ChangeNotifier {
         timer.cancel();
         _sleepMinutesRemaining = 0;
         _sleepTargetTime = null;
+        _sleepEndOfSong = false;
         onTrigger();
         notifyListeners();
       } else {
         final mins = (diff.inSeconds / 60).ceil();
         if (mins != _sleepMinutesRemaining) {
           _sleepMinutesRemaining = mins;
-          notifyListeners();
         }
+        notifyListeners();
       }
     });
+  }
+
+  void cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepMinutesRemaining = 0;
+    _sleepTargetTime = null;
+    _sleepEndOfSong = false;
+    notifyListeners();
+  }
+
+  void saveEqualizer() {
+    _save();
   }
 
   String tr(String key) => AppStrings.get(key, _language);
