@@ -68,7 +68,7 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: app.isLight ? Colors.black12 : Colors.white24,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -91,9 +91,9 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppState.instance.tr('equalizer'),
-                        style: const TextStyle(
-                          color: Colors.white,
+                        app.tr('equalizer'),
+                        style: TextStyle(
+                          color: app.textColor,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.3,
@@ -104,7 +104,7 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                         style: TextStyle(
                           color: _eq.isEnabled
                               ? accent
-                              : Colors.white.withValues(alpha: 0.4),
+                              : app.secondaryTextColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -123,12 +123,12 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                     decoration: BoxDecoration(
                       color: _eq.isEnabled
                           ? accent.withValues(alpha: 0.25)
-                          : Colors.white.withValues(alpha: 0.08),
+                          : (app.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08)),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _eq.isEnabled
                             ? accent.withValues(alpha: 0.6)
-                            : Colors.white.withValues(alpha: 0.15),
+                            : (app.isLight ? Colors.black.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.15)),
                       ),
                     ),
                     child: Row(
@@ -137,13 +137,13 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                         Icon(
                           Icons.power_settings_new_rounded,
                           size: 14,
-                          color: _eq.isEnabled ? accent : Colors.white60,
+                          color: _eq.isEnabled ? accent : app.secondaryTextColor,
                         ),
                         const SizedBox(width: 5),
                         Text(
                           _eq.isEnabled ? 'ON' : 'OFF',
                           style: TextStyle(
-                            color: _eq.isEnabled ? Colors.white : Colors.white60,
+                            color: _eq.isEnabled ? Colors.white : app.secondaryTextColor,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -159,10 +159,10 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                   child: Container(
                     padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
+                      color: app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                    child: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 18),
                   ),
                 ),
               ],
@@ -197,19 +197,19 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                                   end: Alignment.bottomRight,
                                 )
                               : null,
-                          color: isSelected ? null : Colors.white.withValues(alpha: 0.07),
+                          color: isSelected ? null : (app.isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.07)),
                           borderRadius: BorderRadius.circular(17),
                           border: Border.all(
                             color: isSelected
                                 ? Colors.white.withValues(alpha: 0.4)
-                                : Colors.white.withValues(alpha: 0.12),
+                                : (app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12)),
                           ),
                         ),
                         child: Center(
                           child: Text(
                             presetName,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white70,
+                              color: isSelected ? Colors.white : app.textColor,
                               fontSize: 12,
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                             ),
@@ -328,6 +328,7 @@ class _IosBandSlider extends StatelessWidget {
       builder: (context, constraints) {
         const double sliderHeight = 140.0;
         const double sliderWidth = 52.0;
+        final app = AppState.instance;
 
         return Column(
           children: [
@@ -335,7 +336,7 @@ class _IosBandSlider extends StatelessWidget {
             Text(
               '${dbStr}dB',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
+                color: app.secondaryTextColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -357,9 +358,9 @@ class _IosBandSlider extends StatelessWidget {
                 height: sliderHeight,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(26),
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: app.isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.08),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.15),
                     width: 1.2,
                   ),
                 ),
@@ -394,7 +395,7 @@ class _IosBandSlider extends StatelessWidget {
                         right: 8,
                         child: Container(
                           height: 1,
-                          color: Colors.white.withValues(alpha: 0.25),
+                          color: app.isLight ? Colors.black26 : Colors.white.withValues(alpha: 0.25),
                         ),
                       ),
                     ],
@@ -407,8 +408,8 @@ class _IosBandSlider extends StatelessWidget {
             // Frequency label
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white70,
+              style: TextStyle(
+                color: app.textColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -439,12 +440,13 @@ class _EffectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: app.isLight ? Colors.black.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,8 +460,8 @@ class _EffectCard extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: app.textColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -497,7 +499,7 @@ class _EffectCard extends StatelessWidget {
             child: Container(
               height: 24,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: app.isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ClipRRect(
@@ -541,15 +543,16 @@ class _SurroundCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: app.isLight ? Colors.black.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isActive
               ? accent.withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.12),
+              : (app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12)),
         ),
       ),
       child: Column(
@@ -559,7 +562,7 @@ class _SurroundCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.surround_sound_rounded,
-                color: isActive ? accent : Colors.white60,
+                color: isActive ? accent : app.secondaryTextColor,
                 size: 16,
               ),
               const SizedBox(width: 6),
@@ -568,8 +571,8 @@ class _SurroundCard extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: app.textColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -585,7 +588,7 @@ class _SurroundCard extends StatelessWidget {
                   height: 18,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: isActive ? accent : Colors.white.withValues(alpha: 0.15),
+                    color: isActive ? accent : (app.isLight ? Colors.black.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.15)),
                   ),
                   alignment: isActive ? Alignment.centerRight : Alignment.centerLeft,
                   padding: const EdgeInsets.all(2),
@@ -627,7 +630,7 @@ class _SurroundCard extends StatelessWidget {
             child: Container(
               height: 24,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: app.isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ClipRRect(

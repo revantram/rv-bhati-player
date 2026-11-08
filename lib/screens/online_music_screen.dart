@@ -169,7 +169,8 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   // --- 1. Live Floating Spotlight Search Bar ---
   Widget _buildSpotlightSearchBar() {
-    final accent = AppState.instance.accentColor;
+    final app = AppState.instance;
+    final accent = app.accentColor;
 
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
@@ -182,7 +183,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         children: [
           Icon(
             Icons.search_rounded,
-            color: _isSearching ? accent : Colors.white60,
+            color: _isSearching ? accent : app.secondaryTextColor,
             size: 22,
           ),
           const SizedBox(width: 10),
@@ -190,11 +191,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             child: TextField(
               controller: _searchCtrl,
               onChanged: _onSearchChanged,
-              style: const TextStyle(color: Colors.white, fontSize: 14.5),
+              style: TextStyle(color: app.textColor, fontSize: 14.5),
               decoration: InputDecoration(
-                hintText: AppState.instance.tr('search_online'),
+                hintText: app.tr('search_online'),
                 hintStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: app.secondaryTextColor.withValues(alpha: 0.6),
                   fontSize: 14,
                 ),
                 border: InputBorder.none,
@@ -220,10 +221,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close_rounded, color: Colors.white70, size: 16),
+                child: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 16),
               ),
             ),
         ],
@@ -233,10 +234,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   // --- Search Results List View ---
   Widget _buildSearchResultsView() {
+    final app = AppState.instance;
     if (_loadingSearch && _searchResults.isEmpty) {
       return Center(
         child: CircularProgressIndicator(
-          color: AppState.instance.accentColor,
+          color: app.accentColor,
         ),
       );
     }
@@ -246,16 +248,16 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.4)),
+            Icon(Icons.search_off_rounded, size: 48, color: app.secondaryTextColor.withValues(alpha: 0.6)),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'No online songs found',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(color: app.textColor, fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
               'Try searching for another song, movie or singer.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+              style: TextStyle(color: app.secondaryTextColor, fontSize: 13),
             ),
           ],
         ),
@@ -279,6 +281,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   // --- Category Specific View (New Hits / Old Is Gold) ---
   Widget _buildCategoryView() {
+    final app = AppState.instance;
     return Column(
       children: [
         Padding(
@@ -295,10 +298,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               Expanded(
                 child: Text(
                   _selectedCategory!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: app.textColor,
                   ),
                 ),
               ),
@@ -366,12 +369,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             children: [
               Icon(Icons.whatshot_rounded, size: 20, color: app.accentColor),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Popular Right Now',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: app.textColor,
                 ),
               ),
             ],
@@ -402,7 +405,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   // --- 2. Curated Era Folders ---
   Widget _buildCuratedEraFolders() {
-    final accent = AppState.instance.accentColor;
+    final app = AppState.instance;
 
     return Row(
       children: [
@@ -422,9 +425,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [Color(0xFFFF2A85), Color(0xFFFF7043)],
                       ),
                     ),
@@ -435,12 +438,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'New Hits',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: app.textColor,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -450,7 +453,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: app.secondaryTextColor,
                           ),
                         ),
                       ],
@@ -478,9 +481,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [Color(0xFFFFB300), Color(0xFFFF8F00)],
                       ),
                     ),
@@ -491,12 +494,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Old Is Gold',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: app.textColor,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -506,7 +509,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: app.secondaryTextColor,
                           ),
                         ),
                       ],
@@ -523,23 +526,24 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   // --- Dynamic Mood & Regional Playlists ---
   Widget _buildMoodAndRegionalPlaylists() {
+    final app = AppState.instance;
     final categories = SaavnApiService.moodCategories;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           child: Row(
             children: [
-              Text('✨', style: TextStyle(fontSize: 16)),
-              SizedBox(width: 8),
+              const Text('✨', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
               Text(
                 'Mood & Regional Classics',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: app.textColor,
                 ),
               ),
             ],
@@ -581,7 +585,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -602,12 +606,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.12),
+                                color: app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.arrow_forward_ios_rounded,
                                 size: 10,
-                                color: Colors.white70,
+                                color: app.isLight ? app.textColor : Colors.white70,
                               ),
                             ),
                           ],
@@ -619,10 +623,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                               cat['title']!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: app.textColor,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -632,7 +636,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 10.5,
-                                color: Colors.white.withValues(alpha: 0.65),
+                                color: app.secondaryTextColor,
                               ),
                             ),
                           ],
@@ -662,12 +666,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             children: [
               Icon(Icons.auto_awesome_rounded, size: 19, color: app.accentColor),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Top Trending Chartbusters',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: app.textColor,
                 ),
               ),
             ],
@@ -709,9 +713,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                                           song.imageUrl,
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) => ColoredBox(
-                                            color: Colors.white10,
-                                            child: const Icon(Icons.music_note_rounded,
-                                                color: Colors.white54, size: 32),
+                                            color: app.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10,
+                                            child: Icon(Icons.music_note_rounded,
+                                                color: app.secondaryTextColor, size: 32),
                                           ),
                                         ),
                                       ),
@@ -743,10 +747,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                                   song.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                    color: app.textColor,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -756,7 +760,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.white.withValues(alpha: 0.6),
+                                    color: app.secondaryTextColor,
                                   ),
                                 ),
                               ],
@@ -790,12 +794,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             children: [
               Icon(Icons.mic_external_on_rounded, size: 20, color: app.accentColor),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Curated Singer Hub',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: app.textColor,
                 ),
               ),
             ],
@@ -816,7 +820,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   child: LiquidGlassContainer(
                     borderRadius: BorderRadius.circular(16),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    borderColor: active ? app.accentColor : Colors.white12,
+                    borderColor: active ? app.accentColor : (app.isLight ? Colors.black.withValues(alpha: 0.1) : Colors.white12),
                     tint: active ? app.accentColor.withValues(alpha: 0.22) : null,
                     blur: 0,
                     glow: false,
@@ -825,7 +829,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                        color: active ? app.accentColor : Colors.white70,
+                        color: active ? app.accentColor : (app.isLight ? app.textColor : Colors.white70),
                       ),
                     ),
                   ),
@@ -873,8 +877,8 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(
                               color: app.accentColor.withValues(alpha: 0.2),
-                              child: const Icon(Icons.person_rounded,
-                                  color: Colors.white70, size: 36),
+                              child: Icon(Icons.person_rounded,
+                                  color: app.secondaryTextColor, size: 36),
                             ),
                           ),
                         ),
@@ -887,10 +891,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                           maxLines: 1,
                           textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: app.textColor,
                           ),
                         ),
                       ),
@@ -988,7 +992,7 @@ class _OnlineSongTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
-                      color: isCurrent ? app.accentColor : Colors.white,
+                      color: isCurrent ? app.accentColor : app.textColor,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -998,7 +1002,7 @@ class _OnlineSongTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.65),
+                      color: app.secondaryTextColor,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1007,7 +1011,7 @@ class _OnlineSongTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: app.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -1020,7 +1024,7 @@ class _OnlineSongTile extends StatelessWidget {
                         formatDuration(song.duration),
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: app.secondaryTextColor,
                         ),
                       ),
                     ],
@@ -1033,7 +1037,7 @@ class _OnlineSongTile extends StatelessWidget {
             IconButton(
               icon: Icon(
                 isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: isFav ? const Color(0xFFFF2A85) : Colors.white38,
+                color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
                 size: 22,
               ),
               onPressed: () => app.toggleFavorite(song.id),
@@ -1041,8 +1045,8 @@ class _OnlineSongTile extends StatelessWidget {
 
             // Three-dot Action Menu
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 20),
-              color: const Color(0xFF14192B),
+              icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),
+              color: app.isLight ? Colors.white : const Color(0xFF14192B),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onSelected: (val) {
                 if (val == 'play_now') {
@@ -1062,43 +1066,43 @@ class _OnlineSongTile extends StatelessWidget {
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'play_now',
                   child: Row(
                     children: [
-                      Icon(Icons.play_arrow_rounded, color: Colors.white70, size: 20),
-                      SizedBox(width: 10),
-                      Text('Play Now', style: TextStyle(color: Colors.white)),
+                      Icon(Icons.play_arrow_rounded, color: app.secondaryTextColor, size: 20),
+                      const SizedBox(width: 10),
+                      Text('Play Now', style: TextStyle(color: app.textColor)),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'play_next',
                   child: Row(
                     children: [
-                      Icon(Icons.playlist_play_rounded, color: Colors.white70, size: 20),
-                      SizedBox(width: 10),
-                      Text('Play Next', style: TextStyle(color: Colors.white)),
+                      Icon(Icons.playlist_play_rounded, color: app.secondaryTextColor, size: 20),
+                      const SizedBox(width: 10),
+                      Text('Play Next', style: TextStyle(color: app.textColor)),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'add_queue',
                   child: Row(
                     children: [
-                      Icon(Icons.queue_music_rounded, color: Colors.white70, size: 20),
-                      SizedBox(width: 10),
-                      Text('Add to Queue', style: TextStyle(color: Colors.white)),
+                      Icon(Icons.queue_music_rounded, color: app.secondaryTextColor, size: 20),
+                      const SizedBox(width: 10),
+                      Text('Add to Queue', style: TextStyle(color: app.textColor)),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'add_playlist',
                   child: Row(
                     children: [
-                      Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 20),
-                      SizedBox(width: 10),
-                      Text('Add to Custom Playlist', style: TextStyle(color: Colors.white)),
+                      Icon(Icons.playlist_add_rounded, color: app.secondaryTextColor, size: 20),
+                      const SizedBox(width: 10),
+                      Text('Add to Custom Playlist', style: TextStyle(color: app.textColor)),
                     ],
                   ),
                 ),
@@ -1142,13 +1146,14 @@ class _ArtistSongsSheetState extends State<_ArtistSongsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = AppState.instance.accentColor;
+    final app = AppState.instance;
+    final accent = app.accentColor;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.82,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0D1224),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: app.isLight ? const Color(0xFFF2F4F7) : const Color(0xFF0D1224),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         children: [
@@ -1158,7 +1163,7 @@ class _ArtistSongsSheetState extends State<_ArtistSongsSheet> {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: app.isLight ? Colors.black12 : Colors.white24,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1180,7 +1185,7 @@ class _ArtistSongsSheetState extends State<_ArtistSongsSheet> {
                     child: Image.network(
                       widget.artist.avatarUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white54),
+                      errorBuilder: (_, __, ___) => Icon(Icons.person, color: app.secondaryTextColor),
                     ),
                   ),
                 ),
@@ -1191,10 +1196,10 @@ class _ArtistSongsSheetState extends State<_ArtistSongsSheet> {
                     children: [
                       Text(
                         widget.artist.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: app.textColor,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -1202,7 +1207,7 @@ class _ArtistSongsSheetState extends State<_ArtistSongsSheet> {
                         widget.artist.subtitle,
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: app.secondaryTextColor,
                         ),
                       ),
                     ],
@@ -1223,16 +1228,16 @@ class _ArtistSongsSheetState extends State<_ArtistSongsSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          const Divider(color: Colors.white12, height: 1),
+          Divider(color: app.isLight ? Colors.black12 : Colors.white12, height: 1),
 
           // Songs List
           Expanded(
             child: _loading
                 ? Center(child: CircularProgressIndicator(color: accent))
                 : _songs.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text('No songs found for this artist',
-                            style: TextStyle(color: Colors.white60)),
+                            style: TextStyle(color: app.secondaryTextColor)),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),

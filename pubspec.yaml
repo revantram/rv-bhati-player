@@ -1,7 +1,7 @@
 name: rv_bhati_player
 description: RV Bhati Player - Liquid Glass video and MP3 player.
 publish_to: "none"
-version: 1.1.7+9
+version: 1.1.8+10
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

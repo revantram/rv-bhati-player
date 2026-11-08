@@ -199,9 +199,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: app.isLight ? Colors.black12 : Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(height: 16),
-              Text(app.tr('sort_by'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+              Text(
+                app.tr('sort_by'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: app.textColor,
+                ),
+              ),
               const SizedBox(height: 16),
               _sortItem(SortOption.dateDesc, app.tr('sort_date_desc')),
               _sortItem(SortOption.dateAsc, app.tr('sort_date_asc')),
@@ -217,6 +231,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _sortItem(SortOption opt, String label) {
+    final app = AppState.instance;
     final active = _sortOption == opt;
     return GestureDetector(
       onTap: () {
@@ -227,13 +242,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: active ? AppState.instance.accentColor.withValues(alpha: 0.2) : Colors.transparent,
+          color: active ? app.accentColor.withValues(alpha: 0.2) : Colors.transparent,
         ),
         child: Row(
           children: [
             Icon(
               active ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-              color: active ? AppState.instance.accentColor : Colors.white54,
+              color: active ? app.accentColor : app.secondaryTextColor,
               size: 20,
             ),
             const SizedBox(width: 14),
@@ -242,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? AppState.instance.accentColor : Colors.white,
+                color: active ? app.accentColor : app.textColor,
               ),
             ),
           ],
@@ -253,6 +268,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // --- Accent Palette Sheet ---
   void _openPaletteSheet() {
+    final app = AppState.instance;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -263,19 +279,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: app.isLight ? Colors.black12 : Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(height: 16),
-              Text(AppState.instance.tr('theme_color'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+              Text(
+                app.tr('theme_color'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: app.textColor,
+                ),
+              ),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 16,
                 runSpacing: 16,
                 alignment: WrapAlignment.center,
                 children: AppState.accentOptions.map((c) {
-                  final active = AppState.instance.accentColor == c;
+                  final active = app.accentColor == c;
                   return GestureDetector(
                     onTap: () {
-                      AppState.instance.setAccentColor(c);
+                      app.setAccentColor(c);
                       Navigator.pop(context);
                     },
                     child: Container(
@@ -285,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         color: c,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: active ? Colors.white : Colors.transparent,
+                          color: active ? (app.isLight ? Colors.black87 : Colors.white) : Colors.transparent,
                           width: 3,
                         ),
                         boxShadow: [
@@ -310,38 +340,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // --- Create Playlist Dialog ---
   void _showCreatePlaylistDialog() {
+    final app = AppState.instance;
     final textCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF14192B),
+          backgroundColor: app.isLight ? Colors.white : const Color(0xFF14192B),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Text(AppState.instance.tr('create_playlist'), style: const TextStyle(color: Colors.white)),
+          title: Text(
+            app.tr('create_playlist'),
+            style: TextStyle(color: app.textColor, fontWeight: FontWeight.w700),
+          ),
           content: TextField(
             controller: textCtrl,
             autofocus: true,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: app.textColor),
             decoration: InputDecoration(
-              hintText: AppState.instance.tr('playlist_name'),
-              hintStyle: const TextStyle(color: Colors.white38),
+              hintText: app.tr('playlist_name'),
+              hintStyle: TextStyle(color: app.secondaryTextColor.withValues(alpha: 0.6)),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.08),
+              fillColor: app.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(AppState.instance.tr('cancel'), style: const TextStyle(color: Colors.white54)),
+              child: Text(app.tr('cancel'), style: TextStyle(color: app.secondaryTextColor)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppState.instance.accentColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: app.accentColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
               onPressed: () {
-                AppState.instance.createPlaylist(textCtrl.text);
+                app.createPlaylist(textCtrl.text);
                 Navigator.pop(context);
               },
-              child: Text(AppState.instance.tr('create'), style: const TextStyle(color: Colors.white)),
+              child: Text(app.tr('create'), style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
           ],
         );
@@ -483,21 +521,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildSearchBar() {
+    final app = AppState.instance;
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, color: Colors.white70, size: 22),
+          Icon(Icons.search_rounded, color: app.secondaryTextColor, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _searchCtrl,
               autofocus: true,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: app.textColor, fontSize: 16),
               decoration: InputDecoration(
-                hintText: AppState.instance.tr('search_hint'),
-                hintStyle: const TextStyle(color: Colors.white38, fontSize: 15),
+                hintText: app.tr('search_hint'),
+                hintStyle: TextStyle(
+                  color: app.secondaryTextColor.withValues(alpha: 0.6),
+                  fontSize: 15,
+                ),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -506,7 +548,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (_searchQuery.isNotEmpty)
             GestureDetector(
               onTap: () => _searchCtrl.clear(),
-              child: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+              child: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 20),
             ),
           const SizedBox(width: 8),
           LiquidGlassButton(
@@ -620,7 +662,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Expanded(
                   child: Text(
                     _selectedFolder!,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: app.textColor,
+                    ),
                   ),
                 ),
               ],
@@ -807,11 +853,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       Text(
                         _selectedPlaylist!,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: app.textColor,
+                        ),
                       ),
                       Text(
                         '${displayItems.length} songs',
-                        style: const TextStyle(fontSize: 12, color: Colors.white54),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: app.secondaryTextColor,
+                        ),
                       ),
                     ],
                   ),
@@ -848,7 +901,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           Expanded(
             child: displayItems.isEmpty
-                ? const Center(child: Text('Playlist is empty', style: TextStyle(color: Colors.white54)))
+                ? Center(
+                    child: Text(
+                      'Playlist is empty',
+                      style: TextStyle(color: app.secondaryTextColor),
+                    ),
+                  )
                 : ListView.builder(
                     padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
                     itemCount: displayItems.length,
@@ -1018,12 +1076,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Colors.white),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: app.textColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '$count songs',
-                  style: const TextStyle(fontSize: 13, color: Colors.white54),
+                  style: TextStyle(fontSize: 13, color: app.secondaryTextColor),
                 ),
               ],
             ),
@@ -1052,16 +1110,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildRecentlyPlayedSection(List<MediaFile> items) {
+    final app = AppState.instance;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(Icons.history_rounded, size: 18, color: AppState.instance.accentColor),
+            Icon(Icons.history_rounded, size: 18, color: app.accentColor),
             const SizedBox(width: 6),
             Text(
-              AppState.instance.tr('recently_played'),
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white70),
+              app.tr('recently_played'),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: app.textColor),
             ),
           ],
         ),
@@ -1108,12 +1167,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   item.displayTitle,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: app.textColor),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   formatDuration(item.duration),
-                                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                                  style: TextStyle(fontSize: 11, color: app.secondaryTextColor),
                                 ),
                               ],
                             ),
@@ -1132,19 +1191,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _subTabPill(String title, bool active, VoidCallback onTap) {
+    final app = AppState.instance;
     return GestureDetector(
       onTap: onTap,
       child: LiquidGlassContainer(
         borderRadius: BorderRadius.circular(20),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        borderColor: active ? AppState.instance.accentColor : Colors.white12,
-        tint: active ? AppState.instance.accentColor.withValues(alpha: 0.25) : null,
+        borderColor: active ? app.accentColor : (app.isLight ? Colors.black.withValues(alpha: 0.1) : Colors.white12),
+        tint: active ? app.accentColor.withValues(alpha: 0.25) : null,
         child: Text(
           title,
           style: TextStyle(
             fontSize: 13.5,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppState.instance.accentColor : Colors.white70,
+            color: active ? app.accentColor : (app.isLight ? app.textColor : Colors.white70),
           ),
         ),
       ),
@@ -1187,10 +1247,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   children: [
                     Text(
                       app.tr('radio'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: app.textColor,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1198,7 +1258,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       'Direct HD streaming with native background playback & lock screen controls.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.65),
+                        color: app.secondaryTextColor,
                         height: 1.3,
                       ),
                     ),
@@ -1231,7 +1291,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Expanded(
                       child: Text(
                         radio.errorMessage!,
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        style: TextStyle(color: app.textColor, fontSize: 13),
                       ),
                     ),
                   ],
@@ -1253,7 +1313,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: app.textColor,
                 ),
               ),
             ],
@@ -1298,10 +1358,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildFeatureBullet(IconData icon, String title, String subtitle) {
+    final app = AppState.instance;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: AppState.instance.accentColor),
+        Icon(icon, size: 20, color: app.accentColor),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -1309,10 +1370,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: app.textColor,
                 ),
               ),
               const SizedBox(height: 2),
@@ -1320,7 +1381,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 subtitle,
                 style: TextStyle(
                   fontSize: 11.5,
-                  color: Colors.white.withValues(alpha: 0.55),
+                  color: app.secondaryTextColor,
                   height: 1.3,
                 ),
               ),
@@ -1341,8 +1402,9 @@ class _MediaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
     final isVideo = item.kind == MediaKind.video;
-    final isFav = AppState.instance.isFavorite(item.id);
+    final isFav = app.isFavorite(item.id);
 
     return PressableScale(
       hapticOnDown: false,
@@ -1377,10 +1439,10 @@ class _MediaCard extends StatelessWidget {
                     item.displayTitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: app.textColor,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1392,7 +1454,7 @@ class _MediaCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: app.secondaryTextColor,
                     ),
                   ),
                 ],
@@ -1402,14 +1464,14 @@ class _MediaCard extends StatelessWidget {
               IconButton(
                 icon: Icon(
                   isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: isFav ? const Color(0xFFFF2A85) : Colors.white38,
+                  color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
                   size: 22,
                 ),
-                onPressed: () => AppState.instance.toggleFavorite(item.id),
+                onPressed: () => app.toggleFavorite(item.id),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded, color: Colors.white60, size: 20),
-                color: const Color(0xFF14192B),
+                icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),
+                color: app.isLight ? Colors.white : const Color(0xFF14192B),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 onSelected: (val) {
                   if (val == 'playlist') {
@@ -1417,13 +1479,13 @@ class _MediaCard extends StatelessWidget {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'playlist',
                     child: Row(
                       children: [
-                        Icon(Icons.playlist_add_rounded, color: Colors.white70, size: 20),
-                        SizedBox(width: 10),
-                        Text('Add to Playlist', style: TextStyle(color: Colors.white)),
+                        Icon(Icons.playlist_add_rounded, color: app.secondaryTextColor, size: 20),
+                        const SizedBox(width: 10),
+                        Text('Add to Playlist', style: TextStyle(color: app.textColor)),
                       ],
                     ),
                   ),
@@ -1432,7 +1494,7 @@ class _MediaCard extends StatelessWidget {
             ],
             Icon(
               Icons.play_circle_fill_rounded,
-              color: Colors.white.withValues(alpha: 0.85),
+              color: app.isLight ? app.accentColor : Colors.white.withValues(alpha: 0.85),
               size: 34,
             ),
             const SizedBox(width: 4),
@@ -1456,6 +1518,7 @@ class _PlaylistItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
     return PressableScale(
       hapticOnDown: false,
       onTap: onTap,
@@ -1490,10 +1553,10 @@ class _PlaylistItemTile extends StatelessWidget {
                     item.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: app.textColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1519,7 +1582,7 @@ class _PlaylistItemTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: app.secondaryTextColor,
                           ),
                         ),
                       ),
@@ -1527,7 +1590,7 @@ class _PlaylistItemTile extends StatelessWidget {
                         formatDuration(item.duration),
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: app.secondaryTextColor,
                         ),
                       ),
                     ],
@@ -1536,7 +1599,7 @@ class _PlaylistItemTile extends StatelessWidget {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 18),
+              icon: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 18),
               onPressed: onDelete,
             ),
           ],
@@ -1864,6 +1927,7 @@ class _RadioStationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radio = RadioController.instance;
+    final app = AppState.instance;
     return ListenableBuilder(
       listenable: radio,
       builder: (context, _) {
@@ -1936,14 +2000,18 @@ class _RadioStationCard extends StatelessWidget {
                                     ? const Color(0xFF00E676).withValues(alpha: 0.22)
                                     : (isLoading
                                         ? const Color(0xFFFFD600).withValues(alpha: 0.22)
-                                        : Colors.white.withValues(alpha: 0.10)),
+                                        : (app.isLight
+                                            ? Colors.black.withValues(alpha: 0.05)
+                                            : Colors.white.withValues(alpha: 0.10))),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: isPlaying
                                       ? const Color(0xFF00E676).withValues(alpha: 0.6)
                                       : (isLoading
                                           ? const Color(0xFFFFD600).withValues(alpha: 0.6)
-                                          : Colors.white24),
+                                          : (app.isLight
+                                              ? Colors.black.withValues(alpha: 0.10)
+                                              : Colors.white24)),
                                   width: 1,
                                 ),
                               ),
@@ -1959,7 +2027,7 @@ class _RadioStationCard extends StatelessWidget {
                                           ? const Color(0xFF00E676)
                                           : (isLoading
                                               ? const Color(0xFFFFD600)
-                                              : Colors.white54),
+                                              : app.secondaryTextColor),
                                     ),
                                   ),
                                   const SizedBox(width: 5),
@@ -1974,7 +2042,7 @@ class _RadioStationCard extends StatelessWidget {
                                           ? const Color(0xFF00E676)
                                           : (isLoading
                                               ? const Color(0xFFFFD600)
-                                              : Colors.white70),
+                                              : app.secondaryTextColor),
                                       letterSpacing: 0.4,
                                     ),
                                   ),
@@ -2005,10 +2073,10 @@ class _RadioStationCard extends StatelessWidget {
                           station.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16.5,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: app.textColor,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -2018,7 +2086,7 @@ class _RadioStationCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12.5,
-                            color: Colors.white.withValues(alpha: 0.65),
+                            color: app.secondaryTextColor,
                           ),
                         ),
                       ],
@@ -2030,7 +2098,7 @@ class _RadioStationCard extends StatelessWidget {
                     icon: isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                     size: 46,
                     iconSize: 26,
-                    tint: isActive ? station.color : AppState.instance.accentColor,
+                    tint: isActive ? station.color : app.accentColor,
                     onTap: () => radio.toggleStation(station),
                   ),
                 ],
@@ -2115,6 +2183,7 @@ class _GlassMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: LiquidGlassContainer(
@@ -2124,24 +2193,24 @@ class _GlassMessage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (showSpinner)
-              const SizedBox(
+              SizedBox(
                 width: 36,
                 height: 36,
-                child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 3, color: app.accentColor),
               )
             else
-              Icon(icon, size: 48, color: Colors.white.withValues(alpha: 0.85)),
+              Icon(icon, size: 48, color: app.textColor.withValues(alpha: 0.85)),
             const SizedBox(height: 16),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: app.textColor),
             ),
             const SizedBox(height: 8),
             Text(
               body,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: Colors.white.withValues(alpha: 0.65), height: 1.4),
+              style: TextStyle(fontSize: 13.5, color: app.secondaryTextColor, height: 1.4),
             ),
             if (actions.isNotEmpty) ...[
               const SizedBox(height: 20),

@@ -88,7 +88,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: _appState.isLight ? Colors.black12 : Colors.white24,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -112,8 +112,8 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                     children: [
                       Text(
                         _appState.tr('sleep_timer'),
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: _appState.textColor,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -123,7 +123,7 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                             ? 'Active: $formatted remaining'
                             : 'Music & radio will auto-pause',
                         style: TextStyle(
-                          color: isActive ? accent : Colors.white.withValues(alpha: 0.5),
+                          color: isActive ? accent : _appState.secondaryTextColor,
                           fontSize: 12,
                           fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                         ),
@@ -136,10 +136,10 @@ class _SleepTimerSheetState extends State<SleepTimerSheet> {
                   child: Container(
                     padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
+                      color: _appState.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                    child: Icon(Icons.close_rounded, color: _appState.secondaryTextColor, size: 18),
                   ),
                 ),
               ],
@@ -243,6 +243,7 @@ class _TimerOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
     return PressableScale(
       onTap: onTap,
       child: Container(
@@ -250,12 +251,12 @@ class _TimerOptionTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? accent.withValues(alpha: 0.22)
-              : Colors.white.withValues(alpha: 0.06),
+              : (app.isLight ? Colors.black.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.06)),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
                 ? accent.withValues(alpha: 0.6)
-                : Colors.white.withValues(alpha: 0.1),
+                : (app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.1)),
             width: 1.2,
           ),
         ),
@@ -264,14 +265,14 @@ class _TimerOptionTile extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: isSelected ? accent : Colors.white70,
+              color: isSelected ? accent : app.secondaryTextColor,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.85),
+                  color: isSelected ? (app.isLight ? accent : Colors.white) : app.textColor,
                   fontSize: 14,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),

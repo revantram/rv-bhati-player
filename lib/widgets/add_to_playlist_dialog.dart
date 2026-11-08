@@ -110,10 +110,10 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Add to Playlist',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: _appState.textColor,
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
@@ -123,7 +123,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: _appState.secondaryTextColor,
                               fontSize: 12,
                             ),
                           ),
@@ -135,10 +135,10 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
+                          color: _appState.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                        child: Icon(Icons.close_rounded, color: _appState.secondaryTextColor, size: 18),
                       ),
                     ),
                   ],
@@ -181,12 +181,12 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                         child: TextField(
                           controller: _newController,
                           autofocus: true,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: TextStyle(color: _appState.textColor, fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Playlist name...',
-                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                            hintStyle: TextStyle(color: _appState.secondaryTextColor.withValues(alpha: 0.6)),
                             filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.08),
+                            fillColor: _appState.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -236,7 +236,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                               'No playlists yet.\nCreate one above!',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.45),
+                                color: _appState.secondaryTextColor,
                                 fontSize: 13,
                               ),
                             ),
@@ -266,19 +266,19 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                                 decoration: BoxDecoration(
                                   color: contains
                                       ? accent.withValues(alpha: 0.2)
-                                      : Colors.white.withValues(alpha: 0.06),
+                                      : (_appState.isLight ? Colors.black.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.06)),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: contains
                                         ? accent.withValues(alpha: 0.5)
-                                        : Colors.white.withValues(alpha: 0.1),
+                                        : (_appState.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.1)),
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     Icon(
                                       Icons.queue_music_rounded,
-                                      color: contains ? accent : Colors.white60,
+                                      color: contains ? accent : _appState.secondaryTextColor,
                                       size: 20,
                                     ),
                                     const SizedBox(width: 12),
@@ -289,7 +289,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                                           Text(
                                             name,
                                             style: TextStyle(
-                                              color: contains ? Colors.white : Colors.white.withValues(alpha: 0.9),
+                                              color: contains ? (_appState.isLight ? accent : Colors.white) : _appState.textColor,
                                               fontSize: 14,
                                               fontWeight: contains ? FontWeight.w700 : FontWeight.w500,
                                             ),
@@ -297,7 +297,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                                           Text(
                                             '${list.length} tracks',
                                             style: TextStyle(
-                                              color: Colors.white.withValues(alpha: 0.45),
+                                              color: _appState.secondaryTextColor,
                                               fontSize: 11,
                                             ),
                                           ),
@@ -308,7 +308,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                                       contains
                                           ? Icons.check_circle_rounded
                                           : Icons.radio_button_unchecked_rounded,
-                                      color: contains ? accent : Colors.white30,
+                                      color: contains ? accent : (_appState.isLight ? Colors.black26 : Colors.white30),
                                       size: 20,
                                     ),
                                   ],
@@ -326,9 +326,9 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: _appState.isLight ? accent : Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                      border: _appState.isLight ? Border.all(color: accent) : Border.all(color: Colors.white.withValues(alpha: 0.15)),
                     ),
                     child: const Center(
                       child: Text(

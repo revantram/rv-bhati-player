@@ -275,7 +275,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: AppState.instance.isLight ? Colors.black12 : Colors.white24,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -285,15 +285,15 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     children: [
                       Text(
                         AppState.instance.tr('queue'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: AppState.instance.textColor,
                         ),
                       ),
                       Text(
                         '$count tracks',
-                        style: const TextStyle(fontSize: 13, color: Colors.white54),
+                        style: TextStyle(fontSize: 13, color: AppState.instance.secondaryTextColor),
                       ),
                     ],
                   ),
@@ -357,13 +357,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w500,
-                                            color: isPlaying ? AppState.instance.accentColor : Colors.white,
+                                            color: isPlaying ? AppState.instance.accentColor : AppState.instance.textColor,
                                           ),
                                         ),
                                         Text(
                                           track.artist,
                                           maxLines: 1,
-                                          style: const TextStyle(fontSize: 12, color: Colors.white54),
+                                          style: TextStyle(fontSize: 12, color: AppState.instance.secondaryTextColor),
                                         ),
                                       ],
                                     ),
@@ -399,9 +399,23 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppState.instance.isLight ? Colors.black12 : Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(height: 16),
-              Text(AppState.instance.tr('speed'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+              Text(
+                AppState.instance.tr('speed'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppState.instance.textColor,
+                ),
+              ),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 10,
@@ -417,14 +431,18 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     child: LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(20),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      borderColor: active ? AppState.instance.accentColor : Colors.white12,
+                      borderColor: active
+                          ? AppState.instance.accentColor
+                          : (AppState.instance.isLight
+                              ? Colors.black.withValues(alpha: 0.1)
+                              : Colors.white12),
                       tint: active ? AppState.instance.accentColor.withValues(alpha: 0.25) : null,
                       child: Text(
                         '${s}x',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                          color: active ? AppState.instance.accentColor : Colors.white,
+                          color: active ? AppState.instance.accentColor : AppState.instance.textColor,
                         ),
                       ),
                     ),
@@ -864,7 +882,11 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     style: TextStyle(
                       fontSize: isActive ? 21 : 15,
                       fontWeight: isActive ? FontWeight.w800 : FontWeight.w400,
-                      color: isActive ? AppState.instance.accentColor : Colors.white38,
+                      color: isActive
+                          ? AppState.instance.accentColor
+                          : (AppState.instance.isLight
+                              ? AppState.instance.secondaryTextColor.withValues(alpha: 0.55)
+                              : Colors.white38),
                       shadows: isActive
                           ? [
                               Shadow(
@@ -894,12 +916,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.music_note_rounded, color: Colors.white54, size: 36),
+            Icon(Icons.music_note_rounded, color: AppState.instance.secondaryTextColor, size: 36),
             const SizedBox(height: 8),
             Text(
               AppState.instance.tr('no_lyrics'),
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.white70),
+              style: TextStyle(fontSize: 14, color: AppState.instance.secondaryTextColor),
             ),
           ],
         ),
