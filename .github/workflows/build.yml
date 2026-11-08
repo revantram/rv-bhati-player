@@ -76,6 +76,12 @@ jobs:
             cat android/settings.gradle
           fi
 
+          # Also patch Flutter SDK's internal gradle build ($FLUTTER_ROOT/packages/flutter_tools/gradle)
+          if [ -d "$FLUTTER_ROOT/packages/flutter_tools/gradle" ]; then
+            find "$FLUTTER_ROOT/packages/flutter_tools/gradle" -type f -name "*.kts" -exec sed -i 's|mavenCentral()|maven("https://maven.aliyun.com/repository/public")\n        mavenCentral()|g' {} + || true
+            find "$FLUTTER_ROOT/packages/flutter_tools/gradle" -type f -name "*.gradle" -exec sed -i 's|mavenCentral()|maven { url "https://maven.aliyun.com/repository/public" }\n        mavenCentral()|g' {} + || true
+          fi
+
       - name: Install dependencies
         run: flutter pub get
 
