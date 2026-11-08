@@ -59,50 +59,7 @@ jobs:
 
           # Apply permanent release keystore so APK signature NEVER changes
           cp android_overrides/keystore/release.jks android/app/release.jks
-          if [ -f android/app/build.gradle.kts ]; then
-            python3 -c '
-path = "android/app/build.gradle.kts"
-with open(path) as f:
-    c = f.read()
-signing_code = """
-    signingConfigs {
-        create("release") {
-            storeFile = file("release.jks")
-            storePassword = "rvbhati123"
-            keyAlias = "rvbhati"
-            keyPassword = "rvbhati123"
-        }
-    }
-"""
-if "create(\"release\")" not in c:
-    c = c.replace("buildTypes {", signing_code + "\n    buildTypes {")
-    c = c.replace("signingConfigs.getByName(\"debug\")", "signingConfigs.getByName(\"release\")")
-    with open(path, "w") as f:
-        f.write(c)
-'
-          fi
-          if [ -f android/app/build.gradle ]; then
-            python3 -c '
-path = "android/app/build.gradle"
-with open(path) as f:
-    c = f.read()
-signing_code = """
-    signingConfigs {
-        release {
-            storeFile file("release.jks")
-            storePassword "rvbhati123"
-            keyAlias "rvbhati"
-            keyPassword "rvbhati123"
-        }
-    }
-"""
-if "release {" not in c:
-    c = c.replace("buildTypes {", signing_code + "\n    buildTypes {")
-    c = c.replace("signingConfigs.debug", "signingConfigs.release")
-    with open(path, "w") as f:
-        f.write(c)
-'
-          fi
+          python3 android_overrides/patch_signing.py
 
       - name: Configure Gradle wrapper and mirror fallbacks
         run: |
@@ -127,30 +84,9 @@ if "release {" not in c:
             find "$FLUTTER_ROOT/packages/flutter_tools/gradle" -type f -name "*.gradle" -exec sed -i 's|mavenCentral()|maven { url "https://maven.aliyun.com/repository/public" }\n        mavenCentral()|g' {} + || true
           fi
 
-          # Create Gradle init script to transparently rewrite Maven Central URL to Aliyun mirror for all plugins
+          # Apply Gradle init script to transparently rewrite Maven Central URL to Aliyun mirror
           mkdir -p ~/.gradle/init.d
-          cat << 'EOF' > ~/.gradle/init.d/mirror.gradle
-          allprojects {
-              buildscript {
-                  repositories.all { repo ->
-                      if (repo.hasProperty('url')) {
-                          def u = repo.url.toString()
-                          if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
-                              repo.url = uri("https://maven.aliyun.com/repository/public")
-                          }
-                      }
-                  }
-              }
-              repositories.all { repo ->
-                  if (repo.hasProperty('url')) {
-                      def u = repo.url.toString()
-                      if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
-                          repo.url = uri("https://maven.aliyun.com/repository/public")
-                      }
-                  }
-              }
-          }
-          EOF
+          cp android_overrides/mirror.gradle ~/.gradle/init.d/mirror.gradle
 
       - name: Install dependencies
         run: |

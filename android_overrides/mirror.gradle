@@ -1,0 +1,20 @@
+allprojects {
+    buildscript {
+        repositories.all { repo ->
+            if (repo.hasProperty('url')) {
+                def u = repo.url.toString()
+                if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                    repo.url = uri("https://maven.aliyun.com/repository/public")
+                }
+            }
+        }
+    }
+    repositories.all { repo ->
+        if (repo.hasProperty('url')) {
+            def u = repo.url.toString()
+            if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                repo.url = uri("https://maven.aliyun.com/repository/public")
+            }
+        }
+    }
+}
