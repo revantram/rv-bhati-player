@@ -1,0 +1,86 @@
+name: Build RV Bhati Player APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Mobile shortcut: repo me sirf project.zip + build.yml upload karein,
+      # yeh step zip ko khol kar poora project taiyar kar dega.
+      - name: Unpack project.zip (optional)
+        run: |
+          if [ -f project.zip ]; then
+            unzip -o project.zip -d .
+          fi
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Repo me sirf lib/, pubspec.yaml, android_overrides/ hai.
+      # android/ folder yahin generate hota hai (PC ki zarurat nahi).
+      - name: Generate android platform folder
+        run: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --org com.rvbhati --project-name rv_bhati_player /tmp/gen
+            cp -r /tmp/gen/android ./android
+          fi
+
+      - name: Apply manifest, MainActivity and package name (com.rvbhati.player)
+        run: |
+          cp android_overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          rm -rf android/app/src/main/kotlin android/app/src/main/java
+          mkdir -p android/app/src/main/kotlin/com/rvbhati/player
+          cp android_overrides/MainActivity.kt android/app/src/main/kotlin/com/rvbhati/player/MainActivity.kt
+          sed -i 's/com\.rvbhati\.rv_bhati_player/com.rvbhati.player/g' android/app/build.gradle* || true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate launcher icons (agar assets/icon/app_icon.png hai)
+        run: |
+          if [ -f assets/icon/app_icon.png ]; then
+            dart run flutter_launcher_icons
+          else
+            echo "Custom icon nahi mila, default icon use hoga"
+          fi
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Prepare APK for release
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/RV-Bhati-Player.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RV-Bhati-Player-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0
+          name: "RV Bhati Player v1.0.0"
+          files: build/app/outputs/flutter-apk/RV-Bhati-Player.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

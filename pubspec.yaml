@@ -1,0 +1,39 @@
+name: rv_bhati_player
+description: RV Bhati Player - Liquid Glass video and MP3 player.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  video_player: ^2.9.2            # video playback (mp4 / mkv)
+  just_audio: ^0.9.42             # mp3 playback
+  just_audio_background: ^0.0.1-beta.13  # background audio + lock-screen controls
+  permission_handler: ^12.0.0     # READ_MEDIA_VIDEO / READ_MEDIA_AUDIO / storage
+  photo_manager: ^3.6.0           # MediaStore scanning of local videos & audio
+  device_info_plus: ^11.3.0       # Android SDK version check
+  screen_brightness: ^2.1.2       # swipe-for-brightness
+  volume_controller: ^3.4.0       # swipe-for-volume
+  wakelock_plus: ^1.2.10          # screen stays on during video
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+
+# Custom icon: assets/icon/app_icon.png (1024x1024 PNG) rakhein, phir:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0B0F1E"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
