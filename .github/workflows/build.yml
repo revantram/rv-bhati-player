@@ -66,15 +66,11 @@ jobs:
             cat android/gradle/wrapper/gradle-wrapper.properties
           fi
 
-          # Add fast reliable Maven mirrors to settings.gradle.kts (Kotlin DSL) and settings.gradle (Groovy)
-          if [ -f android/settings.gradle.kts ]; then
-            sed -i 's|google()|maven("https://maven.aliyun.com/repository/public")\n        maven("https://maven.aliyun.com/repository/google")\n        google()|g' android/settings.gradle.kts
-            cat android/settings.gradle.kts
-          fi
-          if [ -f android/settings.gradle ]; then
-            sed -i 's|google()|maven { url "https://maven.aliyun.com/repository/public" }\n        maven { url "https://maven.aliyun.com/repository/google" }\n        google()|g' android/settings.gradle
-            cat android/settings.gradle
-          fi
+          # Patch all android build and settings files with fast reliable mirrors
+          find android -type f -name "*.kts" -exec sed -i 's|google()|maven("https://maven.aliyun.com/repository/public")\n        maven("https://maven.aliyun.com/repository/google")\n        google()|g' {} + || true
+          find android -type f -name "*.gradle" -exec sed -i 's|google()|maven { url "https://maven.aliyun.com/repository/public" }\n        maven { url "https://maven.aliyun.com/repository/google" }\n        google()|g' {} + || true
+          find android -type f -name "*.kts" -exec sed -i 's|mavenCentral()|maven("https://maven.aliyun.com/repository/public")\n        mavenCentral()|g' {} + || true
+          find android -type f -name "*.gradle" -exec sed -i 's|mavenCentral()|maven { url "https://maven.aliyun.com/repository/public" }\n        mavenCentral()|g' {} + || true
 
           # Also patch Flutter SDK's internal gradle build ($FLUTTER_ROOT/packages/flutter_tools/gradle)
           if [ -d "$FLUTTER_ROOT/packages/flutter_tools/gradle" ]; then
@@ -82,8 +78,37 @@ jobs:
             find "$FLUTTER_ROOT/packages/flutter_tools/gradle" -type f -name "*.gradle" -exec sed -i 's|mavenCentral()|maven { url "https://maven.aliyun.com/repository/public" }\n        mavenCentral()|g' {} + || true
           fi
 
+          # Create Gradle init script to transparently rewrite Maven Central URL to Aliyun mirror for all plugins
+          mkdir -p ~/.gradle/init.d
+          cat << 'EOF' > ~/.gradle/init.d/mirror.gradle
+          allprojects {
+              buildscript {
+                  repositories.all { repo ->
+                      if (repo.hasProperty('url')) {
+                          def u = repo.url.toString()
+                          if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                              repo.url = uri("https://maven.aliyun.com/repository/public")
+                          }
+                      }
+                  }
+              }
+              repositories.all { repo ->
+                  if (repo.hasProperty('url')) {
+                      def u = repo.url.toString()
+                      if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                          repo.url = uri("https://maven.aliyun.com/repository/public")
+                      }
+                  }
+              }
+          }
+          EOF
+
       - name: Install dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          # Patch downloaded pub packages' android build.gradle files with mirrors
+          find "$PUB_CACHE" -type f -name "*.gradle" -exec sed -i 's|mavenCentral()|maven { url "https://maven.aliyun.com/repository/public" }\n        mavenCentral()|g' {} + || true
+          find "$PUB_CACHE" -type f -name "*.gradle" -exec sed -i 's|google()|maven { url "https://maven.aliyun.com/repository/google" }\n        google()|g' {} + || true
 
       - name: Generate launcher icons (agar assets/icon/app_icon.png hai)
         run: |
