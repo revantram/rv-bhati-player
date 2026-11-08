@@ -231,5 +231,17 @@ class AudioController {
       );
     }
   }
+
+  void next() {
+    if (player.hasNext) player.seekToNext();
+  }
+
+  void previous() {
+    if (player.position > const Duration(seconds: 3) || !player.hasPrevious) {
+      player.seek(Duration.zero);
+    } else {
+      player.seekToPrevious();
+    }
+  }
 }
 

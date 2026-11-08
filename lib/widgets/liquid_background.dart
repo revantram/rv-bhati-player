@@ -9,9 +9,11 @@ class LiquidBackground extends StatefulWidget {
   const LiquidBackground({
     super.key,
     this.accent = const Color(0xFF7C6CFF),
+    this.child,
   });
 
   final Color accent;
+  final Widget? child;
 
   @override
   State<LiquidBackground> createState() => _LiquidBackgroundState();
@@ -107,6 +109,8 @@ class _LiquidBackgroundState extends State<LiquidBackground>
               size: 380,
               color: const Color(0xFFFF2A85).withValues(alpha: orb3Alpha),
             ),
+            if (widget.child != null)
+              Positioned.fill(child: widget.child!),
           ],
         );
       },

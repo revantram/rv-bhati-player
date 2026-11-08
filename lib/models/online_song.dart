@@ -20,7 +20,7 @@ class OnlineSong {
     this.year,
     required this.duration,
     required this.imageUrl,
-    required this.encryptedMediaUrl,
+    this.encryptedMediaUrl = '',
     required this.streamUrl,
   });
 

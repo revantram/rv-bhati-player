@@ -568,4 +568,5 @@ class AppState extends ChangeNotifier {
   }
 
   String tr(String key) => AppStrings.get(key, _language);
+  static String translate(String key) => AppStrings.get(key, instance._language);
 }
