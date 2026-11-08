@@ -23,7 +23,8 @@ class AudioController {
             tag: MediaItem(
               id: m.id,
               title: m.displayTitle,
-              album: 'RV Bhati Player',
+              artist: m.artist,
+              album: m.album ?? 'RV Bhati Player',
               duration: m.duration,
             ),
           ),

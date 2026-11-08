@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 import 'screens/home_screen.dart';
+import 'services/app_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await AppState.instance.init();
 
   // Background audio: notification + lock-screen controls.
   await JustAudioBackground.init(
@@ -31,21 +34,27 @@ class RvBhatiPlayerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'RV Bhati Player',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF0B0F1E),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6C5CE7),
-          brightness: Brightness.dark,
-        ),
-        splashFactory: NoSplash.splashFactory,
-        highlightColor: Colors.transparent,
-      ),
-      home: const HomeScreen(),
+    return ListenableBuilder(
+      listenable: AppState.instance,
+      builder: (context, _) {
+        final accent = AppState.instance.accentColor;
+        return MaterialApp(
+          title: 'RV Bhati Player',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            useMaterial3: true,
+            scaffoldBackgroundColor: const Color(0xFF0B0F1E),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: accent,
+              brightness: Brightness.dark,
+            ),
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
+          ),
+          home: const HomeScreen(),
+        );
+      },
     );
   }
 }
