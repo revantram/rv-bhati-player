@@ -35,6 +35,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       # Repo me sirf lib/, pubspec.yaml, android_overrides/ hai.
       # android/ folder yahin generate hota hai (PC ki zarurat nahi).
       - name: Generate android platform folder
@@ -52,13 +55,31 @@ jobs:
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/com/rvbhati/player/MainActivity.kt
           sed -i 's/com\.rvbhati\.rv_bhati_player/com.rvbhati.player/g' android/app/build.gradle* || true
 
-      - name: Configure fast reliable Gradle distribution mirror
+      - name: Configure Gradle wrapper and mirror fallbacks
         run: |
           if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
-            sed -i 's|https\\://services.gradle.org/distributions/|https\\://mirrors.cloud.tencent.com/gradle/|g' android/gradle/wrapper/gradle-wrapper.properties || true
-            sed -i 's|https\\://github.com/gradle/gradle-distributions/releases/download/v[0-9.]*/|https\\://mirrors.cloud.tencent.com/gradle/|g' android/gradle/wrapper/gradle-wrapper.properties || true
+            # Ensure official Fastly CDN and binary zip (100MB lighter)
+            sed -i 's|-all\.zip|-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties || true
             cat android/gradle/wrapper/gradle-wrapper.properties
           fi
+          # Pre-configure Maven mirrors so any temporary outage on Maven Central has an immediate fallback
+          mkdir -p ~/.gradle/init.d
+          cat << 'EOF' > ~/.gradle/init.d/mirror.gradle
+          allprojects {
+              buildscript {
+                  repositories {
+                      mavenCentral()
+                      google()
+                      maven { url 'https://maven.aliyun.com/repository/public' }
+                  }
+              }
+              repositories {
+                  mavenCentral()
+                  google()
+                  maven { url 'https://maven.aliyun.com/repository/public' }
+              }
+          }
+          EOF
 
       - name: Install dependencies
         run: flutter pub get
