@@ -21,6 +21,22 @@ class AppStrings {
       'en': 'Music',
       'hi': 'संगीत',
     },
+    'online_music': {
+      'en': 'Online Music',
+      'hi': 'ऑनलाइन संगीत',
+    },
+    'trending': {
+      'en': 'Trending Hits',
+      'hi': 'ट्रेंडिंग हिट्स',
+    },
+    'artists': {
+      'en': 'Singers',
+      'hi': 'गायक',
+    },
+    'search_online': {
+      'en': 'Search songs, singers, movies...',
+      'hi': 'गाने, गायक, फ़िल्में खोजें...',
+    },
     'radio': {
       'en': 'Live Radio',
       'hi': 'लाइव रेडियो',

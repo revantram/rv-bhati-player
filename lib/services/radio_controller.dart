@@ -62,6 +62,7 @@ class RadioController extends ChangeNotifier {
     final p = AudioController.instance.player;
     try {
       AudioController.instance.queue = [];
+      AudioController.instance.onlineQueue = [];
       final source = AudioSource.uri(
         Uri.parse(station.streamUrl),
         tag: MediaItem(

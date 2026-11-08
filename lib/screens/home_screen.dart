@@ -19,6 +19,7 @@ import '../widgets/glass_bars.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
 import 'audio_player_screen.dart';
+import 'online_music_screen.dart';
 import 'video_player_screen.dart';
 
 enum SortOption {
@@ -362,8 +363,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         subtitle: _loading
                             ? 'Scanning storage...'
                             : _tab == 2
-                                ? '24x7 Live FM & Online Radio'
-                                : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
+                                ? 'JioSaavn 320kbps HD Online Music'
+                                : _tab == 3
+                                    ? '24x7 Live FM & Online Radio'
+                                    : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
                         leading: Container(
                           width: 44,
                           height: 44,
@@ -378,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
                         ),
                         actions: [
-                          if (_tab != 2) ...[
+                          if (_tab == 0 || _tab == 1) ...[
                             // Search
                             LiquidGlassButton(
                               icon: Icons.search_rounded,
@@ -426,7 +429,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   children: [
                     _MiniPlayer(
                       onOpen: _openNowPlaying,
-                      onOpenRadio: () => setState(() => _tab = 2),
+                      onOpenRadio: () => setState(() => _tab = 3),
+                      onOpenOnline: () => setState(() => _tab = 2),
                     ),
                     GlassBottomNav(
                       index: _tab,
@@ -440,6 +444,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       items: [
                         GlassNavItem(Icons.movie_filter_rounded, app.tr('videos')),
                         GlassNavItem(Icons.library_music_rounded, app.tr('music')),
+                        GlassNavItem(Icons.travel_explore_rounded, app.tr('online_music')),
                         GlassNavItem(Icons.radio_rounded, app.tr('radio')),
                       ],
                     ),
@@ -559,7 +564,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ? _buildVideosSection(topOffset, bottomOffset)
           : _tab == 1
               ? _buildMusicSection(topOffset, bottomOffset)
-              : _buildRadioSection(topOffset, bottomOffset),
+              : _tab == 2
+                  ? OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset)
+                  : _buildRadioSection(topOffset, bottomOffset),
     );
   }
 
@@ -1450,9 +1457,15 @@ class _VideoThumbState extends State<_VideoThumb> {
 }
 
 class _MiniPlayer extends StatelessWidget {
-  const _MiniPlayer({required this.onOpen, this.onOpenRadio});
+  const _MiniPlayer({
+    required this.onOpen,
+    this.onOpenRadio,
+    this.onOpenOnline,
+  });
+
   final VoidCallback onOpen;
   final VoidCallback? onOpenRadio;
+  final VoidCallback? onOpenOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -1472,12 +1485,23 @@ class _MiniPlayer extends StatelessWidget {
             final currentSong = currentIdx < queue.length ? queue[currentIdx] : null;
             final currentStation = radio.currentStation;
             final isRadio = currentStation != null;
+            final onlineSong = AudioController.instance.currentOnlineSong;
+            final isOnline = AudioController.instance.isPlayingOnline;
+
+            VoidCallback? onTapAction;
+            if (isRadio) {
+              onTapAction = onOpenRadio;
+            } else if (isOnline) {
+              onTapAction = onOpenOnline;
+            } else {
+              onTapAction = onOpen;
+            }
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: PressableScale(
                 hapticOnDown: false,
-                onTap: isRadio ? (onOpenRadio ?? () {}) : onOpen,
+                onTap: onTapAction,
                 child: LiquidGlassContainer(
                   borderRadius: LiquidGlassContainer.capsuleRadius,
                   padding: const EdgeInsets.all(8),
@@ -1493,9 +1517,15 @@ class _MiniPlayer extends StatelessWidget {
                                   color: currentStation.color,
                                   child: const Icon(Icons.radio_rounded, color: Colors.white, size: 22),
                                 )
-                              : (currentSong?.embeddedArt != null
-                                  ? Image.memory(currentSong!.embeddedArt!, fit: BoxFit.cover)
-                                  : ArtBox(seed: tag.title, radius: 0, iconSize: 22)),
+                              : isOnline && onlineSong != null
+                                  ? Image.network(
+                                      onlineSong.imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => ArtBox(seed: tag.title, radius: 0, iconSize: 22),
+                                    )
+                                  : (currentSong?.embeddedArt != null
+                                      ? Image.memory(currentSong!.embeddedArt!, fit: BoxFit.cover)
+                                      : ArtBox(seed: tag.title, radius: 0, iconSize: 22)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1523,6 +1553,23 @@ class _MiniPlayer extends StatelessWidget {
                                       ),
                                     ),
                                   ),
+                                ] else if (isOnline) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF00D2FF).withValues(alpha: 0.25),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      'ONLINE',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF00D2FF),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                                 Expanded(
                                   child: Text(
@@ -1540,7 +1587,9 @@ class _MiniPlayer extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              isRadio ? currentStation.frequency : (tag.artist ?? (tag.album ?? 'RV Bhati Player')),
+                              isRadio
+                                  ? currentStation.frequency
+                                  : (tag.artist ?? (tag.album ?? 'RV Bhati Player')),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -1559,7 +1608,9 @@ class _MiniPlayer extends StatelessWidget {
                             icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                             size: 40,
                             iconSize: 24,
-                            tint: isRadio ? currentStation.color : AppState.instance.accentColor,
+                            tint: isRadio
+                                ? currentStation.color
+                                : (isOnline ? const Color(0xFF00D2FF) : AppState.instance.accentColor),
                             onTap: () {
                               if (isRadio) {
                                 radio.toggleStation(currentStation);
