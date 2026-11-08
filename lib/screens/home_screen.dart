@@ -698,6 +698,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildVideoFoldersGrid(double bottomOffset) {
+    final app = AppState.instance;
     final folders = <String, List<MediaFile>>{};
     for (final v in _videos) {
       folders.putIfAbsent(v.folderName, () => []).add(v);
