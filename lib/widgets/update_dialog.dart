@@ -353,7 +353,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                   const SizedBox(height: 10),
                   TextButton(
-                    onTap: () => Navigator.of(context).pop(),
+                    onPressed: () => Navigator.of(context).pop(),
                     child: Text(
                       'बाद में',
                       style: TextStyle(
