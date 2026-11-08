@@ -65,24 +65,6 @@ jobs:
             sed -i 's|^distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-9.3.1-bin.zip|' android/gradle/wrapper/gradle-wrapper.properties
             cat android/gradle/wrapper/gradle-wrapper.properties
           fi
-          # Pre-configure Maven mirrors so any temporary outage on Maven Central has an immediate fallback
-          mkdir -p ~/.gradle/init.d
-          cat << 'EOF' > ~/.gradle/init.d/mirror.gradle
-          allprojects {
-              buildscript {
-                  repositories {
-                      mavenCentral()
-                      google()
-                      maven { url 'https://maven.aliyun.com/repository/public' }
-                  }
-              }
-              repositories {
-                  mavenCentral()
-                  google()
-                  maven { url 'https://maven.aliyun.com/repository/public' }
-              }
-          }
-          EOF
 
       - name: Install dependencies
         run: flutter pub get
