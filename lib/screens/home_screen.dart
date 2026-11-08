@@ -693,6 +693,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: LiquidGlassContainer(
             borderRadius: BorderRadius.circular(24),
             padding: const EdgeInsets.all(12),
+            blur: 0,
+            glow: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -914,6 +916,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: LiquidGlassContainer(
             borderRadius: BorderRadius.circular(24),
             padding: const EdgeInsets.all(16),
+            blur: 0,
+            glow: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1022,6 +1026,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: LiquidGlassContainer(
                     borderRadius: BorderRadius.circular(20),
                     padding: const EdgeInsets.all(8),
+                    blur: 0,
+                    glow: false,
                     child: SizedBox(
                       width: 140,
                       child: Row(
@@ -1111,6 +1117,8 @@ class _MediaCard extends StatelessWidget {
       child: LiquidGlassContainer(
         borderRadius: BorderRadius.circular(26),
         padding: const EdgeInsets.all(10),
+        blur: 0,
+        glow: false,
         child: Row(
           children: [
             ClipRRect(
@@ -1178,23 +1186,34 @@ class _MediaCard extends StatelessWidget {
   }
 }
 
-class _AsyncArtThumb extends StatelessWidget {
+class _AsyncArtThumb extends StatefulWidget {
   const _AsyncArtThumb({required this.item});
   final MediaFile item;
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<AudioMetadata?>(
-      future: Id3Parser.parse(item.path),
-      builder: (context, snap) {
-        final art = snap.data?.albumArt;
-        if (art != null) {
-          item.embeddedArt = art;
-          return Image.memory(art, fit: BoxFit.cover);
+  State<_AsyncArtThumb> createState() => _AsyncArtThumbState();
+}
+
+class _AsyncArtThumbState extends State<_AsyncArtThumb> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.item.embeddedArt == null) {
+      Id3Parser.parse(widget.item.path).then((meta) {
+        if (mounted && meta?.albumArt != null) {
+          widget.item.embeddedArt = meta!.albumArt;
+          setState(() {});
         }
-        return ArtBox(seed: item.displayTitle, radius: 0, iconSize: 32);
-      },
-    );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.item.embeddedArt != null) {
+      return Image.memory(widget.item.embeddedArt!, fit: BoxFit.cover, gaplessPlayback: true);
+    }
+    return ArtBox(seed: widget.item.displayTitle, radius: 0, iconSize: 32);
   }
 }
 
@@ -1202,29 +1221,39 @@ class _VideoThumb extends StatefulWidget {
   const _VideoThumb({required this.entity});
   final AssetEntity entity;
 
+  static final Map<String, Uint8List?> _cache = {};
+
   @override
   State<_VideoThumb> createState() => _VideoThumbState();
 }
 
 class _VideoThumbState extends State<_VideoThumb> {
-  late final Future<Uint8List?> _future =
-      widget.entity.thumbnailDataWithSize(const ThumbnailSize(240, 240));
+  Uint8List? _cachedData;
+
+  @override
+  void initState() {
+    super.initState();
+    _cachedData = _VideoThumb._cache[widget.entity.id];
+    if (_cachedData == null && !_VideoThumb._cache.containsKey(widget.entity.id)) {
+      widget.entity.thumbnailDataWithSize(const ThumbnailSize(160, 160)).then((data) {
+        if (mounted) {
+          _VideoThumb._cache[widget.entity.id] = data;
+          setState(() => _cachedData = data);
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List?>(
-      future: _future,
-      builder: (context, snap) {
-        final data = snap.data;
-        if (data == null) {
-          return ColoredBox(
-            color: Colors.white.withValues(alpha: 0.08),
-            child: const Icon(Icons.movie_rounded, color: Colors.white54),
-          );
-        }
-        return Image.memory(data, fit: BoxFit.cover, gaplessPlayback: true);
-      },
-    );
+    final data = _cachedData ?? _VideoThumb._cache[widget.entity.id];
+    if (data == null) {
+      return ColoredBox(
+        color: Colors.white.withValues(alpha: 0.08),
+        child: const Icon(Icons.movie_rounded, color: Colors.white54),
+      );
+    }
+    return Image.memory(data, fit: BoxFit.cover, gaplessPlayback: true);
   }
 }
 

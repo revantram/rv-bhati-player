@@ -85,23 +85,38 @@ class LiquidGlassContainer extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: borderRadius,
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-            child: Container(
-              padding: padding,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    base.withValues(alpha: (opacity + 0.10).clamp(0.0, 1.0)),
-                    base.withValues(alpha: (opacity * 0.6).clamp(0.0, 1.0)),
-                  ],
+          child: blur > 0
+              ? BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                  child: Container(
+                    padding: padding,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          base.withValues(alpha: (opacity + 0.10).clamp(0.0, 1.0)),
+                          base.withValues(alpha: (opacity * 0.6).clamp(0.0, 1.0)),
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  ),
+                )
+              : Container(
+                  padding: padding,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        base.withValues(alpha: (opacity + 0.10).clamp(0.0, 1.0)),
+                        base.withValues(alpha: (opacity * 0.6).clamp(0.0, 1.0)),
+                      ],
+                    ),
+                  ),
+                  child: child,
                 ),
-              ),
-              child: child,
-            ),
-          ),
         ),
       ),
     );

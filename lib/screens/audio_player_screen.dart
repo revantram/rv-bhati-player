@@ -687,21 +687,16 @@ class _BlurredArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 600),
-      child: KeyedSubtree(
-        key: ValueKey(item.id),
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-          child: Opacity(
-            opacity: 0.5,
-            child: Transform.scale(
-              scale: 1.6,
-              child: item.embeddedArt != null
-                  ? Image.memory(item.embeddedArt!, fit: BoxFit.cover)
-                  : ArtBox(seed: item.displayTitle, radius: 0, iconSize: 220),
-            ),
-          ),
+    final accent = accentFor(item.displayTitle);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.25),
+          radius: 0.9,
+          colors: [
+            accent.withValues(alpha: 0.35),
+            Colors.transparent,
+          ],
         ),
       ),
     );

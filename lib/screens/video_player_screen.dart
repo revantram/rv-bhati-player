@@ -656,23 +656,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       );
     }
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Frosted glass reflection behind
-        ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Opacity(
-            opacity: 0.55,
-            child: FittedBox(
-              fit: BoxFit.cover,
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(c)),
-            ),
-          ),
-        ),
-        sharpVideo,
-      ],
+    return ColoredBox(
+      color: Colors.black,
+      child: sharpVideo,
     );
   }
 

@@ -5,7 +5,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_file.dart';
-import '../utils/id3_parser.dart';
 
 /// Permission handling + MediaStore scan for .mp4 / .mkv / .mp3 files.
 class MediaScanner {
@@ -53,40 +52,15 @@ class MediaScanner {
       final path = await _resolvePath(a, title);
       if (path == null) continue;
 
-      int? fileSize;
-      DateTime? modDate;
-      try {
-        final f = File(path);
-        if (f.existsSync()) {
-          final stat = f.statSync();
-          fileSize = stat.size;
-          modDate = stat.modified;
-        }
-      } catch (_) {}
-
-      final media = MediaFile(
+      result.add(MediaFile(
         id: a.id,
         title: title,
         path: path,
         kind: kind,
         duration: Duration(seconds: a.duration),
         entity: a,
-        fileSize: fileSize,
-        modifiedDate: modDate ?? a.createDateTime,
-      );
-
-      if (!isVideo) {
-        // Pre-parse ID3 metadata in background
-        Id3Parser.parse(path).then((meta) {
-          if (meta != null) {
-            media.artist = meta.artist;
-            media.album = meta.album;
-            media.embeddedArt = meta.albumArt;
-          }
-        }).catchError((_) {});
-      }
-
-      result.add(media);
+        modifiedDate: a.createDateTime,
+      ));
     }
 
     if (!isVideo) {
