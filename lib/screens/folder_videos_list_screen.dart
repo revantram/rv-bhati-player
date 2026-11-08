@@ -7,13 +7,19 @@ import '../services/app_state.dart';
 import '../utils/format.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/video_options_sheet.dart';
 import '../widgets/video_thumbnail_widget.dart';
 import 'video_player_screen.dart';
 
 class FolderVideosListScreen extends StatefulWidget {
   final VideoFolder folder;
+  final ValueChanged<MediaFile>? onVideoDeleted;
 
-  const FolderVideosListScreen({super.key, required this.folder});
+  const FolderVideosListScreen({
+    super.key,
+    required this.folder,
+    this.onVideoDeleted,
+  });
 
   @override
   State<FolderVideosListScreen> createState() => _FolderVideosListScreenState();
@@ -31,6 +37,23 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
           startIndex: index,
         ),
       ),
+    );
+  }
+
+  void _showVideoOptions(MediaFile video, int index) {
+    VideoOptionsSheet.show(
+      context,
+      video: video,
+      onPlay: () => _playVideo(index),
+      onDeleted: (deleted) {
+        setState(() {
+          widget.folder.videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+        });
+        widget.onVideoDeleted?.call(deleted);
+        if (widget.folder.videos.isEmpty && mounted) {
+          Navigator.of(context).pop();
+        }
+      },
     );
   }
 
@@ -61,6 +84,7 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
                     child: PressableScale(
                       hapticOnDown: false,
                       onTap: () => _playVideo(i),
+                      onLongPress: () => _showVideoOptions(video, i),
                       child: LiquidGlassContainer(
                         borderRadius: BorderRadius.circular(22),
                         padding: const EdgeInsets.all(10),
@@ -171,22 +195,52 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
                               ),
                             ),
 
-                            // Liquid Play Button
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: accent.withValues(alpha: 0.15),
-                                border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
-                              ),
-                              child: Icon(
-                                Icons.play_arrow_rounded,
-                                color: accent,
-                                size: 24,
+                            // Subtle Frosted Three-Dot Menu
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _showVideoOptions(video, i),
+                              child: Container(
+                                width: 32,
+                                height: 38,
+                                alignment: Alignment.center,
+                                child: Container(
+                                  padding: const EdgeInsets.all(5.5),
+                                  decoration: BoxDecoration(
+                                    color: isLight
+                                        ? Colors.black.withValues(alpha: 0.04)
+                                        : Colors.white.withValues(alpha: 0.06),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.more_vert_rounded,
+                                    color: secondaryTextColor,
+                                    size: 18,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 4),
+
+                            // Liquid Play Button
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _playVideo(i),
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: accent.withValues(alpha: 0.15),
+                                  border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
+                                ),
+                                child: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: accent,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 2),
                           ],
                         ),
                       ),

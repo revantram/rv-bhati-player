@@ -10,18 +10,19 @@ class VideoFolder {
   final String name;
   final String path;
   final List<MediaFile> videos;
-  final int totalSizeBytes;
-  final MediaFile coverVideo;
+  final MediaFile? _initialCover;
 
   VideoFolder({
     required this.name,
     required this.path,
     required this.videos,
-    required this.totalSizeBytes,
-    required this.coverVideo,
-  });
+    int? totalSizeBytes,
+    MediaFile? coverVideo,
+  }) : _initialCover = coverVideo;
 
   int get videoCount => videos.length;
+  int get totalSizeBytes => videos.fold<int>(0, (sum, v) => sum + (v.fileSize ?? 0));
+  MediaFile get coverVideo => videos.isNotEmpty ? videos.first : (_initialCover!);
 
   static List<VideoFolder> groupVideos(
     List<MediaFile> allVideos, {

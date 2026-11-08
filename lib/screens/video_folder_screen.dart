@@ -13,11 +13,13 @@ import 'folder_videos_list_screen.dart';
 class VideoFolderScreen extends StatefulWidget {
   final List<MediaFile> videos;
   final double bottomOffset;
+  final ValueChanged<MediaFile>? onVideoDeleted;
 
   const VideoFolderScreen({
     super.key,
     required this.videos,
     this.bottomOffset = 160,
+    this.onVideoDeleted,
   });
 
   @override
@@ -183,7 +185,15 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                   HapticFeedback.lightImpact();
                   Navigator.of(context).push(
                     CupertinoPageRoute(
-                      builder: (_) => FolderVideosListScreen(folder: folder),
+                      builder: (_) => FolderVideosListScreen(
+                        folder: folder,
+                        onVideoDeleted: (deleted) {
+                          setState(() {
+                            widget.videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+                          });
+                          widget.onVideoDeleted?.call(deleted);
+                        },
+                      ),
                     ),
                   );
                 },

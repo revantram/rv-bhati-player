@@ -26,6 +26,7 @@ import '../widgets/liquid_glass_container.dart';
 import '../models/video_folder.dart';
 import '../services/thumbnail_service.dart';
 import '../widgets/video_thumbnail_widget.dart';
+import '../widgets/video_options_sheet.dart';
 import 'audio_player_screen.dart';
 import 'folder_videos_list_screen.dart';
 import 'online_music_screen.dart';
@@ -658,7 +659,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               itemCount: items.length,
               itemBuilder: (_, i) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _MediaCard(item: items[i], onTap: () => _open(items, i)),
+                child: _MediaCard(
+                  item: items[i],
+                  onTap: () => _open(items, i),
+                  onVideoOptions: items[i].kind == MediaKind.video
+                      ? () => _showVideoOptions(items[i], items, i)
+                      : null,
+                ),
               ),
             ),
           ),
@@ -688,9 +695,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Expanded(
           child: _videoSubTab == 0
               ? _buildAllVideosList(bottomOffset)
-              : VideoFolderScreen(videos: _videos, bottomOffset: bottomOffset),
+              : VideoFolderScreen(
+                  videos: _videos,
+                  bottomOffset: bottomOffset,
+                  onVideoDeleted: (deleted) {
+                    setState(() {
+                      _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+                    });
+                  },
+                ),
         ),
       ],
+    );
+  }
+
+  void _showVideoOptions(MediaFile video, List<MediaFile> playlist, int index) {
+    VideoOptionsSheet.show(
+      context,
+      video: video,
+      onPlay: () => _open(playlist, index),
+      onDeleted: (deleted) {
+        setState(() {
+          _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+        });
+      },
     );
   }
 
@@ -719,7 +747,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final idx = items.indexOf(item);
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _MediaCard(item: item, onTap: () => _open(items, idx)),
+            child: _MediaCard(
+              item: item,
+              onTap: () => _open(items, idx),
+              onVideoOptions: () => _showVideoOptions(item, items, idx),
+            ),
           );
         }),
       ],
@@ -727,7 +759,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildVideoFoldersGrid(double bottomOffset) {
-    return VideoFolderScreen(videos: _videos, bottomOffset: bottomOffset);
+    return VideoFolderScreen(
+      videos: _videos,
+      bottomOffset: bottomOffset,
+      onVideoDeleted: (deleted) {
+        setState(() {
+          _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+        });
+      },
+    );
   }
 
   // --- Music Tab View ---
@@ -1274,11 +1314,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 }
 
 class _MediaCard extends StatelessWidget {
-  const _MediaCard({required this.item, required this.onTap, this.onLongPress});
+  const _MediaCard({
+    required this.item,
+    required this.onTap,
+    this.onLongPress,
+    this.onVideoOptions,
+  });
 
   final MediaFile item;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onVideoOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -1289,7 +1335,7 @@ class _MediaCard extends StatelessWidget {
     return PressableScale(
       hapticOnDown: false,
       onTap: onTap,
-      onLongPress: onLongPress,
+      onLongPress: onLongPress ?? (isVideo ? onVideoOptions : null),
       child: LiquidGlassContainer(
         borderRadius: BorderRadius.circular(26),
         padding: const EdgeInsets.all(10),
@@ -1427,6 +1473,32 @@ class _MediaCard extends StatelessWidget {
                   ),
                 ],
               ),
+            ],
+            if (isVideo && onVideoOptions != null) ...[
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onVideoOptions,
+                child: Container(
+                  width: 32,
+                  height: 34,
+                  alignment: Alignment.center,
+                  child: Container(
+                    padding: const EdgeInsets.all(5.5),
+                    decoration: BoxDecoration(
+                      color: app.isLight
+                          ? Colors.black.withValues(alpha: 0.04)
+                          : Colors.white.withValues(alpha: 0.06),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.more_vert_rounded,
+                      color: app.secondaryTextColor,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
             ],
             Icon(
               Icons.play_circle_fill_rounded,
