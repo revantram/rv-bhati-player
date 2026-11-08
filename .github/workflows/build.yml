@@ -66,6 +66,16 @@ jobs:
             cat android/gradle/wrapper/gradle-wrapper.properties
           fi
 
+          # Add fast reliable Maven mirrors to settings.gradle.kts (Kotlin DSL) and settings.gradle (Groovy)
+          if [ -f android/settings.gradle.kts ]; then
+            sed -i 's|google()|maven("https://maven.aliyun.com/repository/public")\n        maven("https://maven.aliyun.com/repository/google")\n        google()|g' android/settings.gradle.kts
+            cat android/settings.gradle.kts
+          fi
+          if [ -f android/settings.gradle ]; then
+            sed -i 's|google()|maven { url "https://maven.aliyun.com/repository/public" }\n        maven { url "https://maven.aliyun.com/repository/google" }\n        google()|g' android/settings.gradle
+            cat android/settings.gradle
+          fi
+
       - name: Install dependencies
         run: flutter pub get
 
