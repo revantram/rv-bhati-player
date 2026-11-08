@@ -2,6 +2,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 import '../models/media_file.dart';
+import 'radio_controller.dart';
 
 /// Single app-wide audio player. just_audio_background supports exactly one
 /// AudioPlayer, and keeping it global lets music continue (notification +
@@ -14,6 +15,7 @@ class AudioController {
   List<MediaFile> queue = const [];
 
   Future<void> playQueue(List<MediaFile> items, int startIndex) async {
+    RadioController.instance.clear();
     queue = items;
     final source = ConcatenatingAudioSource(
       children: [

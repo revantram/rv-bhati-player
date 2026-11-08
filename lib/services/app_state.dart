@@ -21,6 +21,18 @@ class AppStrings {
       'en': 'Music',
       'hi': 'संगीत',
     },
+    'radio': {
+      'en': 'Live Radio',
+      'hi': 'लाइव रेडियो',
+    },
+    'live': {
+      'en': 'LIVE',
+      'hi': 'लाइव',
+    },
+    'now_streaming': {
+      'en': 'Now Streaming Live',
+      'hi': 'अभी लाइव चल रहा है',
+    },
     'all_videos': {
       'en': 'All Videos',
       'hi': 'सभी वीडियो',
