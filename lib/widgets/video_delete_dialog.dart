@@ -15,7 +15,7 @@ class VideoDeleteDialog extends StatelessWidget {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black65,
+      barrierColor: Colors.black54,
       builder: (_) => VideoDeleteDialog(video: video),
     );
     return result ?? false;

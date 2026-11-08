@@ -71,7 +71,7 @@ class _VideoDetailsDialogState extends State<VideoDetailsDialog> {
     final h = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
     final ampm = dt.hour >= 12 ? 'PM' : 'AM';
     final min = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} $m ${dt.year}, $h:$min $amppm';
+    return '${dt.day} $m ${dt.year}, $h:$min $ampm';
   }
 
   @override
