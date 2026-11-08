@@ -19,6 +19,7 @@ class LiquidGlassContainer extends StatelessWidget {
     this.opacity = 0.12,
     this.borderOpacity = 0.45,
     this.borderWidth = 1.2,
+    this.borderColor,
     this.tint,
     this.glow = true,
   });
@@ -43,6 +44,7 @@ class LiquidGlassContainer extends StatelessWidget {
   /// Peak opacity of the border glow.
   final double borderOpacity;
   final double borderWidth;
+  final Color? borderColor;
 
   /// Optional colour tint for the glass (e.g. accent play button).
   final Color? tint;
@@ -79,6 +81,7 @@ class LiquidGlassContainer extends StatelessWidget {
           radius: borderRadius,
           width: borderWidth,
           opacity: borderOpacity,
+          color: borderColor,
         ),
         child: ClipRRect(
           borderRadius: borderRadius,
@@ -112,16 +115,19 @@ class _GlassBorderPainter extends CustomPainter {
     required this.radius,
     required this.width,
     required this.opacity,
+    this.color,
   });
 
   final BorderRadius radius;
   final double width;
   final double opacity;
+  final Color? color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final rrect = radius.toRRect(rect).deflate(width / 2);
+    final baseColor = color ?? Colors.white;
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = width
@@ -129,18 +135,19 @@ class _GlassBorderPainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.white.withValues(alpha: opacity),
-          Colors.white.withValues(alpha: opacity * 0.12),
-          Colors.white.withValues(alpha: opacity * 0.5),
+          baseColor.withValues(alpha: opacity),
+          baseColor.withValues(alpha: opacity * 0.12),
+          baseColor.withValues(alpha: opacity * 0.5),
         ],
-        stops: const [0.0, 0.55, 1.0],
+        stops: const [0.0, 0.5, 1.0],
       ).createShader(rect);
+
     canvas.drawRRect(rrect, paint);
   }
 
   @override
   bool shouldRepaint(covariant _GlassBorderPainter old) =>
-      old.radius != radius || old.width != width || old.opacity != opacity;
+      old.radius != radius || old.width != width || old.opacity != opacity || old.color != color;
 }
 
 /// Press micro-animation: scale down + opacity dip + iOS-like haptic tick.
@@ -149,6 +156,7 @@ class PressableScale extends StatefulWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.onLongPress,
     this.pressedScale = 0.96,
     this.pressedOpacity = 0.85,
     this.hapticOnDown = true,
@@ -156,6 +164,7 @@ class PressableScale extends StatefulWidget {
 
   final Widget child;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final double pressedScale;
   final double pressedOpacity;
 
@@ -176,7 +185,7 @@ class _PressableScaleState extends State<PressableScale> {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
+    final enabled = widget.onTap != null || widget.onLongPress != null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: enabled
@@ -187,10 +196,16 @@ class _PressableScaleState extends State<PressableScale> {
           : null,
       onTapUp: (_) => _set(false),
       onTapCancel: () => _set(false),
-      onTap: enabled
+      onTap: widget.onTap != null
           ? () {
               if (!widget.hapticOnDown) HapticFeedback.selectionClick();
               widget.onTap!();
+            }
+          : null,
+      onLongPress: widget.onLongPress != null
+          ? () {
+              HapticFeedback.mediumImpact();
+              widget.onLongPress!();
             }
           : null,
       child: AnimatedScale(
@@ -211,7 +226,7 @@ class _PressableScaleState extends State<PressableScale> {
 class LiquidGlassButton extends StatelessWidget {
   const LiquidGlassButton({
     super.key,
-    required this.icon,
+    this.icon,
     this.onTap,
     this.size = 56,
     this.iconSize,
@@ -219,7 +234,7 @@ class LiquidGlassButton extends StatelessWidget {
     this.tint,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final VoidCallback? onTap;
   final double size;
   final double? iconSize;
@@ -228,7 +243,7 @@ class LiquidGlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconWidget = Icon(icon, size: iconSize ?? size * 0.48, color: Colors.white);
+    final iconWidget = icon != null ? Icon(icon, size: iconSize ?? size * 0.48, color: Colors.white) : null;
     final isPill = label != null;
     return Opacity(
       opacity: onTap == null ? 0.35 : 1.0,
@@ -249,8 +264,10 @@ class LiquidGlassButton extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      iconWidget,
-                      const SizedBox(width: 8),
+                      if (iconWidget != null) ...[
+                        iconWidget,
+                        const SizedBox(width: 8),
+                      ],
                       Text(
                         label!,
                         style: const TextStyle(
@@ -262,7 +279,7 @@ class LiquidGlassButton extends StatelessWidget {
                     ],
                   ),
                 )
-              : Center(child: iconWidget),
+              : Center(child: iconWidget ?? const SizedBox.shrink()),
         ),
       ),
     );
