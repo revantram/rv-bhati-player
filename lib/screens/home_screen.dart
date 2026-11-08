@@ -23,8 +23,13 @@ import '../widgets/artist_songs_sheet.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../models/video_folder.dart';
+import '../services/thumbnail_service.dart';
+import '../widgets/video_thumbnail_widget.dart';
 import 'audio_player_screen.dart';
+import 'folder_videos_list_screen.dart';
 import 'online_music_screen.dart';
+import 'video_folder_screen.dart';
 import 'video_player_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/wave_visualizer.dart';
@@ -434,60 +439,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
                         ),
                         actions: [
-                          if (_tab == 0 || _tab == 1) ...[
-                            // Search
-                            LiquidGlassButton(
-                              icon: Icons.search_rounded,
-                              size: 44,
-                              iconSize: 22,
-                              onTap: () => setState(() => _isSearching = true),
-                            ),
-                            const SizedBox(width: 4),
-                            // Sort
-                            LiquidGlassButton(
-                              icon: Icons.swap_vert_rounded,
-                              size: 44,
-                              iconSize: 22,
-                              onTap: _openSortSheet,
-                            ),
-                            const SizedBox(width: 4),
-                          ],
+                          // Search
+                          LiquidGlassButton(
+                            icon: Icons.search_rounded,
+                            size: 44,
+                            iconSize: 22,
+                            onTap: () => setState(() => _isSearching = true),
+                          ),
+                          const SizedBox(width: 8),
                           // Settings
                           LiquidGlassButton(
                             icon: Icons.settings_rounded,
                             size: 44,
-                            iconSize: 20,
+                            iconSize: 22,
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => const SettingsScreen()),
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          // Language toggle
-                          LiquidGlassButton(
-                            label: app.language == AppLanguage.hi ? 'हिं' : 'EN',
-                            size: 44,
-                            onTap: () {
-                              app.setLanguage(app.language == AppLanguage.en ? AppLanguage.hi : AppLanguage.en);
-                            },
-                          ),
-                          const SizedBox(width: 4),
-                          // Accent Color
-                          LiquidGlassButton(
-                            icon: Icons.palette_outlined,
-                            size: 44,
-                            iconSize: 20,
-                            tint: accent,
-                            onTap: _openPaletteSheet,
-                          ),
                         ],
                       ),
               ),
-              // Floating Mini Player (Above Bottom Nav)
+              // Floating Mini Player (Above Bottom Nav with 12px dynamic gap)
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: pad.bottom + 84,
+                bottom: pad.bottom + 86,
                 child: _MiniPlayer(
                   onOpen: _openNowPlaying,
                   onOpenRadio: () => setState(() => _tab = 3),
@@ -711,7 +688,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Expanded(
           child: _videoSubTab == 0
               ? _buildAllVideosList(bottomOffset)
-              : _buildVideoFoldersGrid(bottomOffset),
+              : VideoFolderScreen(videos: _videos, bottomOffset: bottomOffset),
         ),
       ],
     );
@@ -724,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: _GlassMessage(
           icon: Icons.movie_outlined,
           title: AppState.instance.tr('no_videos'),
-          body: 'No .mp4 or .mkv files found on this device.',
+          body: 'No .mp4, .mkv or .webm files found on this device.',
         ),
       );
     }
@@ -750,72 +727,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildVideoFoldersGrid(double bottomOffset) {
-    final app = AppState.instance;
-    final folders = <String, List<MediaFile>>{};
-    for (final v in _videos) {
-      folders.putIfAbsent(v.folderName, () => []).add(v);
-    }
-
-    final folderKeys = folders.keys.toList()..sort();
-    if (folderKeys.isEmpty) {
-      return Center(
-        child: _GlassMessage(
-          icon: Icons.folder_open_rounded,
-          title: 'No Folders',
-          body: 'No video folders found.',
-        ),
-      );
-    }
-
-    return GridView.builder(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.1,
-      ),
-      itemCount: folderKeys.length,
-      itemBuilder: (context, i) {
-        final folderName = folderKeys[i];
-        final videosInFolder = folders[folderName]!;
-        final firstVideo = videosInFolder.first;
-
-        return PressableScale(
-          onTap: () => setState(() => _selectedFolder = folderName),
-          child: LiquidGlassContainer(
-            borderRadius: BorderRadius.circular(24),
-            padding: const EdgeInsets.all(12),
-            blur: 0,
-            glow: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: SizedBox.expand(
-                      child: _VideoThumb(entity: firstVideo.entity),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  folderName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: app.textColor),
-                ),
-                Text(
-                  '${videosInFolder.length} videos • ${formatBytes(videosInFolder.fold<int>(0, (a, b) => a + (b.fileSize ?? 0)))}',
-                  style: TextStyle(fontSize: 12, color: app.secondaryTextColor),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    return VideoFolderScreen(videos: _videos, bottomOffset: bottomOffset);
   }
 
   // --- Music Tab View ---
@@ -1154,7 +1066,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               width: 50,
                               height: 80,
                               child: item.kind == MediaKind.video
-                                  ? _VideoThumb(entity: item.entity)
+                                  ? VideoThumbnailWidget(
+                                      video: item,
+                                      width: 50,
+                                      height: 80,
+                                      borderRadius: BorderRadius.circular(14),
+                                      fit: BoxFit.cover,
+                                    )
                                   : (item.embeddedArt != null
                                       ? Image.memory(item.embeddedArt!, fit: BoxFit.cover)
                                       : ArtBox(seed: item.displayTitle, radius: 0, iconSize: 22)),
@@ -1304,17 +1222,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
         ),
 
-        // Section Title
+        // Section 1: Rajasthan Regional Stations
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           child: Row(
             children: [
-              Icon(Icons.stream_rounded, size: 18, color: app.accentColor),
+              Icon(Icons.location_on_rounded, size: 19, color: app.accentColor),
               const SizedBox(width: 6),
               Text(
-                'Featured Stations',
+                'Rajasthan & Regional Stations',
                 style: TextStyle(
-                  fontSize: 14.5,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: app.textColor,
                 ),
@@ -1323,74 +1241,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 8),
+        ...RadioStation.stations
+            .where((s) => s.category.contains('Rajasthan'))
+            .map((s) => _RadioStationCard(station: s)),
 
-        // Station Cards
-        ...RadioStation.stations.map((s) => _RadioStationCard(station: s)),
-
-        const SizedBox(height: 8),
-        // Info Card
-        LiquidGlassContainer(
-          borderRadius: BorderRadius.circular(22),
-          padding: const EdgeInsets.all(16),
-          blur: 0,
-          glow: false,
-          child: Column(
+        const SizedBox(height: 16),
+        // Section 2: National AIR & Live FM
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: Row(
             children: [
-              _buildFeatureBullet(
-                Icons.screen_lock_portrait_rounded,
-                'Background & Screen-off Support',
-                'Audio keeps playing continuously when you switch apps or turn the screen off.',
-              ),
-              const SizedBox(height: 12),
-              _buildFeatureBullet(
-                Icons.memory_rounded,
-                '100% Native Audio Engine',
-                'Zero WebView lag. Streams are decoded natively with low latency and high fidelity.',
-              ),
-              const SizedBox(height: 12),
-              _buildFeatureBullet(
-                Icons.notifications_active_rounded,
-                'Lock Screen & Notification Controls',
-                'Pause, play and view stream metadata directly from your Android notification drawer.',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureBullet(IconData icon, String title, String subtitle) {
-    final app = AppState.instance;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: app.accentColor),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              Icon(Icons.podcasts_rounded, size: 19, color: app.accentColor),
+              const SizedBox(width: 6),
               Text(
-                title,
+                'National AIR & Live FM',
                 style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                   color: app.textColor,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  color: app.secondaryTextColor,
-                  height: 1.3,
-                ),
-              ),
             ],
           ),
         ),
+        const SizedBox(height: 8),
+        ...RadioStation.stations
+            .where((s) => !s.category.contains('Rajasthan'))
+            .map((s) => _RadioStationCard(station: s)),
       ],
     );
   }
@@ -1426,7 +1303,13 @@ class _MediaCard extends StatelessWidget {
                 width: 76,
                 height: 76,
                 child: isVideo
-                    ? _VideoThumb(entity: item.entity)
+                    ? VideoThumbnailWidget(
+                        video: item,
+                        width: 76,
+                        height: 76,
+                        borderRadius: BorderRadius.circular(18),
+                        fit: BoxFit.cover,
+                      )
                     : (item.embeddedArt != null
                         ? Image.memory(item.embeddedArt!, fit: BoxFit.cover)
                         : _AsyncArtThumb(item: item)),
@@ -1741,9 +1624,16 @@ class _VideoThumbState extends State<_VideoThumb> {
   Widget build(BuildContext context) {
     final data = _cachedData ?? _VideoThumb._cache[widget.entity.id];
     if (data == null) {
-      return ColoredBox(
-        color: Colors.white.withValues(alpha: 0.08),
-        child: const Icon(Icons.movie_rounded, color: Colors.white54),
+      final app = AppState.instance;
+      return Container(
+        color: app.isLight ? const Color(0xFFE2E6EE) : const Color(0xFF161C2E),
+        child: Center(
+          child: Icon(
+            Icons.movie_creation_rounded,
+            color: app.accentColor.withValues(alpha: 0.5),
+            size: 28,
+          ),
+        ),
       );
     }
     return Image.memory(data, fit: BoxFit.cover, gaplessPlayback: true);

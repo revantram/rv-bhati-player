@@ -126,8 +126,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.2.0
-          name: "RV Bhati Player v1.2.0 (Popular Artists Hub & Tap to Open Artist Playlist)"
+          tag_name: v1.2.1
+          name: "RV Bhati Player v1.2.1 (Video Folders, Native Thumbnails, UI Layout Fixes)"
           files: |
             build/app/outputs/flutter-apk/RV-Bhati-Player.apk
             build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk

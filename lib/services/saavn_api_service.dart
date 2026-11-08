@@ -50,7 +50,7 @@ class SaavnApiService {
       name: 'Jubin Nautiyal',
       category: 'Modern Hits',
       subtitle: 'Heart-touching Chartbusters',
-      avatarUrl: 'https://c.saavncdn.com/259/Humnava-Mere-Hindi-2018-20180522-500x500.jpg',
+      avatarUrl: 'https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg',
     ),
     SaavnArtist(
       name: 'Shreya Ghoshal',

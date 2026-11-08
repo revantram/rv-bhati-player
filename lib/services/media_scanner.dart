@@ -10,7 +10,7 @@ import '../models/media_file.dart';
 class MediaScanner {
   MediaScanner._();
 
-  static const _videoExt = {'mp4', 'mkv'};
+  static const _videoExt = {'mp4', 'mkv', 'webm'};
   static const _audioExt = {'mp3'};
 
   /// Android 13+ (API 33): READ_MEDIA_VIDEO + READ_MEDIA_AUDIO
@@ -52,6 +52,14 @@ class MediaScanner {
       final path = await _resolvePath(a, title);
       if (path == null) continue;
 
+      int? size;
+      try {
+        final f = File(path);
+        if (f.existsSync()) {
+          size = f.lengthSync();
+        }
+      } catch (_) {}
+
       result.add(MediaFile(
         id: a.id,
         title: title,
@@ -59,6 +67,7 @@ class MediaScanner {
         kind: kind,
         duration: Duration(seconds: a.duration),
         entity: a,
+        fileSize: size,
         modifiedDate: a.createDateTime,
       ));
     }
