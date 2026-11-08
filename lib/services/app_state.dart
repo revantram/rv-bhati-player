@@ -23,11 +23,11 @@ class AppStrings {
     },
     'music': {
       'en': 'Music',
-      'hi': 'संगीत',
+      'hi': 'म्यूजिक',
     },
     'online_music': {
       'en': 'Online Music',
-      'hi': 'ऑनलाइन संगीत',
+      'hi': 'ऑनलाइन म्यूजिक',
     },
     'trending': {
       'en': 'Trending Hits',
@@ -42,8 +42,8 @@ class AppStrings {
       'hi': 'गाने, गायक, फ़िल्में खोजें...',
     },
     'radio': {
-      'en': 'Live Radio',
-      'hi': 'लाइव रेडियो',
+      'en': 'Radio',
+      'hi': 'रेडियो',
     },
     'live': {
       'en': 'LIVE',
