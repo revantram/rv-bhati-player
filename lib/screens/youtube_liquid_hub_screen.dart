@@ -633,8 +633,10 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen> {
             onTap: () async {
               if (await _webViewController?.canGoBack() ?? false) {
                 _webViewController?.goBack();
+              } else if (widget.onBack != null) {
+                widget.onBack!.call();
               } else {
-                widget.onBack?.call() ?? Navigator.maybePop(context);
+                Navigator.maybePop(context);
               }
             },
           ),
