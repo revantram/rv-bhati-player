@@ -201,7 +201,7 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                   borderRadius: BorderRadius.circular(22),
                   padding: const EdgeInsets.all(10),
                   blur: 0,
-                  glow: false,
+                  glow: true,
                   child: Row(
                     children: [
                       // Left: High-res video thumbnail with a glowing folder badge

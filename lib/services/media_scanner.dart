@@ -13,15 +13,23 @@ class MediaScanner {
   static const _videoExt = {'mp4', 'mkv', 'webm'};
   static const _audioExt = {'mp3'};
 
-  /// Android 13+ (API 33): READ_MEDIA_VIDEO + READ_MEDIA_AUDIO
-  /// Android 12 and older:  READ_EXTERNAL_STORAGE
+  /// Android 13+ (API 33): READ_MEDIA_VIDEO + READ_MEDIA_AUDIO + POST_NOTIFICATIONS
+  /// Android 12 and older:  READ_EXTERNAL_STORAGE + POST_NOTIFICATIONS
   static Future<bool> requestPermissions() async {
     final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
     if (sdk >= 33) {
-      final res = await [Permission.videos, Permission.audio].request();
-      return res.values.every((s) => s.isGranted || s.isLimited);
+      final res = await [
+        Permission.videos,
+        Permission.audio,
+        Permission.notification,
+      ].request();
+      return (res[Permission.videos]?.isGranted ?? false) ||
+          (res[Permission.audio]?.isGranted ?? false);
     }
     final status = await Permission.storage.request();
+    try {
+      await Permission.notification.request();
+    } catch (_) {}
     return status.isGranted;
   }
 

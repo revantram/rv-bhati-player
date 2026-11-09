@@ -1,5 +1,6 @@
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/media_file.dart';
 import '../models/online_song.dart';
@@ -22,6 +23,15 @@ class AudioController {
   List<MediaFile> queue = const [];
   List<OnlineSong> onlineQueue = const [];
   List<PlaylistItem> hybridQueue = const [];
+
+  Future<void> ensureNotificationPermission() async {
+    try {
+      final status = await Permission.notification.status;
+      if (!status.isGranted) {
+        await Permission.notification.request();
+      }
+    } catch (_) {}
+  }
 
   bool get isPlayingOnline => onlineQueue.isNotEmpty || (isPlayingHybrid && currentPlaylistItem?.isOnline == true);
   bool get isPlayingHybrid => hybridQueue.isNotEmpty;
@@ -88,6 +98,7 @@ class AudioController {
   }
 
   Future<void> playQueue(List<MediaFile> items, int startIndex, {bool shuffle = false}) async {
+    ensureNotificationPermission();
     RadioController.instance.clear();
     onlineQueue = const [];
     hybridQueue = const [];
@@ -123,6 +134,7 @@ class AudioController {
   }
 
   Future<void> playOnlineQueue(List<OnlineSong> items, int startIndex, {bool shuffle = false}) async {
+    ensureNotificationPermission();
     RadioController.instance.clear();
     queue = const [];
     hybridQueue = const [];
@@ -160,6 +172,7 @@ class AudioController {
   }
 
   Future<void> playHybridQueue(List<PlaylistItem> items, int startIndex, {bool shuffle = false}) async {
+    ensureNotificationPermission();
     RadioController.instance.clear();
     queue = const [];
     onlineQueue = const [];

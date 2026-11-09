@@ -57,12 +57,12 @@ class LiquidGlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLight = AppState.instance.isLight;
-    final base = tint ?? Colors.white;
+    final base = tint ?? (isLight ? Colors.white : const Color(0xFF1E2438));
 
     final baseOpacity = isLight
-        ? (tint != null ? (opacity + 0.15).clamp(0.0, 1.0) : 0.65)
-        : opacity;
-    final borderCol = borderColor ?? (isLight ? Colors.white.withValues(alpha: 0.85) : null);
+        ? (tint != null ? (opacity + 0.35).clamp(0.0, 1.0) : 0.94)
+        : (tint != null ? (opacity + 0.20).clamp(0.0, 1.0) : 0.38);
+    final borderCol = borderColor ?? (isLight ? const Color(0xFFCBD5E1) : Colors.white.withValues(alpha: 0.16));
 
     return Container(
       width: width,
@@ -74,17 +74,17 @@ class LiquidGlassContainer extends StatelessWidget {
             ? (isLight
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 20,
-                      spreadRadius: 2,
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      spreadRadius: 1,
                       offset: const Offset(0, 4),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                     BoxShadow(
                       color: Colors.white.withValues(alpha: 0.04),
@@ -92,13 +92,21 @@ class LiquidGlassContainer extends StatelessWidget {
                       spreadRadius: -2,
                     ),
                   ])
-            : null,
+            : (isLight
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null),
       ),
       child: CustomPaint(
         foregroundPainter: _GlassBorderPainter(
           radius: borderRadius,
-          width: isLight ? 1.5 : borderWidth,
-          opacity: isLight ? 0.8 : borderOpacity,
+          width: isLight ? 1.2 : borderWidth,
+          opacity: isLight ? 0.9 : borderOpacity,
           color: borderCol,
         ),
         child: ClipRRect(
@@ -113,8 +121,8 @@ class LiquidGlassContainer extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          base.withValues(alpha: (baseOpacity + 0.08).clamp(0.0, 1.0)),
-                          base.withValues(alpha: (baseOpacity * 0.75).clamp(0.0, 1.0)),
+                          base.withValues(alpha: (baseOpacity + 0.04).clamp(0.0, 1.0)),
+                          base.withValues(alpha: (baseOpacity * 0.92).clamp(0.0, 1.0)),
                         ],
                       ),
                     ),
@@ -278,7 +286,7 @@ class LiquidGlassButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLight = AppState.instance.isLight;
     final defaultContentColor = isLight
-        ? (tint != null ? Colors.white : const Color(0xFF1D1D1F))
+        ? (tint != null ? Colors.white : const Color(0xFF0F172A))
         : Colors.white;
 
     final iconWidget = icon != null
@@ -295,8 +303,9 @@ class LiquidGlassButton extends StatelessWidget {
           width: isPill ? null : size,
           height: size,
           borderRadius: BorderRadius.circular(size),
-          opacity: isLight ? (tint == null ? 0.65 : 0.85) : (tint == null ? 0.14 : 0.28),
+          opacity: isLight ? (tint == null ? 0.94 : 0.96) : (tint == null ? 0.25 : 0.40),
           tint: tint,
+          glow: true,
           padding: isPill ? EdgeInsets.symmetric(horizontal: size * 0.42) : null,
           child: isPill
               ? Center(
@@ -312,7 +321,7 @@ class LiquidGlassButton extends StatelessWidget {
                         label!,
                         style: TextStyle(
                           color: defaultContentColor,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
                       ),

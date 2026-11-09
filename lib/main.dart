@@ -14,7 +14,11 @@ Future<void> main() async {
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.rvbhati.player.channel.audio',
     androidNotificationChannelName: 'RV Bhati Player',
-    androidNotificationOngoing: true,
+    androidNotificationChannelDescription: 'Music playback controls',
+    androidNotificationIcon: 'mipmap/ic_launcher',
+    androidNotificationOngoing: false,
+    androidShowNotificationBadge: true,
+    notificationColor: const Color(0xFF7C6CFF),
   );
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

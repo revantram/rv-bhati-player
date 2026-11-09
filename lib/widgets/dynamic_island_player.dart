@@ -116,7 +116,7 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                 return AnimatedSlide(
                   duration: const Duration(milliseconds: 320),
                   curve: Curves.easeOutBack,
-                  offset: shouldShow ? Offset.zero : const Offset(0, -1.2),
+                  offset: shouldShow ? Offset.zero : const Offset(0, 1.2),
                   child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 250),
                     opacity: shouldShow ? 1.0 : 0.0,

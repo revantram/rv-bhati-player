@@ -54,6 +54,7 @@ class RadioController extends ChangeNotifier {
   }
 
   Future<void> playStation(RadioStation station) async {
+    AudioController.instance.ensureNotificationPermission();
     _currentStation = station;
     _isLoading = true;
     _errorMessage = null;

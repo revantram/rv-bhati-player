@@ -411,67 +411,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               Positioned.fill(child: LiquidBackground(accent: accent)),
               Positioned.fill(child: _buildContent(pad)),
-              // Top Bar & Dynamic Island (iPhone Style Capsule)
+              // Top Bar
               Positioned(
-                top: pad.top + 6,
+                top: pad.top + 8,
                 left: 16,
                 right: 16,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Dynamic Island: Floats above top bar when audio/radio is playing
-                    DynamicIslandPlayer(
-                      onOpen: _openNowPlaying,
-                      onOpenRadio: () => setState(() => _tab = 3),
-                      onOpenOnline: _openNowPlaying,
-                    ),
-                    const SizedBox(height: 6),
-                    _isSearching
-                        ? _buildSearchBar()
-                        : GlassTopBar(
-                            title: app.tr('app_name'),
-                            subtitle: _loading
-                                ? 'Scanning storage...'
-                                : _tab == 2
-                                    ? 'JioSaavn 320kbps HD Online Music'
-                                    : _tab == 3
-                                        ? '24x7 Live FM & Online Radio'
-                                        : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
-                            leading: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [accent, const Color(0xFF00D2FF)],
-                                ),
-                              ),
-                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                child: _isSearching
+                    ? _buildSearchBar()
+                    : GlassTopBar(
+                        title: app.tr('app_name'),
+                        subtitle: _loading
+                            ? 'Scanning storage...'
+                            : _tab == 2
+                                ? 'JioSaavn 320kbps HD Online Music'
+                                : _tab == 3
+                                    ? '24x7 Live FM & Online Radio'
+                                    : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [accent, const Color(0xFF00D2FF)],
                             ),
-                            actions: [
-                              // Search
-                              LiquidGlassButton(
-                                icon: Icons.search_rounded,
-                                size: 44,
-                                iconSize: 22,
-                                onTap: () => setState(() => _isSearching = true),
-                              ),
-                              const SizedBox(width: 8),
-                              // Settings
-                              LiquidGlassButton(
-                                icon: Icons.settings_rounded,
-                                size: 44,
-                                iconSize: 22,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                                ),
-                              ),
-                            ],
                           ),
-                  ],
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                        ),
+                        actions: [
+                          // Search
+                          LiquidGlassButton(
+                            icon: Icons.search_rounded,
+                            size: 44,
+                            iconSize: 22,
+                            onTap: () => setState(() => _isSearching = true),
+                          ),
+                          const SizedBox(width: 8),
+                          // Settings
+                          LiquidGlassButton(
+                            icon: Icons.settings_rounded,
+                            size: 44,
+                            iconSize: 22,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              // Dynamic Island: Floats above bottom nav when audio/radio is playing
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: pad.bottom + 84,
+                child: DynamicIslandPlayer(
+                  onOpen: _openNowPlaying,
+                  onOpenRadio: () => setState(() => _tab = 3),
+                  onOpenOnline: _openNowPlaying,
                 ),
               ),
               // Bottom Nav
@@ -604,8 +603,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    final topOffset = pad.top + 92;
-    final bottomOffset = pad.bottom + 88;
+    final topOffset = pad.top + 78;
+    final bottomOffset = pad.bottom + 155;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
@@ -1097,9 +1096,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     borderRadius: BorderRadius.circular(20),
                     padding: const EdgeInsets.all(8),
                     blur: 0,
-                    glow: false,
+                    glow: true,
                     child: SizedBox(
-                      width: 140,
+                      width: 150,
                       child: Row(
                         children: [
                           ClipRRect(
@@ -1130,12 +1129,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   item.displayTitle,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: app.textColor),
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: app.textColor),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   formatDuration(item.duration),
-                                  style: TextStyle(fontSize: 11, color: app.secondaryTextColor),
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: app.secondaryTextColor),
                                 ),
                               ],
                             ),
@@ -1157,17 +1156,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final app = AppState.instance;
     return GestureDetector(
       onTap: onTap,
-      child: LiquidGlassContainer(
-        borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        borderColor: active ? app.accentColor : (app.isLight ? Colors.black.withValues(alpha: 0.1) : Colors.white12),
-        tint: active ? app.accentColor.withValues(alpha: 0.25) : null,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: active
+              ? app.accentColor
+              : (app.isLight ? Colors.white : const Color(0xFF1E2438)),
+          border: Border.all(
+            color: active
+                ? app.accentColor
+                : (app.isLight ? const Color(0xFFCBD5E1) : Colors.white.withValues(alpha: 0.18)),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: active
+                  ? app.accentColor.withValues(alpha: 0.35)
+                  : (app.isLight ? const Color(0xFF0F172A).withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.2)),
+              blurRadius: active ? 10 : 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Text(
           title,
           style: TextStyle(
             fontSize: 13.5,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? app.accentColor : (app.isLight ? app.textColor : Colors.white70),
+            fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+            color: active ? Colors.white : app.textColor,
           ),
         ),
       ),
@@ -1342,7 +1360,7 @@ class _MediaCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(26),
         padding: const EdgeInsets.all(10),
         blur: 0,
-        glow: false,
+        glow: true,
         child: Row(
           children: [
             ClipRRect(
@@ -1375,7 +1393,7 @@ class _MediaCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 15.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: app.textColor,
                     ),
                   ),
@@ -1397,7 +1415,7 @@ class _MediaCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 12.5,
                                     color: app.accentColor,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
@@ -1412,6 +1430,7 @@ class _MediaCard extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: app.secondaryTextColor,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -1426,6 +1445,7 @@ class _MediaCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12.5,
                             color: app.secondaryTextColor,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                 ],

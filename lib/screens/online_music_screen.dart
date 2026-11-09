@@ -1092,7 +1092,7 @@ class _OnlineSongTile extends StatelessWidget {
         borderColor: isCurrent ? app.accentColor.withValues(alpha: 0.6) : null,
         tint: isCurrent ? app.accentColor.withValues(alpha: 0.12) : null,
         blur: 0,
-        glow: false,
+        glow: true,
         child: Row(
           children: [
             // High-res Album Art
@@ -1146,7 +1146,7 @@ class _OnlineSongTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: isCurrent ? app.accentColor : app.textColor,
                     ),
                   ),
@@ -1168,7 +1168,7 @@ class _OnlineSongTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               color: app.accentColor,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -1192,7 +1192,7 @@ class _OnlineSongTile extends StatelessWidget {
                         ),
                         child: const Text(
                           '320 kbps',
-                          style: TextStyle(fontSize: 9.5, color: Color(0xFF00D2FF), fontWeight: FontWeight.w600),
+                          style: TextStyle(fontSize: 9.5, color: Color(0xFF00D2FF), fontWeight: FontWeight.w700),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -1200,6 +1200,7 @@ class _OnlineSongTile extends StatelessWidget {
                         formatDuration(song.duration),
                         style: TextStyle(
                           fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: app.secondaryTextColor,
                         ),
                       ),
