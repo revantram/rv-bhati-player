@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'car_mode_screen.dart';
+import '../models/radio_station.dart';
 import '../services/app_state.dart';
+import '../services/saavn_api_service.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
 import '../widgets/equalizer_sheet.dart';
@@ -102,6 +104,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 120),
                   children: [
+                    // My Library Hub
+                    _buildMyLibrarySection(context, textColor, secondaryTextColor, accent, isLight),
+
+                    // Section: Online Search & Music Engine
+                    _buildSectionHeader('ONLINE SEARCH & MUSIC ENGINE', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 14,
+                      child: Column(
+                        children: [
+                          for (final engine in MusicEngine.values) ...[
+                            _buildEngineTile(engine, textColor, secondaryTextColor, accent),
+                            if (engine != MusicEngine.values.last)
+                              _buildDivider(isLight),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
                     // Section 1: Streaming Quality
                     _buildSectionHeader('AUDIO STREAMING QUALITY', textColor),
                     LiquidGlassContainer(
@@ -937,4 +961,398 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  Widget _buildEngineTile(
+    MusicEngine engine,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+  ) {
+    final selected = _settings.musicEngine == engine;
+    final isYt = engine == MusicEngine.youtube;
+
+    return iOSBounceButton(
+      onTap: () => _settings.setMusicEngine(engine),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: isYt
+                    ? const Color(0xFFFF0000).withValues(alpha: 0.15)
+                    : accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                isYt ? Icons.play_circle_fill_rounded : Icons.graphic_eq_rounded,
+                color: isYt ? const Color(0xFFFF0000) : accent,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    engine.label,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    engine.description,
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? accent : secondaryTextColor.withValues(alpha: 0.4),
+                  width: 2,
+                ),
+                color: selected ? accent : Colors.transparent,
+              ),
+              child: selected
+                  ? const Center(
+                      child: Icon(Icons.check, size: 14, color: Colors.white),
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMyLibrarySection(
+    BuildContext context,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+    bool isLight,
+  ) {
+    final rawName = _app.userName.trim();
+    final initials = rawName.isNotEmpty
+        ? rawName.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join().toUpperCase()
+        : 'RR';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('MY LIBRARY', textColor),
+        LiquidGlassContainer(
+          borderRadius: BorderRadius.circular(22),
+          padding: const EdgeInsets.all(16),
+          blur: 14,
+          child: Column(
+            children: [
+              // User Profile Row
+              Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [accent, accent.withValues(alpha: 0.65)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accent.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _app.userName,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Personal Audio Space',
+                          style: TextStyle(
+                            color: secondaryTextColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  iOSBounceButton(
+                    onTap: () => _showEditNameDialog(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: accent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_rounded, size: 14, color: accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Edit',
+                            style: TextStyle(
+                              color: accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildDivider(isLight),
+
+              // Items
+              _buildLibraryTile(
+                icon: Icons.music_note_rounded,
+                title: 'Liked Songs',
+                count: '${_app.favorites.length}',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
+                accent: accent,
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              _buildDivider(isLight),
+              _buildLibraryTile(
+                icon: Icons.album_outlined,
+                title: 'Albums',
+                count: '14',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
+                accent: accent,
+                onTap: () {},
+              ),
+              _buildDivider(isLight),
+              _buildLibraryTile(
+                icon: Icons.mic_none_rounded,
+                title: 'Artists',
+                count: '${SaavnApiService.curatedArtists.length + 10}',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
+                accent: accent,
+                onTap: () {},
+              ),
+              _buildDivider(isLight),
+              _buildLibraryTile(
+                icon: Icons.podcasts_rounded,
+                title: 'Shows',
+                count: '${RadioStation.stations.length}',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
+                accent: accent,
+                onTap: () {},
+              ),
+              _buildDivider(isLight),
+              _buildLibraryTile(
+                icon: Icons.download_outlined,
+                title: 'Downloads',
+                count: '0',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
+                accent: accent,
+                onTap: () {},
+              ),
+              _buildDivider(isLight),
+              _buildLibraryTile(
+                icon: Icons.queue_music_rounded,
+                title: 'Playlists',
+                count: '${_app.playlists.length + _app.customPlaylists.length}',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
+                accent: accent,
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+      ],
+    );
+  }
+
+  Widget _buildLibraryTile({
+    required IconData icon,
+    required String title,
+    required String count,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: accent),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppState.instance.isLight
+                    ? Colors.black.withValues(alpha: 0.05)
+                    : Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count,
+                style: TextStyle(
+                  color: secondaryTextColor,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: secondaryTextColor.withValues(alpha: 0.5),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditNameDialog(BuildContext context) {
+    final controller = TextEditingController(text: _app.userName);
+    final isLight = _app.isLight;
+    final textColor = _app.textColor;
+    final accent = _app.accentColor;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isLight
+            ? Colors.white.withValues(alpha: 0.95)
+            : const Color(0xFF1E1E22).withValues(alpha: 0.95),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Edit Profile Name',
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: TextStyle(color: textColor),
+          decoration: InputDecoration(
+            hintText: 'Enter your name',
+            hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
+            filled: true,
+            fillColor: isLight
+                ? Colors.black.withValues(alpha: 0.04)
+                : Colors.white.withValues(alpha: 0.06),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: accent, width: 1.5),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: textColor.withValues(alpha: 0.6)),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                _app.setUserName(newName);
+                setState(() {});
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

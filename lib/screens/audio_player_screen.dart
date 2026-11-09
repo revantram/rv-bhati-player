@@ -904,8 +904,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         displayLyrics = [
           for (int i = 0; i < rawLines.length; i++)
             LrcLine(
-              time: Duration(milliseconds: i * intervalMs),
-              text: rawLines[i],
+              Duration(milliseconds: i * intervalMs),
+              rawLines[i],
             ),
         ];
       }

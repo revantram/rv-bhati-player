@@ -127,7 +127,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
           tag_name: ${{ github.ref_name }}
-          name: "RV Bhati Player ${{ github.ref_name }} (Hardware Equalizer Fix & Squiggly Wave Seek Bar)"
+          name: "RV Bhati Player ${{ github.ref_name }} (YouTube Music, My Library Hub & Dynamic Island)"
           files: |
             build/app/outputs/flutter-apk/RV-Bhati-Player.apk
             build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk

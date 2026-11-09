@@ -13,6 +13,15 @@ enum AudioQuality {
   final int kbps;
 }
 
+enum MusicEngine {
+  youtube('YouTube Music', 'Universal Search (Songs, Covers, Mashups, Live)'),
+  jiosaavn('JioSaavn HD', 'Lossless 320kbps High Fidelity Audio');
+
+  const MusicEngine(this.label, this.description);
+  final String label;
+  final String description;
+}
+
 enum AppThemeMode {
   light('Apple iOS Light', 'Clean white frosted liquid glass'),
   dark('Liquid Dark', 'Deep OLED dark glass'),
@@ -29,6 +38,9 @@ class SettingsService extends ChangeNotifier {
 
   AudioQuality _audioQuality = AudioQuality.standard160;
   AudioQuality get audioQuality => _audioQuality;
+
+  MusicEngine _musicEngine = MusicEngine.youtube;
+  MusicEngine get musicEngine => _musicEngine;
 
   bool _autoQuality = true;
   bool get autoQuality => _autoQuality;
@@ -61,6 +73,12 @@ class SettingsService extends ChangeNotifier {
             orElse: () => AudioQuality.standard160,
           );
         }
+        if (map['musicEngine'] != null) {
+          _musicEngine = MusicEngine.values.firstWhere(
+            (e) => e.name == map['musicEngine'],
+            orElse: () => MusicEngine.youtube,
+          );
+        }
         if (map['autoQuality'] != null) {
           _autoQuality = map['autoQuality'] as bool;
         }
@@ -86,6 +104,7 @@ class SettingsService extends ChangeNotifier {
       if (_settingsFile == null) return;
       final data = {
         'audioQuality': _audioQuality.name,
+        'musicEngine': _musicEngine.name,
         'autoQuality': _autoQuality,
         'sleepFadeOut': _sleepFadeOut,
         'crossfadeSeconds': _crossfadeSeconds,
@@ -98,6 +117,13 @@ class SettingsService extends ChangeNotifier {
   void setAudioQuality(AudioQuality quality) {
     if (_audioQuality == quality) return;
     _audioQuality = quality;
+    _save();
+    notifyListeners();
+  }
+
+  void setMusicEngine(MusicEngine engine) {
+    if (_musicEngine == engine) return;
+    _musicEngine = engine;
     _save();
     notifyListeners();
   }

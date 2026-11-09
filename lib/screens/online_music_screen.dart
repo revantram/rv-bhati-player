@@ -7,6 +7,8 @@ import '../models/online_song.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/saavn_api_service.dart';
+import '../services/settings_service.dart';
+import '../services/yt_music_service.dart';
 import '../utils/format.dart';
 import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/artist_songs_sheet.dart';
@@ -50,13 +52,19 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   void initState() {
     super.initState();
     _loadTrending();
+    SettingsService.instance.addListener(_onSettingsChanged);
   }
 
   @override
   void dispose() {
+    SettingsService.instance.removeListener(_onSettingsChanged);
     _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadTrending() async {
@@ -88,7 +96,13 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     });
 
     _debounce = Timer(const Duration(milliseconds: 500), () async {
-      final results = await SaavnApiService.instance.searchSongs(clean);
+      final engine = SettingsService.instance.musicEngine;
+      List<OnlineSong> results;
+      if (engine == MusicEngine.youtube) {
+        results = await YtMusicService.instance.search(clean);
+      } else {
+        results = await SaavnApiService.instance.searchSongs(clean);
+      }
       if (mounted) {
         setState(() {
           _searchResults = results;
@@ -157,6 +171,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           child: _buildSpotlightSearchBar(),
         ),
 
+        // Search Engine Selector Pills (YouTube Music vs JioSaavn HD)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+          child: _buildEngineSelectorPills(),
+        ),
+
         // Main Body Content
         Expanded(
           child: _isSearching
@@ -169,10 +189,99 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
+  // --- Search Engine Selector Pills ---
+  Widget _buildEngineSelectorPills() {
+    final app = AppState.instance;
+    final currentEngine = SettingsService.instance.musicEngine;
+    final accent = app.accentColor;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildEnginePill(
+            engine: MusicEngine.youtube,
+            label: 'YouTube Music',
+            icon: Icons.play_circle_fill_rounded,
+            activeColor: const Color(0xFFFF0000),
+            isSelected: currentEngine == MusicEngine.youtube,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildEnginePill(
+            engine: MusicEngine.jiosaavn,
+            label: 'JioSaavn HD',
+            icon: Icons.graphic_eq_rounded,
+            activeColor: accent,
+            isSelected: currentEngine == MusicEngine.jiosaavn,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEnginePill({
+    required MusicEngine engine,
+    required String label,
+    required IconData icon,
+    required Color activeColor,
+    required bool isSelected,
+  }) {
+    final isLight = AppState.instance.isLight;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        SettingsService.instance.setMusicEngine(engine);
+        if (_searchCtrl.text.trim().isNotEmpty) {
+          _onSearchChanged(_searchCtrl.text);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? activeColor.withValues(alpha: 0.16)
+              : (isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.06)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? activeColor.withValues(alpha: 0.6)
+                : (isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.09)),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? activeColor : AppState.instance.secondaryTextColor,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? (isLight ? Colors.black : Colors.white)
+                    : AppState.instance.secondaryTextColor,
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // --- 1. Live Floating Spotlight Search Bar ---
   Widget _buildSpotlightSearchBar() {
     final app = AppState.instance;
     final accent = app.accentColor;
+    final engine = SettingsService.instance.musicEngine;
 
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
@@ -195,7 +304,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               onChanged: _onSearchChanged,
               style: TextStyle(color: app.textColor, fontSize: 14.5),
               decoration: InputDecoration(
-                hintText: app.tr('search_online'),
+                hintText: engine == MusicEngine.youtube
+                    ? 'Search YouTube Music (Songs, Covers, Artists)...'
+                    : app.tr('search_online'),
                 hintStyle: TextStyle(
                   color: app.secondaryTextColor.withValues(alpha: 0.6),
                   fontSize: 14,

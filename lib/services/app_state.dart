@@ -261,6 +261,17 @@ class AppState extends ChangeNotifier {
   AppLanguage _language = AppLanguage.en;
   AppLanguage get language => _language;
 
+  String _userName = 'Revant Ram';
+  String get userName => _userName;
+
+  void setUserName(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty) return;
+    _userName = clean;
+    _save();
+    notifyListeners();
+  }
+
   Color _accentColor = const Color(0xFF7C6CFF);
   Color get accentColor => _accentColor;
 
@@ -329,6 +340,7 @@ class AppState extends ChangeNotifier {
         final content = _storageFile!.readAsStringSync();
         final map = jsonDecode(content) as Map<String, dynamic>;
         if (map['language'] == 'hi') _language = AppLanguage.hi;
+        if (map['userName'] != null) _userName = map['userName'] as String;
         if (map['accent'] != null) _accentColor = Color(map['accent'] as int);
         if (map['favorites'] is List) {
           _favorites.addAll((map['favorites'] as List).cast<String>());
@@ -383,6 +395,7 @@ class AppState extends ChangeNotifier {
       final eq = EqualizerService.instance;
       final data = {
         'language': _language == AppLanguage.hi ? 'hi' : 'en',
+        'userName': _userName,
         'accent': _accentColor.toARGB32(),
         'favorites': _favorites.toList(),
         'recentlyPlayed': _recentlyPlayed,
