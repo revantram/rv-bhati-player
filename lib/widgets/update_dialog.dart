@@ -93,11 +93,22 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
     return PopScope(
       canPop: !_isDownloading && !_isInstalling,
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: LiquidGlassContainer(
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Material(
+              type: MaterialType.transparency,
+              child: DefaultTextStyle(
+                style: TextStyle(
+                  decoration: TextDecoration.none,
+                  color: textColor,
+                  fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
+                ),
+                child: LiquidGlassContainer(
             borderRadius: BorderRadius.circular(28),
             padding: const EdgeInsets.all(24),
             blur: 24,
@@ -369,6 +380,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+),
+);
   }
 }
