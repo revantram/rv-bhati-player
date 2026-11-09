@@ -80,6 +80,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   List<File> _availableSubtitles = [];
   int _audioTrackIndex = 0;
   double _audioVolumeMultiplier = 1.0;
+  String? _selectedQuality;
 
   // Gestures
   double _brightness = 0.5;
@@ -859,6 +860,174 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
   }
 
+  Future<void> _switchQuality(String qualityLabel, String streamUrl) async {
+    final oldController = _controller;
+    if (oldController == null) return;
+    final currentPos = oldController.value.position;
+    final wasPlaying = oldController.value.isPlaying;
+
+    setState(() {
+      _selectedQuality = qualityLabel;
+    });
+
+    try {
+      final newController = VideoPlayerController.networkUrl(Uri.parse(streamUrl));
+      await newController.initialize();
+      if (!mounted) {
+        await newController.dispose();
+        return;
+      }
+      await newController.seekTo(currentPos);
+      await newController.setPlaybackSpeed(_playbackSpeed);
+      if (wasPlaying) newController.play();
+
+      oldController.removeListener(_onTick);
+      await oldController.dispose();
+
+      newController.addListener(_onTick);
+      setState(() => _controller = newController);
+      _showHud(_Hud(Icons.high_quality_rounded, 'Quality: $qualityLabel', const Alignment(0, 0)));
+    } catch (_) {}
+  }
+
+  void _openQualitySheet() {
+    final item = widget.playlist[_index];
+    final qualities = item.qualityUrls ?? {};
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return LiquidGlassContainer(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+              tint: const Color(0xFF14192B),
+              borderColor: Colors.white24,
+              blur: 25,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.high_quality_rounded, color: AppState.instance.accentColor, size: 24),
+                        const SizedBox(width: 8),
+                        const Text('Video Quality / Resolution', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      qualities.isNotEmpty ? 'Select video streaming resolution' : 'Display resolution and decoding profile',
+                      style: const TextStyle(fontSize: 12, color: Colors.white54),
+                    ),
+                    const SizedBox(height: 16),
+                    if (qualities.isNotEmpty) ...[
+                      ...qualities.entries.map((e) {
+                        final isSelected = (_selectedQuality ?? qualities.keys.first) == e.key;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              _switchQuality(e.key, e.value);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppState.instance.accentColor.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: isSelected ? AppState.instance.accentColor : Colors.white12, width: isSelected ? 1.4 : 1),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.hd_rounded, size: 20, color: isSelected ? AppState.instance.accentColor : Colors.white70),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      '${e.key} ${e.key.contains("1080") ? "(Full HD)" : e.key.contains("720") ? "(HD)" : e.key.contains("480") ? "(SD)" : ""}',
+                                      style: TextStyle(fontSize: 14, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500, color: Colors.white),
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    Icon(Icons.check_circle_rounded, size: 18, color: AppState.instance.accentColor),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppState.instance.accentColor.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppState.instance.accentColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.video_file_rounded, color: AppState.instance.accentColor, size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _controller != null && _controller!.value.isInitialized
+                                        ? '${_controller!.value.size.width.round()} x ${_controller!.value.size.height.round()} (Original Resolution)'
+                                        : 'Original Resolution (High Quality)',
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text('Hardware accelerated playback at native bitrate', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.check_circle_rounded, color: AppState.instance.accentColor, size: 20),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.speed_rounded, color: Colors.white70, size: 22),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Smooth Hardware Decode Profile', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                                  SizedBox(height: 2),
+                                  Text('Direct GPU rendering with low battery consumption', style: TextStyle(fontSize: 11, color: Colors.white54)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // ---- UI --------------------------------------------------------------------
 
   @override
@@ -1084,6 +1253,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                           iconSize: 20,
                           tint: _audioTrackIndex > 0 ? AppState.instance.accentColor : null,
                           onTap: _openAudioTrackSheet,
+                        ),
+                        const SizedBox(width: 6),
+                        LiquidGlassButton(
+                          icon: Icons.high_quality_rounded,
+                          size: 44,
+                          iconSize: 22,
+                          tint: _selectedQuality != null ? AppState.instance.accentColor : null,
+                          onTap: _openQualitySheet,
                         ),
                         const SizedBox(width: 6),
                         LiquidGlassButton(

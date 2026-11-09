@@ -16,6 +16,7 @@ class MediaFile {
     this.embeddedArt,
     this.fileSize,
     this.modifiedDate,
+    this.qualityUrls,
   });
 
   final String id;
@@ -26,6 +27,7 @@ class MediaFile {
   final MediaKind kind;
   final Duration duration;
   final AssetEntity? entity;
+  final Map<String, String>? qualityUrls;
 
   String? artist;
   String? album;

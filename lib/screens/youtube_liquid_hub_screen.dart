@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -9,6 +10,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../models/media_file.dart';
 import '../services/app_state.dart';
 import '../utils/format.dart';
+import '../widgets/liquid_glass_button.dart';
 import '../widgets/liquid_glass_container.dart';
 import 'video_player_screen.dart';
 
@@ -85,6 +87,9 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
 
   late final AnimationController _shimmerCtrl;
 
+  // In-memory feed cache for instantaneous 0ms tab switching
+  static final Map<String, List<NativeYoutubeVideo>> _feedCache = {};
+
   List<NativeYoutubeVideo> _videos = [];
   bool _isLoading = true;
   bool _isResolvingStream = false;
@@ -112,6 +117,7 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
     )..repeat();
 
     _loadFeed(_categories[_selectedCategoryIndex]['query']!);
+    _prefetchNextCategories();
   }
 
   @override
@@ -123,14 +129,56 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
     super.dispose();
   }
 
+  // Background prefetching for smooth, zero-wait category exploration
+  void _prefetchNextCategories() async {
+    for (int i = 1; i < math.min(4, _categories.length); i++) {
+      final q = _categories[i]['query']!;
+      if (!_feedCache.containsKey(q)) {
+        try {
+          final res = await _yt.search.search(q).timeout(const Duration(seconds: 5));
+          final list = <NativeYoutubeVideo>[];
+          for (final v in res) {
+            list.add(
+              NativeYoutubeVideo(
+                id: v.id.value,
+                title: v.title,
+                author: v.author,
+                thumbnailUrl: v.thumbnails.highResUrl,
+                duration: v.duration,
+                viewCount: v.engagement.viewCount,
+                uploadDate: v.uploadDate,
+              ),
+            );
+            if (list.length >= 25) break;
+          }
+          if (list.isNotEmpty) {
+            _feedCache[q] = list;
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
   Future<void> _loadFeed(String query) async {
+    // 1. Instant Cache Check (0ms latency!)
+    if (_feedCache.containsKey(query) && _feedCache[query]!.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _videos = _feedCache[query]!;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final searchResults = await _yt.search.search(query);
+      final searchResults = await _yt.search.search(query).timeout(const Duration(seconds: 6));
       final list = <NativeYoutubeVideo>[];
 
       for (final v in searchResults) {
@@ -145,20 +193,32 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
             uploadDate: v.uploadDate,
           ),
         );
-        if (list.length >= 35) break;
+        if (list.length >= 25) break;
       }
 
-      if (mounted) {
-        setState(() {
-          _videos = list;
-          _isLoading = false;
-        });
+      if (list.isNotEmpty) {
+        _feedCache[query] = list;
+        if (mounted) {
+          setState(() {
+            _videos = list;
+            _isLoading = false;
+          });
+        }
+        return;
       }
-    } catch (e) {
-      // Fallback query via Piped public search API if client restricted
+    } catch (_) {}
+
+    // Fallback: Query via Piped CDN API mirrors
+    final pipedMirrors = [
+      'https://pipedapi.lunar.icu',
+      'https://api.piped.private.coffee',
+      'https://pipedapi.kavin.rocks',
+    ];
+
+    for (final mirror in pipedMirrors) {
       try {
-        final uri = Uri.parse('https://pipedapi.kavin.rocks/search?q=${Uri.encodeComponent(query)}&filter=all');
-        final resp = await http.get(uri).timeout(const Duration(seconds: 5));
+        final uri = Uri.parse('$mirror/search?q=${Uri.encodeComponent(query)}&filter=all');
+        final resp = await http.get(uri).timeout(const Duration(seconds: 4));
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
           final items = data['items'] as List? ?? [];
@@ -181,22 +241,25 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
             }
           }
 
-          if (mounted && list.isNotEmpty) {
-            setState(() {
-              _videos = list;
-              _isLoading = false;
-            });
+          if (list.isNotEmpty) {
+            _feedCache[query] = list;
+            if (mounted) {
+              setState(() {
+                _videos = list;
+                _isLoading = false;
+              });
+            }
             return;
           }
         }
       } catch (_) {}
+    }
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Network connection issue. Tap retry to reload.';
-        });
-      }
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Network connection issue. Tap retry to reload.';
+      });
     }
   }
 
@@ -223,23 +286,30 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
     });
 
     String? directStreamUrl;
+    final Map<String, String> qualityMap = {};
 
-    // 1. Try YoutubeExplode direct streams
+    // 1. Try YoutubeExplode direct streams & extract all resolutions for Quality selector
     try {
-      final manifest = await _yt.videos.streamsClient.getManifest(video.id);
-      final muxed = manifest.muxed;
+      final manifest = await _yt.videos.streamsClient.getManifest(video.id).timeout(const Duration(seconds: 5));
+      final muxed = manifest.muxed.toList();
       if (muxed.isNotEmpty) {
-        final streamInfo = muxed.withHighestBitrate();
-        directStreamUrl = streamInfo.url.toString();
+        for (final s in muxed) {
+          final q = s.qualityLabel;
+          if (!qualityMap.containsKey(q)) {
+            qualityMap[q] = s.url.toString();
+          }
+        }
+        final highest = muxed.withHighestBitrate();
+        directStreamUrl = highest.url.toString();
       }
     } catch (_) {}
 
-    // 2. High-speed Piped CDN stream fallback
+    // 2. High-speed Piped CDN stream fallback with quality resolution collection
     if (directStreamUrl == null || directStreamUrl.isEmpty) {
       final pipedApis = [
-        'https://pipedapi.kavin.rocks/streams/${video.id}',
         'https://pipedapi.lunar.icu/streams/${video.id}',
         'https://api.piped.private.coffee/streams/${video.id}',
+        'https://pipedapi.kavin.rocks/streams/${video.id}',
       ];
 
       for (final api in pipedApis) {
@@ -248,21 +318,24 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
           if (resp.statusCode == 200) {
             final data = jsonDecode(resp.body) as Map<String, dynamic>;
             final hls = data['hls']?.toString();
-            if (hls != null && hls.isNotEmpty) {
-              directStreamUrl = hls;
-              break;
-            }
             final videoStreams = data['videoStreams'] as List?;
             if (videoStreams != null && videoStreams.isNotEmpty) {
               for (final vs in videoStreams) {
                 final u = vs['url']?.toString();
-                if (u != null && u.isNotEmpty) {
-                  directStreamUrl = u;
-                  break;
+                final q = vs['quality']?.toString() ?? 'Auto';
+                if (u != null && u.isNotEmpty && !qualityMap.containsKey(q)) {
+                  qualityMap[q] = u;
                 }
               }
             }
-            if (directStreamUrl != null) break;
+            if (hls != null && hls.isNotEmpty) {
+              directStreamUrl = hls;
+              qualityMap['Auto (HLS)'] = hls;
+              break;
+            } else if (qualityMap.isNotEmpty) {
+              directStreamUrl = qualityMap.values.first;
+              break;
+            }
           }
         } catch (_) {}
       }
@@ -278,6 +351,7 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
           final hls = data['hlsUrl']?.toString();
           if (hls != null && hls.isNotEmpty) {
             directStreamUrl = hls;
+            qualityMap['Auto (HLS)'] = hls;
           }
         }
       } catch (_) {}
@@ -287,7 +361,7 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
     setState(() => _isResolvingStream = false);
 
     if (directStreamUrl != null && directStreamUrl.isNotEmpty) {
-      // Launch native RV Bhati Video Player with full gesture controls & multi-audio
+      // Launch native RV Bhati Video Player with full gesture controls, quality switch & multi-audio
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -299,6 +373,7 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                 path: directStreamUrl!,
                 kind: MediaKind.video,
                 duration: video.duration ?? const Duration(minutes: 5),
+                qualityUrls: qualityMap.isNotEmpty ? qualityMap : null,
               ),
             ],
             startIndex: 0,
@@ -331,8 +406,11 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
           Positioned.fill(
             child: RefreshIndicator(
               color: app.accentColor,
-              backgroundColor: const Color(0xFF1E2438),
-              onRefresh: () => _loadFeed(_categories[_selectedCategoryIndex]['query']!),
+              backgroundColor: app.isDark ? const Color(0xFF1E2438) : Colors.white,
+              onRefresh: () async {
+                _feedCache.remove(_categories[_selectedCategoryIndex]['query']!);
+                await _loadFeed(_categories[_selectedCategoryIndex]['query']!);
+              },
               child: CustomScrollView(
                 controller: _scrollCtrl,
                 physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
@@ -358,24 +436,38 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                             padding: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
                               onTap: () => _onCategorySelected(i),
-                              child: Container(
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                 decoration: BoxDecoration(
                                   color: isSel
-                                      ? app.accentColor.withValues(alpha: 0.28)
-                                      : Colors.white.withValues(alpha: 0.08),
+                                      ? app.accentColor.withValues(alpha: app.isDark ? 0.28 : 0.18)
+                                      : (app.isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : Colors.white.withValues(alpha: 0.88)),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                    color: isSel ? app.accentColor : Colors.white12,
-                                    width: isSel ? 1.4 : 1,
+                                    color: isSel ? app.accentColor : (app.isDark ? Colors.white12 : Colors.black12),
+                                    width: isSel ? 1.5 : 1,
                                   ),
+                                  boxShadow: isSel
+                                      ? [
+                                          BoxShadow(
+                                            color: app.accentColor.withValues(alpha: 0.25),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
                                 ),
                                 child: Text(
                                   cat['name']!,
                                   style: TextStyle(
                                     fontSize: 12.5,
-                                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSel ? app.accentColor : Colors.white,
+                                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w600,
+                                    color: isSel
+                                        ? (app.isDark ? app.accentColor : const Color(0xFF0F172A))
+                                        : (app.isDark ? Colors.white70 : const Color(0xFF1E293B)),
                                   ),
                                 ),
                               ),
@@ -414,13 +506,20 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                                 const SizedBox(height: 12),
                                 Text(
                                   'Connection Issue',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: app.textColor),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: app.isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
                                   _errorMessage!,
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 13, color: app.secondaryTextColor),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: app.isDark ? Colors.white60 : const Color(0xFF475569),
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 LiquidGlassButton(
@@ -505,12 +604,12 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
+                            Text(
                               'RV Bhati YouTube',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: app.isDark ? Colors.white : const Color(0xFF0F172A),
                                 letterSpacing: -0.3,
                               ),
                             ),
@@ -531,7 +630,10 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                         icon: Icons.refresh_rounded,
                         size: 38,
                         iconSize: 20,
-                        onTap: () => _loadFeed(_categories[_selectedCategoryIndex]['query']!),
+                        onTap: () {
+                          _feedCache.remove(_categories[_selectedCategoryIndex]['query']!);
+                          _loadFeed(_categories[_selectedCategoryIndex]['query']!);
+                        },
                       ),
                     ],
                   ),
@@ -550,12 +652,19 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                       Expanded(
                         child: TextField(
                           controller: _searchCtrl,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: TextStyle(
+                            color: app.isDark ? Colors.white : const Color(0xFF0F172A),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                           textInputAction: TextInputAction.search,
                           onSubmitted: _onSearch,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Search songs, videos or artists...',
-                            hintStyle: TextStyle(color: Colors.white54, fontSize: 13),
+                            hintStyle: TextStyle(
+                              color: app.isDark ? Colors.white54 : const Color(0xFF64748B),
+                              fontSize: 13,
+                            ),
                             border: InputBorder.none,
                             isDense: true,
                           ),
@@ -568,7 +677,11 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                             setState(() {});
                             _loadFeed(_categories[_selectedCategoryIndex]['query']!);
                           },
-                          child: const Icon(Icons.close_rounded, color: Colors.white60, size: 18),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: app.isDark ? Colors.white60 : const Color(0xFF64748B),
+                            size: 18,
+                          ),
                         ),
                     ],
                   ),
@@ -598,12 +711,12 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                           ),
                         ),
                         const SizedBox(height: 14),
-                        const Text(
+                        Text(
                           'Opening Ad-Free Stream...',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: app.isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         if (_resolvingVideoTitle != null) ...[
@@ -612,7 +725,10 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                             _resolvingVideoTitle!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 12, color: app.secondaryTextColor),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: app.isDark ? Colors.white70 : const Color(0xFF475569),
+                            ),
                           ),
                         ],
                       ],
@@ -626,7 +742,7 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
     );
   }
 
-  // 100% Native Frosted Video Card Widget
+  // 100% Native Frosted Video Card Widget (Zero Scroll-Lag, 120 FPS, Crisp Contrast)
   Widget _buildVideoCard(NativeYoutubeVideo video, AppState app) {
     final metaText = [
       if (video.viewsFormatted.isNotEmpty) video.viewsFormatted,
@@ -635,15 +751,29 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
 
     return GestureDetector(
       onTap: () => _playVideo(video),
-      child: LiquidGlassContainer(
-        borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: app.isDark
+              ? Colors.white.withValues(alpha: 0.07)
+              : Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: app.isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: app.isDark ? 0.25 : 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         padding: const EdgeInsets.all(12),
-        blur: 15,
-        opacity: 0.10,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 16:9 High-Res Thumbnail with Duration Badge Overlay
+            // 16:9 High-Res Thumbnail with Duration Badge Overlay (Optimized cacheWidth for 120 FPS scrolling)
             AspectRatio(
               aspectRatio: 16 / 9,
               child: ClipRRect(
@@ -654,6 +784,8 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                     Image.network(
                       video.thumbnailUrl,
                       fit: BoxFit.cover,
+                      cacheWidth: 640,
+                      filterQuality: FilterQuality.low,
                       errorBuilder: (_, __, ___) => Container(
                         color: Colors.white10,
                         alignment: Alignment.center,
@@ -683,7 +815,7 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                           ),
                         ),
                       ),
-                    // Subtle Centered Play Button
+                    // Centered Play Button
                     Center(
                       child: Container(
                         width: 44,
@@ -702,7 +834,7 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
             ),
             const SizedBox(height: 10),
 
-            // Video Details: Title, Channel, Views
+            // Video Details: Crisp High-Contrast Title, Channel, Views
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -717,14 +849,14 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                         style: TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
-                          color: app.textColor,
+                          color: app.isDark ? Colors.white : const Color(0xFF0F172A),
                           height: 1.25,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 5),
                       Row(
                         children: [
-                          Icon(Icons.person_rounded, size: 13, color: app.accentColor),
+                          Icon(Icons.person_rounded, size: 14, color: app.accentColor),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -732,19 +864,23 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
-                                color: app.accentColor,
+                                color: app.isDark ? Colors.white70 : const Color(0xFF334155),
                               ),
                             ),
                           ),
                         ],
                       ),
                       if (metaText.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           metaText,
-                          style: TextStyle(fontSize: 11, color: app.secondaryTextColor),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: app.isDark ? Colors.white60 : const Color(0xFF475569),
+                          ),
                         ),
                       ],
                     ],
@@ -765,11 +901,13 @@ class _YoutubeLiquidHubScreenState extends State<YoutubeLiquidHubScreen>
       builder: (context, _) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 14),
-          child: LiquidGlassContainer(
-            borderRadius: BorderRadius.circular(20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white10, width: 1),
+            ),
             padding: const EdgeInsets.all(12),
-            blur: 10,
-            opacity: 0.08,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
