@@ -100,27 +100,48 @@ class _VideoThumbnailWidgetState extends State<VideoThumbnailWidget> {
 
   Widget _buildPlaceholder(AppState app) {
     return Container(
-      color: app.isLight ? const Color(0xFFE2E6EE) : const Color(0xFF161C2E),
+      decoration: BoxDecoration(
+        color: app.isLight
+            ? Colors.black.withValues(alpha: 0.04)
+            : Colors.white.withValues(alpha: 0.06),
+        border: Border.all(
+          color: app.accentColor.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Icon(
-            Icons.movie_creation_rounded,
-            color: app.accentColor.withValues(alpha: 0.5),
-            size: 28,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: app.accentColor.withValues(alpha: 0.12),
+              boxShadow: [
+                BoxShadow(
+                  color: app.accentColor.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.video_library_rounded,
+              color: app.accentColor,
+              size: 24,
+            ),
           ),
           Positioned(
             bottom: 4,
             right: 4,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
               decoration: BoxDecoration(
-                color: Colors.black54,
+                color: Colors.black.withValues(alpha: 0.65),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                widget.video.extension,
-                style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.w700),
+                widget.video.extension.isNotEmpty ? widget.video.extension : 'VIDEO',
+                style: const TextStyle(fontSize: 8.5, color: Colors.white, fontWeight: FontWeight.w700),
               ),
             ),
           ),

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -190,90 +192,143 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
-  // --- Search Engine Selector Pills ---
+  // --- Search Engine Selector: Single iOS Liquid Segmented Controller ---
   Widget _buildEngineSelectorPills() {
     final app = AppState.instance;
     final currentEngine = SettingsService.instance.musicEngine;
-    final accent = app.accentColor;
+    final isYt = currentEngine == MusicEngine.youtube;
+    final isLight = app.isLight;
 
-    return Row(
-      children: [
-        Expanded(
-          child: _buildEnginePill(
-            engine: MusicEngine.youtube,
-            label: 'YouTube Music',
-            icon: Icons.play_circle_fill_rounded,
-            activeColor: const Color(0xFFFF0000),
-            isSelected: currentEngine == MusicEngine.youtube,
-          ),
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.all(3.5),
+      decoration: BoxDecoration(
+        color: isLight
+            ? Colors.black.withValues(alpha: 0.05)
+            : Colors.white.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isLight
+              ? Colors.black.withValues(alpha: 0.08)
+              : Colors.white.withValues(alpha: 0.14),
+          width: 1,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildEnginePill(
-            engine: MusicEngine.jiosaavn,
-            label: 'JioSaavn HD',
-            icon: Icons.graphic_eq_rounded,
-            activeColor: accent,
-            isSelected: currentEngine == MusicEngine.jiosaavn,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEnginePill({
-    required MusicEngine engine,
-    required String label,
-    required IconData icon,
-    required Color activeColor,
-    required bool isSelected,
-  }) {
-    final isLight = AppState.instance.isLight;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        SettingsService.instance.setMusicEngine(engine);
-        if (_searchCtrl.text.trim().isNotEmpty) {
-          _onSearchChanged(_searchCtrl.text);
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? activeColor.withValues(alpha: 0.16)
-              : (isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.06)),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? activeColor.withValues(alpha: 0.6)
-                : (isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.09)),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? activeColor : AppState.instance.secondaryTextColor,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? (isLight ? Colors.black : Colors.white)
-                    : AppState.instance.secondaryTextColor,
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: -0.2,
+      ),
+      child: Stack(
+        children: [
+          // Sliding Frosted Active Tab Highlight
+          AnimatedAlign(
+            alignment: isYt ? Alignment.centerRight : Alignment.centerLeft,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              heightFactor: 1.0,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(19),
+                  gradient: LinearGradient(
+                    colors: isYt
+                        ? [
+                            const Color(0xFFFF0000).withValues(alpha: 0.28),
+                            const Color(0xFFFF0000).withValues(alpha: 0.16),
+                          ]
+                        : [
+                            app.accentColor.withValues(alpha: 0.28),
+                            app.accentColor.withValues(alpha: 0.16),
+                          ],
+                  ),
+                  border: Border.all(
+                    color: isYt
+                        ? const Color(0xFFFF0000).withValues(alpha: 0.55)
+                        : app.accentColor.withValues(alpha: 0.55),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isYt ? const Color(0xFFFF0000) : app.accentColor)
+                          .withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      spreadRadius: -1,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+
+          // Clickable segment tabs
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    SettingsService.instance.setMusicEngine(MusicEngine.jiosaavn);
+                    if (_searchCtrl.text.trim().isNotEmpty) {
+                      _onSearchChanged(_searchCtrl.text);
+                    }
+                  },
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.graphic_eq_rounded,
+                          size: 16,
+                          color: !isYt ? app.accentColor : app.secondaryTextColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'JioSaavn HD',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: !isYt ? FontWeight.w700 : FontWeight.w500,
+                            color: !isYt ? app.textColor : app.secondaryTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    SettingsService.instance.setMusicEngine(MusicEngine.youtube);
+                    if (_searchCtrl.text.trim().isNotEmpty) {
+                      _onSearchChanged(_searchCtrl.text);
+                    }
+                  },
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.play_circle_fill_rounded,
+                          size: 16,
+                          color: isYt ? const Color(0xFFFF0000) : app.secondaryTextColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'YouTube Music',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isYt ? FontWeight.w700 : FontWeight.w500,
+                            color: isYt ? app.textColor : app.secondaryTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -379,7 +434,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     }
 
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(16, 10, 16, widget.bottomOffset),
+      padding: EdgeInsets.fromLTRB(16, 10, 16, math.max(160.0, widget.bottomOffset)),
       itemCount: _searchResults.length,
       itemBuilder: (context, i) {
         return Padding(
@@ -473,7 +528,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                       ),
                     )
                   : ListView.builder(
-                      padding: EdgeInsets.fromLTRB(16, 6, 16, widget.bottomOffset),
+                      padding: EdgeInsets.fromLTRB(16, 6, 16, math.max(160.0, widget.bottomOffset)),
                       itemCount: _categorySongs.length,
                       itemBuilder: (context, i) {
                         return Padding(
@@ -495,7 +550,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     final app = AppState.instance;
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 10, 16, widget.bottomOffset),
+      padding: EdgeInsets.fromLTRB(16, 10, 16, math.max(160.0, widget.bottomOffset)),
       children: [
         // 1. Dedicated Singer Folders (Curated Artist Hub - directly below search bar)
         _buildArtistHub(),
@@ -554,7 +609,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
-  // --- 2. Curated Era Folders ---
+  // --- 2. Curated Era Folders: Glassmorphic Category Cards ---
   Widget _buildCuratedEraFolders() {
     final app = AppState.instance;
 
@@ -562,25 +617,32 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       children: [
         Expanded(
           child: PressableScale(
-            hapticOnDown: false,
             onTap: () => _openCategory('New Bollywood Hits'),
             child: LiquidGlassContainer(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(20),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              borderColor: const Color(0xFFFF2A85).withValues(alpha: 0.4),
+              blur: 16,
+              opacity: 0.12,
+              borderWidth: 1,
+              borderColor: Colors.white.withValues(alpha: 0.15),
               tint: const Color(0xFFFF2A85).withValues(alpha: 0.12),
-              blur: 0,
-              glow: false,
               child: Row(
                 children: [
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
+                      gradient: const LinearGradient(
                         colors: [Color(0xFFFF2A85), Color(0xFFFF7043)],
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF2A85).withValues(alpha: 0.45),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                     child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 26),
                   ),
@@ -618,25 +680,32 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: PressableScale(
-            hapticOnDown: false,
             onTap: () => _openCategory('Evergreen Classics'),
             child: LiquidGlassContainer(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(20),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              borderColor: const Color(0xFFFFB300).withValues(alpha: 0.4),
+              blur: 16,
+              opacity: 0.12,
+              borderWidth: 1,
+              borderColor: Colors.white.withValues(alpha: 0.15),
               tint: const Color(0xFFFFB300).withValues(alpha: 0.12),
-              blur: 0,
-              glow: false,
               child: Row(
                 children: [
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
+                      gradient: const LinearGradient(
                         colors: [Color(0xFFFFB300), Color(0xFFFF8F00)],
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFB300).withValues(alpha: 0.45),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                     child: const Icon(Icons.radio_rounded, color: Colors.white, size: 24),
                   ),
@@ -675,7 +744,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
-  // --- Dynamic Mood & Regional Playlists ---
+  // --- Dynamic Mood & Regional Playlists (Adjusted width 158 for peek alignment) ---
   Widget _buildMoodAndRegionalPlaylists() {
     final app = AppState.instance;
     final categories = SaavnApiService.moodCategories;
@@ -710,38 +779,20 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             itemBuilder: (context, i) {
               final cat = categories[i];
               final c1 = Color(int.parse(cat['color1']!));
-              final c2 = Color(int.parse(cat['color2']!));
 
               return Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: PressableScale(
-                  hapticOnDown: false,
                   onTap: () => _openMoodCategory(cat['id']!, cat['title']!),
-                  child: Container(
-                    width: 170,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          c1.withValues(alpha: 0.35),
-                          c2.withValues(alpha: 0.15),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: c1.withValues(alpha: 0.45),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
+                  child: LiquidGlassContainer(
+                    width: 158,
+                    borderRadius: BorderRadius.circular(20),
+                    padding: const EdgeInsets.all(13),
+                    blur: 16,
+                    opacity: 0.12,
+                    borderWidth: 1,
+                    borderColor: Colors.white.withValues(alpha: 0.15),
+                    tint: c1.withValues(alpha: 0.15),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -757,7 +808,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: app.isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12),
+                                color: app.isLight
+                                    ? Colors.black.withValues(alpha: 0.08)
+                                    : Colors.white.withValues(alpha: 0.14),
                               ),
                               child: Icon(
                                 Icons.arrow_forward_ios_rounded,
@@ -835,30 +888,32 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               ? Center(child: CircularProgressIndicator(color: app.accentColor))
               : ListView.builder(
                   scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
                   itemCount: _trendingSongs.length.clamp(0, 10),
                   itemBuilder: (context, i) {
                     final song = _trendingSongs[i];
                     return Padding(
                       padding: const EdgeInsets.only(right: 14),
                       child: PressableScale(
-                        hapticOnDown: false,
                         onTap: () => _playSong(_trendingSongs, i),
                         child: LiquidGlassContainer(
-                          borderRadius: BorderRadius.circular(22),
-                          padding: const EdgeInsets.all(10),
-                          blur: 0,
-                          glow: false,
+                          borderRadius: BorderRadius.circular(20),
+                          padding: const EdgeInsets.all(9),
+                          blur: 16,
+                          opacity: 0.10,
+                          borderWidth: 1,
+                          borderColor: Colors.white.withValues(alpha: 0.15),
                           child: SizedBox(
-                            width: 130,
+                            width: 134,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Stack(
                                   children: [
                                     ClipRRect(
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(15),
                                       child: SizedBox(
-                                        width: 130,
+                                        width: 134,
                                         height: 100,
                                         child: Image.network(
                                           song.imageUrl,
@@ -871,24 +926,29 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                                         ),
                                       ),
                                     ),
+                                    // Translucent Glass Play Button
                                     Positioned(
                                       bottom: 6,
                                       right: 6,
                                       child: Container(
-                                        width: 30,
-                                        height: 30,
+                                        width: 32,
+                                        height: 32,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: app.accentColor,
+                                          color: app.accentColor.withValues(alpha: 0.85),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(alpha: 0.35),
+                                            width: 1.2,
+                                          ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: app.accentColor.withValues(alpha: 0.6),
-                                              blurRadius: 8,
+                                              color: app.accentColor.withValues(alpha: 0.45),
+                                              blurRadius: 10,
                                             ),
                                           ],
                                         ),
                                         child: const Icon(Icons.play_arrow_rounded,
-                                            color: Colors.white, size: 20),
+                                            color: Colors.white, size: 22),
                                       ),
                                     ),
                                   ],
@@ -1001,16 +1061,21 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             children: categories.map((cat) {
               final active = _artistCategoryFilter == cat;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => setState(() => _artistCategoryFilter = cat),
+                child: PressableScale(
+                  pressedScale: 0.94,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _artistCategoryFilter = cat);
+                  },
                   child: LiquidGlassContainer(
                     borderRadius: BorderRadius.circular(16),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     borderColor: active ? app.accentColor : (app.isLight ? Colors.black.withValues(alpha: 0.1) : Colors.white12),
                     tint: active ? app.accentColor.withValues(alpha: 0.22) : null,
                     blur: 0,
@@ -1033,17 +1098,18 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
         // Long Horizontal scrolling avatars list
         SizedBox(
-          height: 114,
+          height: 116,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: currentArtists.length,
             itemBuilder: (context, i) {
               final artist = currentArtists[i];
               return Padding(
                 padding: const EdgeInsets.only(right: 14),
                 child: PressableScale(
-                  hapticOnDown: false,
+                  pressedScale: 0.90,
                   onTap: () => _openArtistSheet(artist),
                   child: Column(
                     children: [
@@ -1053,13 +1119,14 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: app.accentColor.withValues(alpha: 0.6),
+                            color: app.accentColor.withValues(alpha: 0.65),
                             width: 2,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: app.accentColor.withValues(alpha: 0.25),
-                              blurRadius: 10,
+                              color: app.accentColor.withValues(alpha: 0.35),
+                              blurRadius: 14,
+                              spreadRadius: 1,
                             ),
                           ],
                         ),
@@ -1121,14 +1188,17 @@ class _OnlineSongTile extends StatelessWidget {
     final isCurrent = currentOnline?.id == song.id;
 
     return PressableScale(
-      hapticOnDown: false,
       onTap: onTap,
       child: LiquidGlassContainer(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         padding: const EdgeInsets.all(8),
-        borderColor: isCurrent ? app.accentColor.withValues(alpha: 0.6) : null,
+        blur: 16,
+        opacity: 0.10,
+        borderWidth: 1,
+        borderColor: isCurrent
+            ? app.accentColor.withValues(alpha: 0.6)
+            : Colors.white.withValues(alpha: 0.15),
         tint: isCurrent ? app.accentColor.withValues(alpha: 0.12) : null,
-        blur: 0,
         glow: true,
         child: Row(
           children: [

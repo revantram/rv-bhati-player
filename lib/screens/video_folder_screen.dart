@@ -22,6 +22,26 @@ class VideoFolderScreen extends StatefulWidget {
     this.onVideoDeleted,
   });
 
+  // 1. Smart Folder & Video Name Cleaner: Strips technical release tags
+  static String cleanFolderName(String name) {
+    var s = name;
+    s = s.replaceAll('_', ' ');
+    final releasePatterns = [
+      RegExp(r'\b(2160p|1080p|720p|480p|360p|4k|uhd|fhd|hd)\b', caseSensitive: false),
+      RegExp(r'\b(web-?dl|web-?rip|bluray|brrip|dvdrip|hdrip|hdtv|remux)\b', caseSensitive: false),
+      RegExp(r'\b(x264|x265|hevc|h\.?264|h\.?265|10bit|8bit|aac|ac3|eac3|dts|mp4|mkv)\b', caseSensitive: false),
+      RegExp(r'\b(esub|esubs|sub|subbed|dubbed|dual-?audio|multi)\b', caseSensitive: false),
+      RegExp(r'\b(sonyliv|hotstar|netflix|prime|zee5|jiocinema|mxplayer|voot|altbalaji)\b', caseSensitive: false),
+      RegExp(r'\b(hindi|english|telugu|tamil|punjabi|malayalam|kannada)\b', caseSensitive: false),
+      RegExp(r'\[.*?\]|\(.*?\)', caseSensitive: false),
+    ];
+    for (final p in releasePatterns) {
+      s = s.replaceAll(p, ' ');
+    }
+    s = s.replaceAll(RegExp(r'\.+'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return s.isEmpty ? name : s;
+  }
+
   @override
   State<VideoFolderScreen> createState() => _VideoFolderScreenState();
 }
@@ -30,6 +50,7 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
   FolderSortType _sortType = FolderSortType.count;
   AppState get app => AppState.instance;
 
+  // 3. Sort Action Refactor: Frosted glass sorting sheet
   void _showSortSheet() {
     HapticFeedback.lightImpact();
     final isLight = app.isLight;
@@ -43,6 +64,9 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
         return LiquidGlassContainer(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          blur: 20,
+          opacity: 0.14,
+          borderColor: Colors.white.withValues(alpha: 0.15),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -69,7 +93,7 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _buildSortOption(
                 FolderSortType.count,
                 'Video Count (सर्वाधिक वीडियो)',
@@ -111,7 +135,7 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
             color: active ? accent.withValues(alpha: 0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: active ? accent : Colors.transparent,
+              color: active ? accent : (app.isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white10),
               width: 1.2,
             ),
           ),
@@ -177,10 +201,12 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
           itemCount: folders.length,
           itemBuilder: (context, i) {
             final folder = folders[i];
+            final displayName = cleanFolderName(folder.name);
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: PressableScale(
-                hapticOnDown: false,
+                pressedScale: 0.96,
                 onTap: () {
                   HapticFeedback.lightImpact();
                   Navigator.of(context).push(
@@ -197,62 +223,40 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                     ),
                   );
                 },
+                // 5. Liquid Glass Card Styling: radius 20px, subtle frosted border
                 child: LiquidGlassContainer(
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(20),
                   padding: const EdgeInsets.all(10),
-                  blur: 0,
+                  blur: 16,
+                  opacity: 0.10,
+                  borderWidth: 1,
+                  borderColor: Colors.white.withValues(alpha: 0.15),
                   glow: true,
                   child: Row(
                     children: [
-                      // Left: High-res video thumbnail with a glowing folder badge
-                      SizedBox(
-                        width: 82,
-                        height: 72,
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: VideoThumbnailWidget(
-                                video: folder.coverVideo,
-                                borderRadius: BorderRadius.circular(16),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            // Vibrant Frosted Folder Badge
-                            Positioned(
-                              top: 5,
-                              left: 5,
-                              child: Container(
-                                padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.65),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: accent.withValues(alpha: 0.4),
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  Icons.folder_rounded,
-                                  color: accent,
-                                  size: 15,
-                                ),
-                              ),
-                            ),
-                          ],
+                      // 2. Thumbnail Fallback & Overlay Cleanup: Clean thumbnail preview without covering badge
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          width: 84,
+                          height: 72,
+                          child: VideoThumbnailWidget(
+                            video: folder.coverVideo,
+                            borderRadius: BorderRadius.circular(16),
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
 
-                      // Middle: Folder name & metadata badge
+                      // Middle: Smart cleaned folder name & metadata badge
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              folder.name,
+                              displayName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -319,7 +323,7 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
           },
         ),
 
-        // Dynamic Blur Header (Title, Subtitle & Storage Sort Button)
+        // Dynamic Blur Header (Title, Subtitle & 3. Sort Action Refactor)
         Positioned(
           top: 0,
           left: 0,
@@ -364,14 +368,11 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                         ],
                       ),
                     ),
+                    // Refactored sleek frosted sort icon button
                     LiquidGlassButton(
                       icon: Icons.sort_rounded,
-                      label: _sortType == FolderSortType.name
-                          ? 'Name'
-                          : _sortType == FolderSortType.size
-                              ? 'Size'
-                              : 'Count',
-                      size: 36,
+                      size: 38,
+                      iconSize: 20,
                       tint: accent,
                       onTap: _showSortSheet,
                     ),
