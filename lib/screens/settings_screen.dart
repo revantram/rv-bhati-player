@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'audio_trimmer_screen.dart';
 import 'car_mode_screen.dart';
 import '../models/radio_station.dart';
 import '../services/app_state.dart';
@@ -169,6 +170,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: 'Built-in Equalizer & Bass Boost',
                             subtitle: '5-Band EQ, 3D Surround & Bass presets',
                             onTap: () => EqualizerSheet.show(context),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
+                          _buildNavTile(
+                            icon: Icons.content_cut_rounded,
+                            title: 'Ringtone Cutter & Audio Trimmer',
+                            subtitle: 'Trim any song & set as custom ringtone',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const AudioTrimmerScreen()),
+                            ),
                             textColor: textColor,
                             secondaryTextColor: secondaryTextColor,
                             accent: accent,

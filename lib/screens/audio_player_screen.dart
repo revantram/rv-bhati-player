@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -96,15 +99,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       });
     }
 
-    _loadLyricsForIndex(_ac.player.currentIndex ?? widget.startIndex);
+    final initialIdx = _ac.player.currentIndex ?? widget.startIndex;
+    _handleTrackChange(initialIdx);
 
     _ac.player.currentIndexStream.listen((idx) {
       if (idx != null && mounted) {
-        _loadLyricsForIndex(idx);
-        final track = _getCurrentTrack(idx);
-        if (track != null) {
-          AppState.instance.markPlayed(track.id);
-        }
+        _handleTrackChange(idx);
       }
     });
   }
@@ -165,6 +165,69 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     return null;
   }
 
+  void _handleTrackChange(int idx) {
+    _loadLyricsForIndex(idx);
+    final track = _getCurrentTrack(idx);
+    if (track != null) {
+      AppState.instance.markPlayed(track.id);
+      _extractAndApplyThemeColor(track);
+    }
+  }
+
+  Future<void> _extractAndApplyThemeColor(_AudioTrackInfo track) async {
+    try {
+      Uint8List? imageBytes;
+      if (track.embeddedArt != null && track.embeddedArt!.isNotEmpty) {
+        imageBytes = track.embeddedArt;
+      } else if (track.isOnline && track.imageUrl != null && track.imageUrl!.isNotEmpty) {
+        final res = await http.get(Uri.parse(track.imageUrl!)).timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+          imageBytes = res.bodyBytes;
+        }
+      }
+
+      if (imageBytes != null && imageBytes.isNotEmpty) {
+        final codec = await ui.instantiateImageCodec(imageBytes, targetWidth: 24, targetHeight: 24);
+        final frame = await codec.getNextFrame();
+        final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        if (byteData != null) {
+          final bytes = byteData.buffer.asUint8List();
+          int bestR = 124, bestG = 108, bestB = 255;
+          double maxScore = -1;
+
+          for (int i = 0; i < bytes.length; i += 4) {
+            final r = bytes[i];
+            final g = bytes[i + 1];
+            final b = bytes[i + 2];
+            final a = bytes[i + 3];
+            if (a < 128) continue;
+
+            final maxVal = math.max(r, math.max(g, b));
+            final minVal = math.min(r, math.min(g, b));
+            final delta = maxVal - minVal;
+            if (delta < 20 || maxVal < 40 || minVal > 220) continue;
+
+            final saturation = delta / maxVal;
+            final brightness = maxVal / 255.0;
+            final score = saturation * 1.5 + (1.0 - (brightness - 0.65).abs());
+            if (score > maxScore) {
+              maxScore = score;
+              bestR = r;
+              bestG = g;
+              bestB = b;
+            }
+          }
+
+          if (maxScore > 0 && mounted) {
+            final vibrant = Color.fromARGB(255, bestR, bestG, bestB);
+            AppState.instance.setDynamicAccentColor(vibrant);
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadLyricsForIndex(int idx) async {
     final track = _getCurrentTrack(idx);
     if (track == null) return;
@@ -175,18 +238,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       _plainLyrics = null;
     });
 
-    if (track.isOnline) {
-      try {
-        final lyrics = await SaavnApiService.instance.getLyrics(track.id);
-        if (lyrics != null && lyrics.isNotEmpty && mounted) {
-          setState(() {
-            _plainLyrics = lyrics;
-            _loadingLyrics = false;
-          });
-          return;
-        }
-      } catch (_) {}
-    } else if (track.mediaFile != null) {
+    // 1. Check local .lrc file first
+    if (track.mediaFile != null) {
       try {
         final path = track.mediaFile!.path;
         final dot = path.lastIndexOf('.');
@@ -205,6 +258,68 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               }
             }
           }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Fetch synchronized lyrics from LRCLIB API (for local & online songs)
+    try {
+      final cleanTitle = track.title
+          .replaceAll(RegExp(r'\(.*?\)|\[.*?\]'), '')
+          .replaceAll(RegExp(r'feat\..*|ft\..*', caseSensitive: false), '')
+          .trim();
+      final cleanArtist = (track.artist ?? '')
+          .replaceAll(RegExp(r'\(.*?\)|\[.*?\]'), '')
+          .trim();
+
+      final durSec = track.duration != null && track.duration!.inSeconds > 0
+          ? track.duration!.inSeconds
+          : null;
+
+      final queryParams = <String, String>{
+        'track_name': cleanTitle,
+        if (cleanArtist.isNotEmpty && cleanArtist.toLowerCase() != 'unknown')
+          'artist_name': cleanArtist,
+        if (durSec != null) 'duration': durSec.toString(),
+      };
+
+      final uri = Uri.https('lrclib.net', '/api/get', queryParams);
+      final res = await http.get(uri).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final synced = data['syncedLyrics'] as String?;
+        final plain = data['plainLyrics'] as String?;
+
+        if (synced != null && synced.isNotEmpty) {
+          final parsed = LrcParser.parseString(synced);
+          if (parsed.isNotEmpty && mounted) {
+            setState(() {
+              _lyrics = parsed;
+              _loadingLyrics = false;
+            });
+            return;
+          }
+        } else if (plain != null && plain.isNotEmpty && mounted) {
+          setState(() {
+            _plainLyrics = plain;
+            _loadingLyrics = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // 3. Fallback to Saavn lyrics API if online song
+    if (track.isOnline) {
+      try {
+        final lyrics = await SaavnApiService.instance.getLyrics(track.id);
+        if (lyrics != null && lyrics.isNotEmpty && mounted) {
+          setState(() {
+            _plainLyrics = lyrics;
+            _loadingLyrics = false;
+          });
+          return;
         }
       } catch (_) {}
     }

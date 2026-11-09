@@ -121,12 +121,24 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                     duration: const Duration(milliseconds: 250),
                     opacity: shouldShow ? 1.0 : 0.0,
                     child: Center(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          onTapAction?.call();
+                      child: Dismissible(
+                        key: ValueKey('mini_player_${tag.id}_${tag.title}'),
+                        direction: DismissDirection.horizontal,
+                        onDismissed: (_) {
+                          HapticFeedback.mediumImpact();
+                          if (isRadio) {
+                            radio.stop();
+                          } else {
+                            player.stop();
+                          }
                         },
+                        background: const SizedBox.shrink(),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            onTapAction?.call();
+                          },
                         child: Container(
                           height: 48,
                           constraints: const BoxConstraints(maxWidth: 420),
@@ -341,7 +353,8 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                       ),
                     ),
                   ),
-                );
+                ),
+              );
               },
             );
           },

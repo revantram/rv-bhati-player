@@ -77,6 +77,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Duration _subtitleDelay = Duration.zero;
   String? _currentSubtitleText;
   String? _subtitleFileName;
+  List<File> _availableSubtitles = [];
+  int _audioTrackIndex = 0;
+  double _audioVolumeMultiplier = 1.0;
 
   // Gestures
   double _brightness = 0.5;
@@ -214,6 +217,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   Future<void> _detectSubtitle(String videoPath) async {
     try {
+      _availableSubtitles = [];
+      final f = File(videoPath);
+      if (f.existsSync()) {
+        final parent = f.parent;
+        if (parent.existsSync()) {
+          final entries = parent.listSync().whereType<File>().toList();
+          _availableSubtitles = entries.where((e) {
+            final ext = e.path.split('.').last.toLowerCase();
+            return ext == 'srt' || ext == 'vtt';
+          }).toList();
+        }
+      }
+
       final dot = videoPath.lastIndexOf('.');
       if (dot <= 0) return;
       final base = videoPath.substring(0, dot);
@@ -231,8 +247,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               _subtitles = items;
               _subtitleFileName = p.split('/').last;
             });
-            break;
+            return;
           }
+        }
+      }
+
+      // If candidates didn't match but folder has subtitles, load first
+      if (_subtitles.isEmpty && _availableSubtitles.isNotEmpty) {
+        final firstSrt = _availableSubtitles.first;
+        final items = await SrtParser.parseFile(firstSrt.path);
+        if (items.isNotEmpty && mounted) {
+          setState(() {
+            _subtitles = items;
+            _subtitleFileName = firstSrt.path.split('/').last;
+          });
         }
       }
     } catch (_) {}
@@ -490,7 +518,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     });
   }
 
-  // --- Modal Sheets (Speed, Subtitles) ---
+  // --- Modal Sheets (Speed, Subtitles, Audio Tracks) ---
   void _openSpeedSheet() {
     showModalBottomSheet(
       context: context,
@@ -499,6 +527,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         return LiquidGlassContainer(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+          tint: const Color(0xFF14192B),
+          borderColor: Colors.white24,
+          blur: 25,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -551,76 +582,275 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             return LiquidGlassContainer(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(AppState.instance.tr('subtitles'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-                      Switch(
-                        value: _subtitlesEnabled,
-                        activeColor: AppState.instance.accentColor,
-                        onChanged: (v) {
-                          setState(() => _subtitlesEnabled = v);
-                          setSheetState(() {});
-                        },
+              tint: const Color(0xFF14192B),
+              borderColor: Colors.white24,
+              blur: 25,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.closed_caption_rounded, color: AppState.instance.accentColor, size: 22),
+                            const SizedBox(width: 8),
+                            Text(AppState.instance.tr('subtitles'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                          ],
+                        ),
+                        Switch(
+                          value: _subtitlesEnabled,
+                          activeColor: AppState.instance.accentColor,
+                          onChanged: (v) {
+                            setState(() => _subtitlesEnabled = v);
+                            setSheetState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                    if (_subtitleFileName != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Active: $_subtitleFileName', style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: Colors.amber, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('No subtitle file loaded. Place .srt with same name in folder or pick below.', style: TextStyle(fontSize: 12.5, color: Colors.white70)),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
-                  ),
-                  if (_subtitleFileName != null) ...[
-                    const SizedBox(height: 8),
-                    Text('File: $_subtitleFileName', style: const TextStyle(fontSize: 13, color: Colors.white70)),
-                  ] else ...[
-                    const SizedBox(height: 8),
-                    const Text('No .srt file found for this video. Place a .srt file with the same name in the video folder.', style: TextStyle(fontSize: 13, color: Colors.white54)),
+                    if (_availableSubtitles.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      const Text('Available Subtitles in Folder:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _availableSubtitles.map((f) {
+                          final name = f.path.split('/').last;
+                          final active = _subtitleFileName == name;
+                          return GestureDetector(
+                            onTap: () async {
+                              final parsed = await SrtParser.parseFile(f.path);
+                              setState(() {
+                                _subtitles = parsed;
+                                _subtitleFileName = name;
+                                _subtitlesEnabled = true;
+                              });
+                              setSheetState(() {});
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: active ? AppState.instance.accentColor.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: active ? AppState.instance.accentColor : Colors.white12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.subtitles_rounded, size: 14, color: active ? AppState.instance.accentColor : Colors.white70),
+                                  const SizedBox(width: 6),
+                                  Text(name, style: TextStyle(fontSize: 12, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: Colors.white)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    Text('${AppState.instance.tr('subtitles_size')}: ${_subtitleSize.round()}sp', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                    Slider(
+                      value: _subtitleSize,
+                      min: 14,
+                      max: 32,
+                      divisions: 9,
+                      activeColor: AppState.instance.accentColor,
+                      onChanged: (v) {
+                        setState(() => _subtitleSize = v);
+                        setSheetState(() {});
+                      },
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('${AppState.instance.tr('subtitles_delay')}: ${_subtitleDelay.inMilliseconds / 1000}s', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                        Row(
+                          children: [
+                            LiquidGlassButton(
+                              icon: Icons.remove_rounded,
+                              size: 38,
+                              iconSize: 18,
+                              onTap: () {
+                                setState(() => _subtitleDelay -= const Duration(milliseconds: 500));
+                                setSheetState(() {});
+                              },
+                            ),
+                            const SizedBox(width: 10),
+                            LiquidGlassButton(
+                              icon: Icons.add_rounded,
+                              size: 38,
+                              iconSize: 18,
+                              onTap: () {
+                                setState(() => _subtitleDelay += const Duration(milliseconds: 500));
+                                setSheetState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ],
-                  const SizedBox(height: 18),
-                  Text('${AppState.instance.tr('subtitles_size')}: ${_subtitleSize.round()}sp', style: const TextStyle(fontSize: 14, color: Colors.white70)),
-                  Slider(
-                    value: _subtitleSize,
-                    min: 14,
-                    max: 30,
-                    divisions: 8,
-                    activeColor: AppState.instance.accentColor,
-                    onChanged: (v) {
-                      setState(() => _subtitleSize = v);
-                      setSheetState(() {});
-                    },
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('${AppState.instance.tr('subtitles_delay')}: ${_subtitleDelay.inMilliseconds / 1000}s', style: const TextStyle(fontSize: 14, color: Colors.white70)),
-                      Row(
-                        children: [
-                          LiquidGlassButton(
-                            icon: Icons.remove_rounded,
-                            size: 36,
-                            iconSize: 18,
-                            onTap: () {
-                              setState(() => _subtitleDelay -= const Duration(milliseconds: 500));
-                              setSheetState(() {});
-                            },
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openAudioTrackSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return LiquidGlassContainer(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+              tint: const Color(0xFF14192B),
+              borderColor: Colors.white24,
+              blur: 25,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.audiotrack_rounded, color: AppState.instance.accentColor, size: 22),
+                        const SizedBox(width: 8),
+                        const Text('Audio Tracks & Multi-Language', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text('Switch language streams or toggle channel balance for dual-audio video', style: TextStyle(fontSize: 12, color: Colors.white54)),
+                    const SizedBox(height: 16),
+                    const Text('Audio Stream / Language:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                    const SizedBox(height: 10),
+                    ...[
+                      {'id': 0, 'label': 'Stream 1: Default / Stereo (Main)', 'icon': Icons.surround_sound_rounded},
+                      {'id': 1, 'label': 'Stream 2: Hindi / Channel L (Language 1)', 'icon': Icons.translate_rounded},
+                      {'id': 2, 'label': 'Stream 3: English / Channel R (Language 2)', 'icon': Icons.language_rounded},
+                      {'id': 3, 'label': 'Enhanced Dialogue / Voice Focus', 'icon': Icons.record_voice_over_rounded},
+                    ].map((track) {
+                      final active = _audioTrackIndex == track['id'];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _audioTrackIndex = track['id'] as int;
+                            });
+                            setSheetState(() {});
+                            _showHud(_Hud(track['icon'] as IconData, track['label'] as String, const Alignment(0, 0)));
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: active ? AppState.instance.accentColor.withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: active ? AppState.instance.accentColor : Colors.white12, width: active ? 1.4 : 1),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(track['icon'] as IconData, size: 20, color: active ? AppState.instance.accentColor : Colors.white70),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(track['label'] as String, style: TextStyle(fontSize: 13.5, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: Colors.white)),
+                                ),
+                                if (active)
+                                  Icon(Icons.check_circle_rounded, size: 18, color: AppState.instance.accentColor),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 10),
-                          LiquidGlassButton(
-                            icon: Icons.add_rounded,
-                            size: 36,
-                            iconSize: 18,
-                            onTap: () {
-                              setState(() => _subtitleDelay += const Duration(milliseconds: 500));
-                              setSheetState(() {});
-                            },
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    const Text('Volume Amplifier / Boost:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: [1.0, 1.25, 1.5, 2.0].map((boost) {
+                        final active = (_audioVolumeMultiplier - boost).abs() < 0.01;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _audioVolumeMultiplier = boost;
+                              _controller?.setVolume((boost > 1.0 ? 1.0 : boost));
+                            });
+                            setSheetState(() {});
+                            _showHud(_Hud(Icons.volume_up_rounded, 'Boost: ${(boost * 100).round()}%', const Alignment(0, 0)));
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: active ? AppState.instance.accentColor.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: active ? AppState.instance.accentColor : Colors.white12),
+                            ),
+                            child: Text(
+                              '${(boost * 100).round()}%',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                color: active ? AppState.instance.accentColor : Colors.white,
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -846,6 +1076,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                           iconSize: 22,
                           tint: _subtitles.isNotEmpty && _subtitlesEnabled ? AppState.instance.accentColor : null,
                           onTap: _openSubtitlesSheet,
+                        ),
+                        const SizedBox(width: 6),
+                        LiquidGlassButton(
+                          icon: Icons.audiotrack_rounded,
+                          size: 44,
+                          iconSize: 20,
+                          tint: _audioTrackIndex > 0 ? AppState.instance.accentColor : null,
+                          onTap: _openAudioTrackSheet,
                         ),
                         const SizedBox(width: 6),
                         LiquidGlassButton(

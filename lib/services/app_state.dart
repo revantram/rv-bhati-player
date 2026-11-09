@@ -273,7 +273,22 @@ class AppState extends ChangeNotifier {
   }
 
   Color _accentColor = const Color(0xFF7C6CFF);
-  Color get accentColor => _accentColor;
+  Color? _dynamicAccentColor;
+  Color get accentColor => _dynamicAccentColor ?? _accentColor;
+  Color get staticAccentColor => _accentColor;
+
+  void setDynamicAccentColor(Color? color) {
+    if (_dynamicAccentColor == color) return;
+    _dynamicAccentColor = color;
+    notifyListeners();
+  }
+
+  void clearDynamicAccentColor() {
+    if (_dynamicAccentColor != null) {
+      _dynamicAccentColor = null;
+      notifyListeners();
+    }
+  }
 
   bool get isLight => SettingsService.instance.isLight;
   Color get textColor => isLight ? const Color(0xFF0F172A) : Colors.white;
@@ -293,6 +308,9 @@ class AppState extends ChangeNotifier {
 
   final List<String> _recentlyPlayed = [];
   List<String> get recentlyPlayed => _recentlyPlayed;
+
+  final Map<String, int> _playCounts = {};
+  Map<String, int> get playCounts => Map.unmodifiable(_playCounts);
 
   final Map<String, int> _videoPositions = {}; // path -> seconds
 
@@ -372,6 +390,14 @@ class AppState extends ChangeNotifier {
             _videoPositions[e.key] = (e.value as num).toInt();
           }
         }
+        if (map['playCounts'] is Map) {
+          final pc = map['playCounts'] as Map<String, dynamic>;
+          for (final e in pc.entries) {
+            if (e.value is num) {
+              _playCounts[e.key] = (e.value as num).toInt();
+            }
+          }
+        }
 
         // Initialize Equalizer from storage
         if (map['eq_enabled'] != null) {
@@ -404,6 +430,7 @@ class AppState extends ChangeNotifier {
           (k, v) => MapEntry(k, v.map((item) => item.toJson()).toList()),
         ),
         'videoPositions': _videoPositions,
+        'playCounts': _playCounts,
         'eq_enabled': eq.isEnabled,
         'eq_preset': eq.currentPreset,
         'eq_bands': eq.bands,
@@ -492,6 +519,7 @@ class AppState extends ChangeNotifier {
     if (_recentlyPlayed.length > 20) {
       _recentlyPlayed.removeRange(20, _recentlyPlayed.length);
     }
+    _playCounts[pathOrId] = (_playCounts[pathOrId] ?? 0) + 1;
     _save();
     notifyListeners();
   }

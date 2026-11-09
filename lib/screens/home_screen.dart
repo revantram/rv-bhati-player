@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -877,16 +878,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildMusicSection(double topOffset, double bottomOffset) {
     final app = AppState.instance;
 
-    // If viewing inside a custom playlist
+    // If viewing inside a custom or smart playlist
     if (_selectedPlaylist != null) {
-      final customList = app.customPlaylists[_selectedPlaylist] ?? [];
-      final legacyIds = app.playlists[_selectedPlaylist] ?? [];
-      final List<PlaylistItem> displayItems = List.from(customList);
-      for (final id in legacyIds) {
-        if (!displayItems.any((t) => t.id == id)) {
-          final local = _audios.where((s) => s.id == id).firstOrNull;
-          if (local != null) {
-            displayItems.add(PlaylistItem.fromMediaFile(local));
+      final isSmart = _selectedPlaylist == '🔥 Most Played' ||
+          _selectedPlaylist == '⏱️ Recently Added' ||
+          _selectedPlaylist == '🕒 Recently Played';
+
+      List<PlaylistItem> displayItems = [];
+
+      if (_selectedPlaylist == '🔥 Most Played') {
+        final sorted = List<MediaFile>.from(_audios)
+          ..sort((a, b) => (app.playCounts[b.id] ?? 0).compareTo(app.playCounts[a.id] ?? 0));
+        final top = sorted.where((s) => (app.playCounts[s.id] ?? 0) > 0).take(50).toList();
+        displayItems = (top.isNotEmpty ? top : _audios.take(30)).map(PlaylistItem.fromMediaFile).toList();
+      } else if (_selectedPlaylist == '⏱️ Recently Added') {
+        final sorted = List<MediaFile>.from(_audios)
+          ..sort((a, b) => (b.dateAdded ?? DateTime(2000)).compareTo(a.dateAdded ?? DateTime(2000)));
+        displayItems = sorted.take(50).map(PlaylistItem.fromMediaFile).toList();
+      } else if (_selectedPlaylist == '🕒 Recently Played') {
+        final map = {for (final m in _audios) m.id: m};
+        for (final id in app.recentlyPlayed) {
+          if (map.containsKey(id)) {
+            displayItems.add(PlaylistItem.fromMediaFile(map[id]!));
+          }
+        }
+      } else {
+        final customList = app.customPlaylists[_selectedPlaylist] ?? [];
+        final legacyIds = app.playlists[_selectedPlaylist] ?? [];
+        displayItems = List.from(customList);
+        for (final id in legacyIds) {
+          if (!displayItems.any((t) => t.id == id)) {
+            final local = _audios.where((s) => s.id == id).firstOrNull;
+            if (local != null) {
+              displayItems.add(PlaylistItem.fromMediaFile(local));
+            }
           }
         }
       }
@@ -944,16 +969,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(width: 8),
                 ],
-                LiquidGlassButton(
-                  icon: Icons.delete_outline_rounded,
-                  size: 38,
-                  iconSize: 20,
-                  tint: Colors.redAccent,
-                  onTap: () {
-                    app.deletePlaylist(_selectedPlaylist!);
-                    setState(() => _selectedPlaylist = null);
-                  },
-                ),
+                if (!isSmart)
+                  LiquidGlassButton(
+                    icon: Icons.delete_outline_rounded,
+                    size: 38,
+                    iconSize: 20,
+                    tint: Colors.redAccent,
+                    onTap: () {
+                      app.deletePlaylist(_selectedPlaylist!);
+                      setState(() => _selectedPlaylist = null);
+                    },
+                  ),
               ],
             ),
           ),
@@ -975,10 +1001,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: _PlaylistItemTile(
                           item: track,
                           onTap: () => _openHybrid(displayItems, i),
-                          onDelete: () {
-                            app.removeFromCustomPlaylist(_selectedPlaylist!, track.id);
-                            setState(() {});
-                          },
+                          onDelete: isSmart
+                              ? null
+                              : () {
+                                  app.removeFromCustomPlaylist(_selectedPlaylist!, track.id);
+                                  setState(() {});
+                                },
                         ),
                       );
                     },
@@ -1093,59 +1121,201 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildPlaylistsGrid(double bottomOffset) {
     final customPlaylists = AppState.instance.customPlaylists;
     final legacyPlaylists = AppState.instance.playlists;
-    final keys = <String>{...customPlaylists.keys, ...legacyPlaylists.keys}.toList();
+    final customKeys = <String>{...customPlaylists.keys, ...legacyPlaylists.keys}.toList();
 
-    if (keys.isEmpty) {
-      return Center(
-        child: _GlassMessage(
-          icon: Icons.playlist_add_rounded,
-          title: AppState.instance.tr('no_playlists'),
-          body: 'Tap the + button above to create a playlist.',
-        ),
-      );
-    }
+    // Auto-calculate Smart Playlist counts
+    final mostPlayedCount = _audios.where((s) => (app.playCounts[s.id] ?? 0) > 0).length;
+    final recentlyAddedCount = math.min(_audios.length, 50);
+    final recentlyPlayedCount = app.recentlyPlayed.where((id) => _audios.any((a) => a.id == id)).length;
 
-    return GridView.builder(
+    final smartPlaylists = [
+      {
+        'name': '🔥 Most Played',
+        'subtitle': '$mostPlayedCount songs',
+        'icon': Icons.local_fire_department_rounded,
+        'color': const Color(0xFFFF6B00),
+      },
+      {
+        'name': '⏱️ Recently Added',
+        'subtitle': '$recentlyAddedCount songs',
+        'icon': Icons.auto_awesome_rounded,
+        'color': const Color(0xFF00D2FF),
+      },
+      {
+        'name': '🕒 Recently Played',
+        'subtitle': '$recentlyPlayedCount songs',
+        'icon': Icons.history_rounded,
+        'color': const Color(0xFFA855F7),
+      },
+    ];
+
+    return ListView(
       padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.1,
-      ),
-      itemCount: keys.length,
-      itemBuilder: (context, i) {
-        final name = keys[i];
-        final count = customPlaylists[name]?.length ?? legacyPlaylists[name]?.length ?? 0;
-        return PressableScale(
-          onTap: () => setState(() => _selectedPlaylist = name),
-          child: LiquidGlassContainer(
-            borderRadius: BorderRadius.circular(24),
-            padding: const EdgeInsets.all(16),
-            blur: 0,
-            glow: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.queue_music_rounded, color: AppState.instance.accentColor, size: 36),
-                const SizedBox(height: 12),
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: app.textColor),
+      children: [
+        // Smart Playlists Section
+        Row(
+          children: [
+            Icon(Icons.smart_toy_rounded, size: 16, color: app.accentColor),
+            const SizedBox(width: 6),
+            Text(
+              'SMART PLAYLISTS (AUTO-GENERATED)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: app.secondaryTextColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: smartPlaylists.length,
+          itemBuilder: (context, i) {
+            final sp = smartPlaylists[i];
+            final color = sp['color'] as Color;
+            return PressableScale(
+              onTap: () => setState(() => _selectedPlaylist = sp['name'] as String),
+              child: LiquidGlassContainer(
+                borderRadius: BorderRadius.circular(20),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                tint: color.withValues(alpha: 0.12),
+                borderColor: color.withValues(alpha: 0.35),
+                blur: 0,
+                glow: false,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: color.withValues(alpha: 0.5)),
+                      ),
+                      child: Icon(sp['icon'] as IconData, color: color, size: 22),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      sp['name'] as String,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: app.textColor),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      sp['subtitle'] as String,
+                      style: TextStyle(fontSize: 10, color: app.secondaryTextColor),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 22),
+
+        // Custom Playlists Section
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.queue_music_rounded, size: 16, color: app.accentColor),
+                const SizedBox(width: 6),
                 Text(
-                  '$count songs',
-                  style: TextStyle(fontSize: 13, color: app.secondaryTextColor),
+                  'MY PLAYLISTS',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: app.secondaryTextColor,
+                  ),
                 ),
               ],
             ),
+            GestureDetector(
+              onTap: _showCreatePlaylistDialog,
+              child: Text(
+                '+ New Playlist',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: app.accentColor),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        if (customKeys.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  Icon(Icons.playlist_add_rounded, size: 40, color: app.secondaryTextColor.withValues(alpha: 0.5)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No custom playlists yet.\nTap "+ New Playlist" to create one.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: app.secondaryTextColor),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.15,
+            ),
+            itemCount: customKeys.length,
+            itemBuilder: (context, i) {
+              final name = customKeys[i];
+              final count = customPlaylists[name]?.length ?? legacyPlaylists[name]?.length ?? 0;
+              return PressableScale(
+                onTap: () => setState(() => _selectedPlaylist = name),
+                child: LiquidGlassContainer(
+                  borderRadius: BorderRadius.circular(22),
+                  padding: const EdgeInsets.all(14),
+                  blur: 0,
+                  glow: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.queue_music_rounded, color: AppState.instance.accentColor, size: 32),
+                      const SizedBox(height: 10),
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: app.textColor),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$count songs',
+                        style: TextStyle(fontSize: 12, color: app.secondaryTextColor),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      },
+      ],
     );
   }
 
@@ -1641,12 +1811,12 @@ class _PlaylistItemTile extends StatelessWidget {
   const _PlaylistItemTile({
     required this.item,
     required this.onTap,
-    required this.onDelete,
+    this.onDelete,
   });
 
   final PlaylistItem item;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -1747,10 +1917,11 @@ class _PlaylistItemTile extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 18),
-              onPressed: onDelete,
-            ),
+            if (onDelete != null)
+              IconButton(
+                icon: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 18),
+                onPressed: onDelete,
+              ),
           ],
         ),
       ),
