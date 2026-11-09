@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'car_mode_screen.dart';
 import '../services/app_state.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
@@ -161,6 +162,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           _buildDivider(isLight),
                           _buildCrossfadeTile(textColor, secondaryTextColor, accent),
+                          _buildDivider(isLight),
+                          _buildNavTile(
+                            icon: Icons.directions_car_rounded,
+                            title: 'Car Mode / Driving Mode',
+                            subtitle: 'Extra-large touch controls for safe driving',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const CarModeScreen()),
+                            ),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
                         ],
                       ),
                     ),
@@ -380,31 +394,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 22),
 
-                    // Section 5: About
-                    _buildSectionHeader('ABOUT', textColor),
+                    // Section 5: Developer Options
+                    _buildSectionHeader('DEVELOPER OPTIONS', textColor),
                     LiquidGlassContainer(
-                      borderRadius: BorderRadius.circular(22),
-                      padding: const EdgeInsets.all(18),
-                      blur: 14,
+                      borderRadius: BorderRadius.circular(24),
+                      padding: const EdgeInsets.all(20),
+                      blur: 16,
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
                               Container(
-                                width: 48,
-                                height: 48,
+                                width: 56,
+                                height: 56,
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                    colors: [accent, accent.withValues(alpha: 0.7)],
+                                    colors: [
+                                      accent,
+                                      const Color(0xFF00E5FF),
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
-                                  borderRadius: BorderRadius.circular(14),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: accent.withValues(alpha: 0.45),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                                child: const Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white,
-                                  size: 32,
+                                child: const Center(
+                                  child: Text(
+                                    'RB',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 14),
@@ -412,20 +443,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            'Revant Ram Bhati',
+                                            style: TextStyle(
+                                              color: textColor,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -0.3,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          Icons.verified_rounded,
+                                          color: accent,
+                                          size: 19,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
                                     Text(
-                                      'RV Bhati Player',
+                                      'Lead Developer & Creator',
                                       style: TextStyle(
-                                        color: textColor,
-                                        fontSize: 17,
+                                        color: accent,
+                                        fontSize: 12.5,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Version ${UpdateService.currentVersion} (Apple Liquid Glassmorphism)',
+                                      'RV Bhati Player • v${UpdateService.currentVersion}',
                                       style: TextStyle(
                                         color: secondaryTextColor,
-                                        fontSize: 12,
+                                        fontSize: 11,
                                       ),
                                     ),
                                   ],
@@ -433,14 +486,131 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 14),
-                          Text(
-                            'High-performance offline & online media player with lossless audio playback, 60/120 FPS liquid frosted aesthetics, and seamless background streaming.',
-                            style: TextStyle(
-                              color: secondaryTextColor,
-                              fontSize: 12,
-                              height: 1.4,
-                            ),
+                          const SizedBox(height: 18),
+                          // Email Tile
+                          _buildDevContactTile(
+                            icon: Icons.alternate_email_rounded,
+                            label: 'Official Email',
+                            value: 'revantrambhati@gmail.com',
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                            onTap: () {
+                              Clipboard.setData(const ClipboardData(text: 'revantrambhati@gmail.com'));
+                              HapticFeedback.lightImpact();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Email copied: revantrambhati@gmail.com'),
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          // Phone Tile
+                          _buildDevContactTile(
+                            icon: Icons.phone_android_rounded,
+                            label: 'Mobile / WhatsApp',
+                            value: '+91 8696663615',
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                            onTap: () {
+                              Clipboard.setData(const ClipboardData(text: '8696663615'));
+                              HapticFeedback.lightImpact();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Phone number copied: 8696663615'),
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: iOSBounceButton(
+                                  onTap: () {
+                                    Clipboard.setData(const ClipboardData(text: 'revantrambhati@gmail.com'));
+                                    HapticFeedback.selectionClick();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Copied email: revantrambhati@gmail.com'),
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: accent.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: accent.withValues(alpha: 0.35)),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.mail_outline_rounded, size: 16, color: accent),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Send Email',
+                                          style: TextStyle(
+                                            color: accent,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: iOSBounceButton(
+                                  onTap: () {
+                                    Clipboard.setData(const ClipboardData(text: '8696663615'));
+                                    HapticFeedback.selectionClick();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Copied mobile: +91 8696663615'),
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isLight ? Colors.black.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.15),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.call_rounded, size: 16, color: textColor),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Call / WhatsApp',
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -700,6 +870,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDevContactTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppState.instance.isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppState.instance.isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.copy_rounded, size: 16, color: secondaryTextColor),
+          ],
+        ),
       ),
     );
   }

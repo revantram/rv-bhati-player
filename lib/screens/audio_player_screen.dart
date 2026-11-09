@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+
+import 'car_mode_screen.dart';
 
 import '../models/media_file.dart';
 import '../models/online_song.dart';
@@ -581,6 +584,17 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                     iconSize: 20,
                                     onTap: _openQueueSheet,
                                   ),
+                                  const SizedBox(width: 6),
+                                  // Car Mode / Driving Mode
+                                  LiquidGlassButton(
+                                    icon: Icons.directions_car_rounded,
+                                    size: 44,
+                                    iconSize: 20,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const CarModeScreen()),
+                                    ),
+                                  ),
                                 ],
                               ),
                               const Spacer(),
@@ -852,6 +866,23 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     );
   }
 
+  int? _lastActiveLyricIdx;
+
+  void _checkAndScrollLyric(int activeIdx) {
+    if (activeIdx < 0 || activeIdx == _lastActiveLyricIdx) return;
+    _lastActiveLyricIdx = activeIdx;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_lyricsScroll.hasClients) return;
+      final target = (activeIdx * 48.0) - 100.0;
+      final clamped = target.clamp(0.0, _lyricsScroll.position.maxScrollExtent);
+      _lyricsScroll.animateTo(
+        clamped,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
   Widget _buildLyricsView(AudioPlayer player) {
     if (_loadingLyrics) {
       return Center(
@@ -863,47 +894,31 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       );
     }
 
-    // JioSaavn plain lyrics
-    if (_plainLyrics != null && _plainLyrics!.isNotEmpty) {
-      final lines = _plainLyrics!.split('\n');
-      return LiquidGlassContainer(
-        borderRadius: BorderRadius.circular(28),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: ListView.builder(
-          controller: _lyricsScroll,
-          physics: const BouncingScrollPhysics(),
-          itemCount: lines.length,
-          itemBuilder: (context, i) {
-            final line = lines[i].trim();
-            if (line.isEmpty) return const SizedBox(height: 12);
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                line,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  letterSpacing: 0.3,
-                  shadows: [
-                    Shadow(color: Colors.black54, blurRadius: 4),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      );
+    // Convert plain lyrics to synced lines if standard LRC is empty
+    List<LrcLine> displayLyrics = _lyrics;
+    if (displayLyrics.isEmpty && _plainLyrics != null && _plainLyrics!.isNotEmpty) {
+      final rawLines = _plainLyrics!.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+      if (rawLines.isNotEmpty) {
+        final totalDurationMs = math.max(player.duration?.inMilliseconds ?? 180000, 30000);
+        final intervalMs = (totalDurationMs / rawLines.length).round();
+        displayLyrics = [
+          for (int i = 0; i < rawLines.length; i++)
+            LrcLine(
+              time: Duration(milliseconds: i * intervalMs),
+              text: rawLines[i],
+            ),
+        ];
+      }
     }
 
-    // Local synced LRC lyrics
-    if (_lyrics.isNotEmpty) {
+    // Synced scrolling lyrics
+    if (displayLyrics.isNotEmpty) {
       return StreamBuilder<Duration>(
         stream: player.positionStream,
         builder: (context, posSnap) {
           final currentPos = posSnap.data ?? Duration.zero;
-          final activeIdx = LrcParser.findActiveIndex(_lyrics, currentPos);
+          final activeIdx = LrcParser.findActiveIndex(displayLyrics, currentPos);
+          _checkAndScrollLyric(activeIdx);
 
           return LiquidGlassContainer(
             borderRadius: BorderRadius.circular(28),
@@ -911,34 +926,41 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             child: ListView.builder(
               controller: _lyricsScroll,
               physics: const BouncingScrollPhysics(),
-              itemCount: _lyrics.length,
+              itemCount: displayLyrics.length,
               itemBuilder: (context, i) {
-                final line = _lyrics[i];
+                final line = displayLyrics[i];
                 final isActive = i == activeIdx;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 250),
-                    style: TextStyle(
-                      fontSize: isActive ? 21 : 15,
-                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w400,
-                      color: isActive
-                          ? AppState.instance.accentColor
-                          : (AppState.instance.isLight
-                              ? AppState.instance.secondaryTextColor.withValues(alpha: 0.55)
-                              : Colors.white38),
-                      shadows: isActive
-                          ? [
-                              Shadow(
-                                color: AppState.instance.accentColor.withValues(alpha: 0.6),
-                                blurRadius: 10,
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Text(
-                      line.text,
-                      textAlign: TextAlign.center,
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    player.seek(line.time);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 250),
+                      style: TextStyle(
+                        fontSize: isActive ? 21 : 15,
+                        fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                        color: isActive
+                            ? AppState.instance.accentColor
+                            : (AppState.instance.isLight
+                                ? AppState.instance.secondaryTextColor.withValues(alpha: 0.55)
+                                : Colors.white38),
+                        shadows: isActive
+                            ? [
+                                Shadow(
+                                  color: AppState.instance.accentColor.withValues(alpha: 0.65),
+                                  blurRadius: 12,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        line.text,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 );
@@ -977,17 +999,56 @@ class _BlurredArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = accentFor(track.title);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(0, -0.25),
-          radius: 0.9,
-          colors: [
-            accent.withValues(alpha: 0.35),
-            Colors.transparent,
-          ],
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 1. Dynamic album art ambient background
+        if (track.imageUrl != null && track.imageUrl!.isNotEmpty)
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.32,
+              child: Image.network(
+                track.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          )
+        else if (track.embeddedArt != null)
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.32,
+              child: Image.memory(
+                track.embeddedArt!,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+
+        // 2. Heavy frosted backdrop blur for liquid ambient glow
+        Positioned.fill(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 55, sigmaY: 55),
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.38),
+            ),
+          ),
         ),
-      ),
+
+        // 3. Radial ambient accent halo
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(0, -0.25),
+              radius: 0.95,
+              colors: [
+                accent.withValues(alpha: 0.45),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

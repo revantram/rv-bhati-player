@@ -20,6 +20,7 @@ import '../utils/id3_parser.dart';
 import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/art_box.dart';
 import '../widgets/artist_songs_sheet.dart';
+import '../widgets/dynamic_island_player.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
@@ -410,66 +411,67 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               Positioned.fill(child: LiquidBackground(accent: accent)),
               Positioned.fill(child: _buildContent(pad)),
-              // Top Bar
+              // Top Bar & Dynamic Island (iPhone Style Capsule)
               Positioned(
-                top: pad.top + 12,
+                top: pad.top + 6,
                 left: 16,
                 right: 16,
-                child: _isSearching
-                    ? _buildSearchBar()
-                    : GlassTopBar(
-                        title: app.tr('app_name'),
-                        subtitle: _loading
-                            ? 'Scanning storage...'
-                            : _tab == 2
-                                ? 'JioSaavn 320kbps HD Online Music'
-                                : _tab == 3
-                                    ? '24x7 Live FM & Online Radio'
-                                    : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
-                        leading: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [accent, const Color(0xFF00D2FF)],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Dynamic Island: Floats above top bar when audio/radio is playing
+                    DynamicIslandPlayer(
+                      onOpen: _openNowPlaying,
+                      onOpenRadio: () => setState(() => _tab = 3),
+                      onOpenOnline: _openNowPlaying,
+                    ),
+                    const SizedBox(height: 6),
+                    _isSearching
+                        ? _buildSearchBar()
+                        : GlassTopBar(
+                            title: app.tr('app_name'),
+                            subtitle: _loading
+                                ? 'Scanning storage...'
+                                : _tab == 2
+                                    ? 'JioSaavn 320kbps HD Online Music'
+                                    : _tab == 3
+                                        ? '24x7 Live FM & Online Radio'
+                                        : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [accent, const Color(0xFF00D2FF)],
+                                ),
+                              ),
+                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
                             ),
+                            actions: [
+                              // Search
+                              LiquidGlassButton(
+                                icon: Icons.search_rounded,
+                                size: 44,
+                                iconSize: 22,
+                                onTap: () => setState(() => _isSearching = true),
+                              ),
+                              const SizedBox(width: 8),
+                              // Settings
+                              LiquidGlassButton(
+                                icon: Icons.settings_rounded,
+                                size: 44,
+                                iconSize: 22,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                                ),
+                              ),
+                            ],
                           ),
-                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                        ),
-                        actions: [
-                          // Search
-                          LiquidGlassButton(
-                            icon: Icons.search_rounded,
-                            size: 44,
-                            iconSize: 22,
-                            onTap: () => setState(() => _isSearching = true),
-                          ),
-                          const SizedBox(width: 8),
-                          // Settings
-                          LiquidGlassButton(
-                            icon: Icons.settings_rounded,
-                            size: 44,
-                            iconSize: 22,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-              // Floating Mini Player (Above Bottom Nav with 12px dynamic gap)
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: pad.bottom + 86,
-                child: _MiniPlayer(
-                  onOpen: _openNowPlaying,
-                  onOpenRadio: () => setState(() => _tab = 3),
-                  onOpenOnline: _openNowPlaying,
+                  ],
                 ),
               ),
               // Bottom Nav
@@ -602,8 +604,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    final topOffset = pad.top + 86;
-    final bottomOffset = pad.bottom + 170;
+    final topOffset = pad.top + 92;
+    final bottomOffset = pad.bottom + 88;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
@@ -1709,246 +1711,6 @@ class _VideoThumbState extends State<_VideoThumb> {
       );
     }
     return Image.memory(data, fit: BoxFit.cover, gaplessPlayback: true);
-  }
-}
-
-class _MiniPlayer extends StatefulWidget {
-  const _MiniPlayer({
-    required this.onOpen,
-    this.onOpenRadio,
-    this.onOpenOnline,
-  });
-
-  final VoidCallback onOpen;
-  final VoidCallback? onOpenRadio;
-  final VoidCallback? onOpenOnline;
-
-  @override
-  State<_MiniPlayer> createState() => _MiniPlayerState();
-}
-
-class _MiniPlayerState extends State<_MiniPlayer> with SingleTickerProviderStateMixin {
-  late final AnimationController _spinCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _spinCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 12),
-    );
-  }
-
-  @override
-  void dispose() {
-    _spinCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final player = AudioController.instance.player;
-    final radio = RadioController.instance;
-    final app = AppState.instance;
-
-    return ListenableBuilder(
-      listenable: radio,
-      builder: (context, _) {
-        return StreamBuilder<SequenceState?>(
-          stream: player.sequenceStateStream,
-          builder: (context, snap) {
-            final tag = snap.data?.currentSource?.tag;
-            if (tag is! MediaItem) return const SizedBox.shrink();
-            final queue = AudioController.instance.queue;
-            final currentIdx = player.currentIndex ?? 0;
-            final currentSong = currentIdx < queue.length ? queue[currentIdx] : null;
-            final currentStation = radio.currentStation;
-            final isRadio = currentStation != null;
-            final onlineSong = AudioController.instance.currentOnlineSong;
-            final isOnline = AudioController.instance.isPlayingOnline;
-
-            VoidCallback? onTapAction;
-            if (isRadio) {
-              onTapAction = widget.onOpenRadio;
-            } else if (isOnline) {
-              onTapAction = widget.onOpenOnline;
-            } else {
-              onTapAction = widget.onOpen;
-            }
-
-            return StreamBuilder<PlayerState>(
-              stream: player.playerStateStream,
-              builder: (context, s) {
-                final playing = s.data?.playing ?? false;
-                if (playing) {
-                  if (!_spinCtrl.isAnimating) _spinCtrl.repeat();
-                } else {
-                  if (_spinCtrl.isAnimating) _spinCtrl.stop();
-                }
-
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onHorizontalDragEnd: (details) {
-                    if (details.primaryVelocity != null) {
-                      if (details.primaryVelocity! < -250) {
-                        HapticFeedback.lightImpact();
-                        if (!isRadio) AudioController.instance.next();
-                      } else if (details.primaryVelocity! > 250) {
-                        HapticFeedback.lightImpact();
-                        if (!isRadio) AudioController.instance.previous();
-                      }
-                    }
-                  },
-                  onTap: onTapAction,
-                  child: LiquidGlassContainer(
-                    borderRadius: LiquidGlassContainer.capsuleRadius,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: Row(
-                      children: [
-                        RotationTransition(
-                          turns: _spinCtrl,
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (isRadio
-                                          ? currentStation.color
-                                          : app.accentColor)
-                                      .withValues(alpha: 0.35),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: isRadio
-                                  ? Container(
-                                      color: currentStation.color,
-                                      child: const Icon(Icons.radio_rounded, color: Colors.white, size: 22),
-                                    )
-                                  : isOnline && onlineSong != null
-                                      ? Image.network(
-                                          onlineSong.imageUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => ArtBox(seed: tag.title, radius: 0, iconSize: 22),
-                                        )
-                                      : (currentSong?.embeddedArt != null
-                                          ? Image.memory(currentSong!.embeddedArt!, fit: BoxFit.cover)
-                                          : ArtBox(seed: tag.title, radius: 0, iconSize: 22)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  if (isRadio) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF00E676).withValues(alpha: 0.25),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        "LIVE",
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF00E676),
-                                        ),
-                                      ),
-                                    ),
-                                  ] else if (isOnline) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF00D2FF).withValues(alpha: 0.25),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        "ONLINE",
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF00D2FF),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  Expanded(
-                                    child: Text(
-                                      tag.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: app.textColor,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                isRadio
-                                    ? currentStation.frequency
-                                    : (tag.artist ?? (tag.album ?? "RV Bhati Player")),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: app.secondaryTextColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        WaveVisualizer(
-                          barCount: 4,
-                          height: 18,
-                          barWidth: 3,
-                          spacing: 2,
-                          isPlaying: playing,
-                          color: isRadio
-                              ? currentStation.color
-                              : (isOnline ? const Color(0xFF00D2FF) : app.accentColor),
-                        ),
-                        const SizedBox(width: 8),
-                        LiquidGlassButton(
-                          icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                          size: 40,
-                          iconSize: 24,
-                          tint: isRadio
-                              ? currentStation.color
-                              : (isOnline ? const Color(0xFF00D2FF) : app.accentColor),
-                          onTap: () {
-                            if (isRadio) {
-                              radio.toggleStation(currentStation);
-                            } else {
-                              playing ? player.pause() : player.play();
-                            }
-                          },
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
   }
 }
 
