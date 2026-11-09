@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' show ImageFilter;
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter, FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1520,11 +1521,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       border: Border.all(color: AppState.instance.accentColor, width: 1),
                     ),
                     child: Text(
-                      'CC: ${_subtitles[_selectedSubtitleIndex].name}',
+                      'CC: ON',
                       style: TextStyle(color: AppState.instance.accentColor, fontSize: 11, fontWeight: FontWeight.w700),
                     ),
                   ),
-                if (_audioTracks.length > 1)
+                if (_audioTrackIndex > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
