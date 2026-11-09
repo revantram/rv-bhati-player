@@ -10,7 +10,7 @@ class MediaFile {
     required this.path,
     required this.kind,
     required this.duration,
-    required this.entity,
+    this.entity,
     this.artist,
     this.album,
     this.embeddedArt,
@@ -25,7 +25,7 @@ class MediaFile {
   final String path;
   final MediaKind kind;
   final Duration duration;
-  final AssetEntity entity;
+  final AssetEntity? entity;
 
   String? artist;
   String? album;

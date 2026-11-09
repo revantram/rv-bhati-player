@@ -34,6 +34,7 @@ import 'online_music_screen.dart';
 import 'video_folder_screen.dart';
 import 'video_player_screen.dart';
 import 'settings_screen.dart';
+import 'youtube_liquid_hub_screen.dart';
 import '../widgets/wave_visualizer.dart';
 
 enum SortOption {
@@ -674,7 +675,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    // Sub-tab: All Videos vs Folders
+    final isLight = app.isLight;
+    final accent = app.accentColor;
+
+    // Sub-tab: Folders vs YouTube Zero-Ads Hub
     return Column(
       children: [
         SizedBox(height: topOffset),
@@ -683,27 +687,125 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              _subTabPill(app.tr('all_videos'), _videoSubTab == 0, () {
+              _subTabPill(app.tr('folders'), _videoSubTab == 0, () {
                 setState(() => _videoSubTab = 0);
               }),
               const SizedBox(width: 10),
-              _subTabPill(app.tr('folders'), _videoSubTab == 1, () {
+              _subTabPill('YouTube (Zero-Ads)', _videoSubTab == 1, () {
                 setState(() => _videoSubTab = 1);
               }),
             ],
           ),
         ),
         Expanded(
-          child: _videoSubTab == 0
-              ? _buildAllVideosList(bottomOffset)
-              : VideoFolderScreen(
-                  videos: _videos,
+          child: _videoSubTab == 1
+              ? YoutubeLiquidHubScreen(
+                  topOffset: 0,
                   bottomOffset: bottomOffset,
-                  onVideoDeleted: (deleted) {
-                    setState(() {
-                      _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
-                    });
-                  },
+                  isEmbedded: true,
+                  onBack: () => setState(() => _videoSubTab = 0),
+                )
+              : Stack(
+                  children: [
+                    Positioned.fill(
+                      child: VideoFolderScreen(
+                        videos: _videos,
+                        bottomOffset: bottomOffset + 68,
+                        onVideoDeleted: (deleted) {
+                          setState(() {
+                            _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+                          });
+                        },
+                      ),
+                    ),
+                    // Quick Resume Button for user's most recent video
+                    Builder(builder: (context) {
+                      final recentVideos = _getRecentlyPlayed(MediaKind.video);
+                      final recentVideo = recentVideos.isNotEmpty ? recentVideos.first : null;
+                      if (recentVideo == null) return const SizedBox.shrink();
+
+                      return Positioned(
+                        left: 20,
+                        right: 20,
+                        bottom: bottomOffset - 78,
+                        child: Center(
+                          child: PressableScale(
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              _open([recentVideo], 0);
+                            },
+                            child: Container(
+                              height: 52,
+                              constraints: const BoxConstraints(maxWidth: 380),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: isLight ? Colors.white : const Color(0xFF1E2438),
+                                borderRadius: BorderRadius.circular(26),
+                                border: Border.all(color: accent, width: 1.4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: accent.withValues(alpha: 0.35),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.3),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        colors: [accent, const Color(0xFF00D2FF)],
+                                      ),
+                                    ),
+                                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Flexible(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Resume Recent Video / पिछला वीडियो',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: accent,
+                                          ),
+                                        ),
+                                        Text(
+                                          recentVideo.displayTitle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: app.textColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.arrow_forward_ios_rounded, size: 12, color: accent),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
         ),
       ],

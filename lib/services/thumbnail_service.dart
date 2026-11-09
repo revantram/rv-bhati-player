@@ -37,7 +37,7 @@ class ThumbnailService {
 
     // 2. Fallback to PhotoManager MediaStore thumbnail
     try {
-      final pmBytes = await file.entity.thumbnailDataWithSize(
+      final pmBytes = await file.entity?.thumbnailDataWithSize(
         const ThumbnailSize(360, 240),
         quality: 80,
       );
@@ -48,7 +48,7 @@ class ThumbnailService {
     } catch (_) {}
 
     try {
-      final rawBytes = await file.entity.thumbnailData;
+      final rawBytes = await file.entity?.thumbnailData;
       if (rawBytes != null && rawBytes.isNotEmpty) {
         _cache[key] = rawBytes;
         return rawBytes;

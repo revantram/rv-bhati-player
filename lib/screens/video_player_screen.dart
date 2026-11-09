@@ -164,10 +164,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final item = widget.playlist[i];
     AppState.instance.markPlayed(item.id);
 
-    // Auto-detect matching .srt subtitle file in same folder
-    _detectSubtitle(item.path);
+    // Auto-detect matching .srt subtitle file in same folder (only for local files)
+    if (!item.path.startsWith('http://') && !item.path.startsWith('https://')) {
+      _detectSubtitle(item.path);
+    }
 
-    final c = VideoPlayerController.file(File(item.path));
+    final isNetwork = item.path.startsWith('http://') || item.path.startsWith('https://');
+    final c = isNetwork
+        ? VideoPlayerController.networkUrl(Uri.parse(item.path))
+        : VideoPlayerController.file(File(item.path));
     try {
       await c.initialize();
       if (!mounted) {

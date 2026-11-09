@@ -103,8 +103,8 @@ class MediaActionService {
 
   /// Retrieve comprehensive video metadata (resolution, bitrate, mimeType)
   static Future<VideoMetadataInfo> getVideoMetadata(MediaFile video) async {
-    int w = video.entity.width;
-    int h = video.entity.height;
+    int w = video.entity?.width ?? 0;
+    int h = video.entity?.height ?? 0;
     int rot = 0;
     int br = 0;
     String mime = 'video/${video.extension.toLowerCase()}';
