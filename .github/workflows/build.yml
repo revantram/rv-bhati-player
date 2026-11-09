@@ -95,6 +95,7 @@ jobs:
           # Patch downloaded pub packages' android build.gradle files with mirrors
           find "$PUB_CACHE" -type f -name "*.gradle" -exec sed -i 's|mavenCentral()|maven { url "https://maven.aliyun.com/repository/public" }\n        mavenCentral()|g' {} + || true
           find "$PUB_CACHE" -type f -name "*.gradle" -exec sed -i 's|google()|maven { url "https://maven.aliyun.com/repository/google" }\n        google()|g' {} + || true
+          find "$PUB_CACHE" -type f -name "*.gradle" -exec sed -i 's|proguard-android\.txt|proguard-android-optimize.txt|g' {} + || true
 
       - name: Generate launcher icons (agar assets/icon/app_icon.png hai)
         run: |
