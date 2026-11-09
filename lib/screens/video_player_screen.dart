@@ -1075,8 +1075,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   bottom: _showControls ? 140 : 36,
                   child: Align(
                     alignment: Alignment.bottomCenter,
-                    child: LiquidGlassContainer(
-                      borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white24, width: 0.8),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       child: Text(
                         _currentSubtitleText!,
@@ -1173,16 +1177,34 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           alignment: Alignment.topRight,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: LiquidGlassButton(
-              icon: Icons.lock_open_rounded,
-              label: 'Unlock',
-              size: 48,
-              tint: AppState.instance.accentColor,
+            child: GestureDetector(
               onTap: () {
                 setState(() => _touchLocked = false);
                 _showHud(const _Hud(Icons.lock_open_rounded, 'Screen Unlocked', Alignment(0, 0)));
                 _poke();
               },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: AppState.instance.accentColor, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(color: AppState.instance.accentColor.withValues(alpha: 0.35), blurRadius: 14),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_open_rounded, color: AppState.instance.accentColor, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Unlock',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -1200,6 +1222,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // Top and Bottom Cinematic Vignette Gradients (Dark transparent scrims)
             IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -1207,155 +1230,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.65),
+                      Colors.black.withValues(alpha: 0.85),
+                      Colors.black.withValues(alpha: 0.35),
                       Colors.transparent,
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withValues(alpha: 0.40),
+                      Colors.black.withValues(alpha: 0.92),
                     ],
-                    stops: const [0, 0.25, 0.6, 1],
+                    stops: const [0.0, 0.16, 0.34, 0.65, 0.82, 1.0],
                   ),
                 ),
               ),
             ),
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: Column(
                   children: [
-                    GlassTopBar(
-                      title: item.displayTitle,
-                      subtitle: '${_index + 1} / ${widget.playlist.length}',
-                      leading: LiquidGlassButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        size: 44,
-                        iconSize: 20,
-                        onTap: () => Navigator.of(context).maybePop(),
+                    // 1. Sleek Cinematic Top Bar (Zero Glass White Containers)
+                    _buildAestheticTopBar(item),
+
+                    // 2. Center Floating Playback Controls
+                    Expanded(
+                      child: Center(
+                        child: ValueListenableBuilder<VideoPlayerValue>(
+                          valueListenable: c,
+                          builder: (context, v, _) => _buildCenterControls(v),
+                        ),
                       ),
-                      actions: [
-                        LiquidGlassButton(
-                          icon: Icons.picture_in_picture_alt_rounded,
-                          size: 44,
-                          iconSize: 20,
-                          onTap: _enterPip,
-                        ),
-                        const SizedBox(width: 6),
-                        LiquidGlassButton(
-                          icon: Icons.closed_caption_rounded,
-                          size: 44,
-                          iconSize: 22,
-                          tint: _subtitles.isNotEmpty && _subtitlesEnabled ? AppState.instance.accentColor : null,
-                          onTap: _openSubtitlesSheet,
-                        ),
-                        const SizedBox(width: 6),
-                        LiquidGlassButton(
-                          icon: Icons.audiotrack_rounded,
-                          size: 44,
-                          iconSize: 20,
-                          tint: _audioTrackIndex > 0 ? AppState.instance.accentColor : null,
-                          onTap: _openAudioTrackSheet,
-                        ),
-                        const SizedBox(width: 6),
-                        LiquidGlassButton(
-                          icon: Icons.high_quality_rounded,
-                          size: 44,
-                          iconSize: 22,
-                          tint: _selectedQuality != null ? AppState.instance.accentColor : null,
-                          onTap: _openQualitySheet,
-                        ),
-                        const SizedBox(width: 6),
-                        LiquidGlassButton(
-                          icon: Icons.aspect_ratio_rounded,
-                          size: 44,
-                          iconSize: 20,
-                          onTap: _cycleFitMode,
-                        ),
-                        const SizedBox(width: 6),
-                        LiquidGlassButton(
-                          icon: Icons.screen_rotation_rounded,
-                          size: 44,
-                          iconSize: 22,
-                          onTap: _toggleOrientation,
-                        ),
-                        const SizedBox(width: 6),
-                        LiquidGlassButton(
-                          icon: Icons.lock_outline_rounded,
-                          size: 44,
-                          iconSize: 20,
-                          onTap: () {
-                            setState(() => _touchLocked = true);
-                            _showHud(const _Hud(Icons.lock_rounded, 'Screen Locked', Alignment(0, 0)));
-                          },
-                        ),
-                      ],
                     ),
-                    const Spacer(),
+
+                    // 3. Cinematic Timeline Scrubber & Bottom Bar
                     ValueListenableBuilder<VideoPlayerValue>(
                       valueListenable: c,
-                      builder: (context, v, _) => Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GlassSeekBar(
-                            position: v.position,
-                            duration: v.duration,
-                            accent: AppState.instance.accentColor,
-                            isPlaying: v.isPlaying,
-                            onSeek: (d) {
-                              c.seekTo(d);
-                              _poke();
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                LiquidGlassButton(
-                                  label: '${_playbackSpeed}x',
-                                  size: 44,
-                                  onTap: _openSpeedSheet,
-                                ),
-                                const SizedBox(width: 14),
-                                LiquidGlassButton(
-                                  icon: Icons.skip_previous_rounded,
-                                  size: 48,
-                                  onTap: _index > 0 ? () => _load(_index - 1) : null,
-                                ),
-                                const SizedBox(width: 10),
-                                LiquidGlassButton(
-                                  icon: Icons.replay_10_rounded,
-                                  size: 54,
-                                  onTap: () => _seekBy(-10),
-                                ),
-                                const SizedBox(width: 12),
-                                LiquidGlassButton(
-                                  icon: v.isPlaying
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                  size: 74,
-                                  iconSize: 38,
-                                  tint: AppState.instance.accentColor,
-                                  onTap: _togglePlay,
-                                ),
-                                const SizedBox(width: 12),
-                                LiquidGlassButton(
-                                  icon: Icons.forward_10_rounded,
-                                  size: 54,
-                                  onTap: () => _seekBy(10),
-                                ),
-                                const SizedBox(width: 10),
-                                LiquidGlassButton(
-                                  icon: Icons.skip_next_rounded,
-                                  size: 48,
-                                  onTap: _index < widget.playlist.length - 1
-                                      ? () => _load(_index + 1)
-                                      : null,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      builder: (context, v, _) => _buildAestheticBottomControls(c, v),
                     ),
                   ],
                 ),
@@ -1367,13 +1275,379 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
   }
 
+  Widget _buildAestheticTopBar(MediaFile item) {
+    return Row(
+      children: [
+        // Back Button
+        _buildCinemaCircleButton(
+          icon: Icons.arrow_back_ios_new_rounded,
+          size: 42,
+          iconSize: 18,
+          onTap: () => Navigator.of(context).maybePop(),
+        ),
+        const SizedBox(width: 12),
+        // Title and Video Index with high-contrast drop shadow
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.displayTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.2,
+                  shadows: [
+                    Shadow(color: Colors.black, blurRadius: 8, offset: Offset(0, 1)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${_index + 1} / ${widget.playlist.length}${_selectedQuality != null ? " • $_selectedQuality" : ""}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white70,
+                  shadows: [
+                    Shadow(color: Colors.black, blurRadius: 6),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Top Actions
+        _buildCinemaCircleButton(
+          icon: Icons.picture_in_picture_alt_rounded,
+          size: 38,
+          iconSize: 19,
+          onTap: _enterPip,
+        ),
+        const SizedBox(width: 6),
+        _buildCinemaCircleButton(
+          icon: Icons.closed_caption_rounded,
+          size: 38,
+          iconSize: 20,
+          isActive: _subtitles.isNotEmpty && _subtitlesEnabled,
+          onTap: _openSubtitlesSheet,
+        ),
+        const SizedBox(width: 6),
+        _buildCinemaCircleButton(
+          icon: Icons.audiotrack_rounded,
+          size: 38,
+          iconSize: 19,
+          isActive: _audioTrackIndex > 0,
+          onTap: _openAudioTrackSheet,
+        ),
+        const SizedBox(width: 6),
+        _buildCinemaCircleButton(
+          icon: Icons.high_quality_rounded,
+          size: 38,
+          iconSize: 20,
+          isActive: _selectedQuality != null,
+          onTap: _openQualitySheet,
+        ),
+        const SizedBox(width: 6),
+        _buildCinemaCircleButton(
+          icon: Icons.aspect_ratio_rounded,
+          size: 38,
+          iconSize: 19,
+          onTap: _cycleFitMode,
+        ),
+        const SizedBox(width: 6),
+        _buildCinemaCircleButton(
+          icon: Icons.screen_rotation_rounded,
+          size: 38,
+          iconSize: 19,
+          onTap: _toggleOrientation,
+        ),
+        const SizedBox(width: 6),
+        _buildCinemaCircleButton(
+          icon: Icons.lock_outline_rounded,
+          size: 38,
+          iconSize: 19,
+          onTap: () {
+            setState(() => _touchLocked = true);
+            _showHud(const _Hud(Icons.lock_rounded, 'Screen Locked', Alignment(0, 0)));
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCenterControls(VideoPlayerValue v) {
+    final accent = AppState.instance.accentColor;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Previous
+        _buildCinemaCircleButton(
+          icon: Icons.skip_previous_rounded,
+          size: 46,
+          iconSize: 24,
+          onTap: _index > 0 ? () => _load(_index - 1) : null,
+        ),
+        const SizedBox(width: 20),
+        // 10s Rewind
+        _buildCinemaCircleButton(
+          icon: Icons.replay_10_rounded,
+          size: 54,
+          iconSize: 28,
+          onTap: () => _seekBy(-10),
+        ),
+        const SizedBox(width: 22),
+        // Glowing Main Play / Pause Circle
+        GestureDetector(
+          onTap: _togglePlay,
+          child: Container(
+            width: 74,
+            height: 74,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accent,
+                  accent.withValues(alpha: 0.85),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.5),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+                const BoxShadow(
+                  color: Colors.black54,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: Icon(
+              v.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              size: 42,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 22),
+        // 10s Forward
+        _buildCinemaCircleButton(
+          icon: Icons.forward_10_rounded,
+          size: 54,
+          iconSize: 28,
+          onTap: () => _seekBy(10),
+        ),
+        const SizedBox(width: 20),
+        // Next
+        _buildCinemaCircleButton(
+          icon: Icons.skip_next_rounded,
+          size: 46,
+          iconSize: 24,
+          onTap: _index < widget.playlist.length - 1 ? () => _load(_index + 1) : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAestheticBottomControls(VideoPlayerController c, VideoPlayerValue v) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Custom Timeline (No White Capsule, 100% High Contrast Text)
+        _AestheticTimeline(
+          position: v.position,
+          duration: v.duration,
+          buffered: v.buffered,
+          onSeek: (d) {
+            c.seekTo(d);
+            _poke();
+          },
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Playback Speed Capsule
+            GestureDetector(
+              onTap: _openSpeedSheet,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white24, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.speed_rounded, size: 16, color: Colors.white70),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${_playbackSpeed}x',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Middle Status Badges
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_subtitles.isNotEmpty && _subtitlesEnabled)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppState.instance.accentColor.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppState.instance.accentColor, width: 1),
+                    ),
+                    child: Text(
+                      'CC: ${_subtitles[_selectedSubtitleIndex].name}',
+                      style: TextStyle(color: AppState.instance.accentColor, fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                if (_audioTracks.length > 1)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white24, width: 0.8),
+                    ),
+                    child: Text(
+                      'Audio ${_audioTrackIndex + 1}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+              ],
+            ),
+            // Fit Mode Pill
+            GestureDetector(
+              onTap: _cycleFitMode,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white24, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.fit_screen_rounded, size: 15, color: Colors.white70),
+                    const SizedBox(width: 5),
+                    Text(
+                      _fitMode.name.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCinemaCircleButton({
+    required IconData icon,
+    required VoidCallback? onTap,
+    double size = 40,
+    double iconSize = 20,
+    bool isActive = false,
+    String? label,
+  }) {
+    final accent = AppState.instance.accentColor;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (onTap != null) {
+            HapticFeedback.lightImpact();
+            onTap();
+            _poke();
+          }
+        },
+        borderRadius: BorderRadius.circular(size / 2),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: label != null ? null : size,
+          height: size,
+          padding: label != null ? const EdgeInsets.symmetric(horizontal: 14) : null,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isActive
+                ? accent.withValues(alpha: 0.35)
+                : Colors.black.withValues(alpha: 0.50),
+            borderRadius: BorderRadius.circular(size / 2),
+            border: Border.all(
+              color: isActive ? accent : Colors.white.withValues(alpha: 0.22),
+              width: isActive ? 1.5 : 0.8,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black45,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: label != null
+              ? Text(
+                  label,
+                  style: TextStyle(
+                    color: isActive ? accent : Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              : Icon(
+                  icon,
+                  size: iconSize,
+                  color: isActive ? accent : Colors.white,
+                ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHud(_Hud hud) {
     return IgnorePointer(
       child: Align(
         alignment: hud.alignment,
-        child: LiquidGlassContainer(
-          borderRadius: BorderRadius.circular(30),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white24, width: 1),
+            boxShadow: const [
+              BoxShadow(color: Colors.black54, blurRadius: 16, offset: Offset(0, 4)),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1389,7 +1663,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       alignment: Alignment.bottomCenter,
                       children: [
                         ColoredBox(
-                          color: Colors.white.withValues(alpha: 0.22),
+                          color: Colors.white24,
                           child: const SizedBox.expand(),
                         ),
                         FractionallySizedBox(
@@ -1422,8 +1696,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   Widget _buildError() {
     return Center(
-      child: LiquidGlassContainer(
-        borderRadius: BorderRadius.circular(32),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Colors.white24, width: 1),
+        ),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1435,15 +1713,190 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
-            LiquidGlassButton(
+            _buildCinemaCircleButton(
               icon: Icons.arrow_back_rounded,
               label: 'Go back',
-              size: 48,
+              size: 44,
               onTap: () => Navigator.of(context).maybePop(),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AestheticTimeline extends StatefulWidget {
+  final Duration position;
+  final Duration duration;
+  final List<DurationRange> buffered;
+  final ValueChanged<Duration> onSeek;
+
+  const _AestheticTimeline({
+    required this.position,
+    required this.duration,
+    required this.buffered,
+    required this.onSeek,
+  });
+
+  @override
+  State<_AestheticTimeline> createState() => _AestheticTimelineState();
+}
+
+class _AestheticTimelineState extends State<_AestheticTimeline> {
+  double? _dragFraction;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMs = math.max(widget.duration.inMilliseconds, 1).toDouble();
+    final currentMs = (_dragFraction != null
+            ? (_dragFraction! * totalMs)
+            : widget.position.inMilliseconds.toDouble())
+        .clamp(0.0, totalMs);
+    final progress = (currentMs / totalMs).clamp(0.0, 1.0);
+
+    double bufferedFrac = 0.0;
+    if (widget.buffered.isNotEmpty) {
+      final lastBuf = widget.buffered.last;
+      bufferedFrac = (lastBuf.end.inMilliseconds / totalMs).clamp(0.0, 1.0);
+    }
+
+    final accent = AppState.instance.accentColor;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Time labels row (100% Crisp White with Drop Shadow, ZERO white background)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              formatDuration(Duration(milliseconds: currentMs.round())),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                fontFeatures: [FontFeature.tabularFigures()],
+                shadows: [
+                  Shadow(color: Colors.black, blurRadius: 6, offset: Offset(0, 1)),
+                ],
+              ),
+            ),
+            Text(
+              formatDuration(widget.duration),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFeatures: [FontFeature.tabularFigures()],
+                shadows: [
+                  Shadow(color: Colors.black, blurRadius: 6, offset: Offset(0, 1)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Interactive Scrubbing Bar
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragDown: (details) {
+                HapticFeedback.selectionClick();
+                setState(() => _dragFraction = (details.localPosition.dx / w).clamp(0.0, 1.0));
+              },
+              onHorizontalDragUpdate: (details) {
+                setState(() => _dragFraction = (details.localPosition.dx / w).clamp(0.0, 1.0));
+              },
+              onHorizontalDragEnd: (details) {
+                HapticFeedback.lightImpact();
+                if (_dragFraction != null) {
+                  final targetMs = (_dragFraction! * totalMs).round();
+                  widget.onSeek(Duration(milliseconds: targetMs));
+                  setState(() => _dragFraction = null);
+                }
+              },
+              onHorizontalDragCancel: () {
+                setState(() => _dragFraction = null);
+              },
+              onTapDown: (details) {
+                HapticFeedback.selectionClick();
+                final frac = (details.localPosition.dx / w).clamp(0.0, 1.0);
+                widget.onSeek(Duration(milliseconds: (frac * totalMs).round()));
+              },
+              child: SizedBox(
+                height: 24,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    // Background track
+                    Container(
+                      height: 4,
+                      width: w,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    // Buffered track
+                    if (bufferedFrac > 0)
+                      Container(
+                        height: 4,
+                        width: w * bufferedFrac,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.38),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    // Played track
+                    Container(
+                      height: 4,
+                      width: w * progress,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            accent,
+                            accent.withValues(alpha: 0.9),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.6),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Scrubbing Thumb
+                    Positioned(
+                      left: (w * progress - 7).clamp(0.0, w - 14),
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          border: Border.all(color: accent, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black54,
+                              blurRadius: 6,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

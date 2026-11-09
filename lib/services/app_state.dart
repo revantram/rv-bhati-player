@@ -291,6 +291,7 @@ class AppState extends ChangeNotifier {
   }
 
   bool get isLight => SettingsService.instance.isLight;
+  bool get isDark => !isLight;
   Color get textColor => isLight ? const Color(0xFF0F172A) : Colors.white;
   Color get secondaryTextColor => isLight ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
   Color get cardColor => isLight ? Colors.white.withValues(alpha: 0.95) : const Color(0xFF1E2438).withValues(alpha: 0.85);
