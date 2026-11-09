@@ -435,19 +435,56 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               ? Center(
                   child: CircularProgressIndicator(color: AppState.instance.accentColor),
                 )
-              : ListView.builder(
-                  padding: EdgeInsets.fromLTRB(16, 6, 16, widget.bottomOffset),
-                  itemCount: _categorySongs.length,
-                  itemBuilder: (context, i) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _OnlineSongTile(
-                        song: _categorySongs[i],
-                        onTap: () => _playSong(_categorySongs, i),
+              : _categorySongs.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.music_off_rounded, size: 48, color: app.secondaryTextColor.withValues(alpha: 0.6)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No songs found',
+                            style: TextStyle(color: app.textColor, fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Network connection issue. Tap to retry loading.',
+                            style: TextStyle(color: app.secondaryTextColor, fontSize: 13),
+                          ),
+                          const SizedBox(height: 16),
+                          LiquidGlassButton(
+                            icon: Icons.refresh_rounded,
+                            label: 'Retry',
+                            tint: app.accentColor,
+                            size: 40,
+                            onTap: () {
+                              final cat = SaavnApiService.moodCategories.firstWhere(
+                                (c) => c['title'] == _selectedCategory,
+                                orElse: () => const {'id': ''},
+                              );
+                              if (cat['id'] != null && cat['id']!.isNotEmpty) {
+                                _openMoodCategory(cat['id']!, _selectedCategory!);
+                              } else {
+                                _openCategory(_selectedCategory!);
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.fromLTRB(16, 6, 16, widget.bottomOffset),
+                      itemCount: _categorySongs.length,
+                      itemBuilder: (context, i) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _OnlineSongTile(
+                            song: _categorySongs[i],
+                            onTap: () => _playSong(_categorySongs, i),
+                          ),
+                        );
+                      },
+                    ),
         ),
       ],
     );

@@ -380,15 +380,28 @@ class SaavnApiService {
       return _cachedPlaylists[category]!;
     }
 
-    final query = category == 'New Bollywood Hits'
-        ? 'Latest Bollywood Songs 2025'
-        : 'Bollywood Retro Classics 70s 80s 90s';
+    final isNewHits = category == 'New Bollywood Hits';
+    final queries = isNewHits
+        ? ['Latest Bollywood', 'New Hindi Songs']
+        : ['Bollywood Retro', 'Evergreen Bollywood', 'Old Hindi Songs'];
 
-    final songs = await searchSongs(query, limit: 35);
-    if (songs.isNotEmpty) {
-      _cachedPlaylists[category] = songs;
+    final allSongs = <OnlineSong>[];
+    final seenIds = <String>{};
+
+    for (final q in queries) {
+      final songs = await searchSongs(q, limit: 35);
+      for (final s in songs) {
+        if (seenIds.add(s.id)) {
+          allSongs.add(s);
+        }
+      }
+      if (allSongs.length >= 30) break;
     }
-    return songs;
+
+    if (allSongs.isNotEmpty) {
+      _cachedPlaylists[category] = allSongs;
+    }
+    return allSongs;
   }
 
   /// 4. Artist Catalog Fetcher:
@@ -417,7 +430,7 @@ class SaavnApiService {
       'title': 'Rajasthani & Marwari',
       'subtitle': 'Veena Classics, Lokgeet & Dhamal',
       'icon': '🪕',
-      'query': 'Rajasthani Marwari Top Hits Veena',
+      'query': 'Rajasthani',
       'color1': '0xFFFF8C00', // Saffron / Marwari Orange
       'color2': '0xFFFF3D00',
     },
@@ -426,7 +439,7 @@ class SaavnApiService {
       'title': 'Bhakti & Bhajan',
       'subtitle': 'Krishna, Ram Dhun & Daily Aarti',
       'icon': '🪔',
-      'query': 'Bhakti Bhajan Krishna Ram Aarti',
+      'query': 'Bhakti',
       'color1': '0xFFFFD700', // Gold / Divine Amber
       'color2': '0xFFFF6D00',
     },
@@ -435,7 +448,7 @@ class SaavnApiService {
       'title': 'Deshbhakti & Motivation',
       'subtitle': 'Patriotic Anthems & Energy',
       'icon': '🇮🇳',
-      'query': 'Deshbhakti Hindi Patriotic Songs',
+      'query': 'Deshbhakti',
       'color1': '0xFF00C853', // Indian Flag Green
       'color2': '0xFF1E88E5',
     },
@@ -444,7 +457,7 @@ class SaavnApiService {
       'title': '90s Romantic & Melodies',
       'subtitle': 'Golden Era Love Songs & Melodies',
       'icon': '💖',
-      'query': '90s Romantic Hits Bollywood Melodies',
+      'query': '90s Romantic',
       'color1': '0xFFFF4081', // Romantic Pink / Purple
       'color2': '0xFF7C4DFF',
     },
@@ -455,8 +468,30 @@ class SaavnApiService {
       (c) => c['id'] == moodId,
       orElse: () => moodCategories.first,
     );
-    final query = cat['query'] ?? 'Hindi Hits';
-    return searchSongs(query, limit: limit);
+    final primaryQuery = cat['query'] ?? 'Hindi Hits';
+
+    final Map<String, List<String>> fallbacks = {
+      'rajasthani': ['Rajasthani', 'Marwadi', 'Veena Rajasthani'],
+      'bhakti': ['Bhakti', 'Bhajan', 'Krishna Bhajan', 'Aarti'],
+      'deshbhakti': ['Deshbhakti', 'Patriotic Hindi', 'Desh Bhakti'],
+      '90s_romantic': ['90s Romantic', '90s Bollywood', '90s Hindi Love'],
+    };
+
+    final queriesToTry = fallbacks[moodId] ?? [primaryQuery];
+    final allSongs = <OnlineSong>[];
+    final seenIds = <String>{};
+
+    for (final q in queriesToTry) {
+      final songs = await searchSongs(q, limit: limit);
+      for (final s in songs) {
+        if (seenIds.add(s.id)) {
+          allSongs.add(s);
+        }
+      }
+      if (allSongs.length >= limit) break;
+    }
+
+    return allSongs;
   }
 
   // In-memory cache for song lyrics

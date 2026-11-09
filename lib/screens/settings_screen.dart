@@ -4,6 +4,7 @@ import 'audio_trimmer_screen.dart';
 import 'car_mode_screen.dart';
 import '../models/radio_station.dart';
 import '../services/app_state.dart';
+import '../services/media_scanner.dart';
 import '../services/saavn_api_service.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
@@ -181,7 +182,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             subtitle: 'Trim any song & set as custom ringtone',
                             onTap: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const AudioTrimmerScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => AudioTrimmerScreen(
+                                  availableTracks: MediaScanner.lastScannedAudios,
+                                ),
+                              ),
                             ),
                             textColor: textColor,
                             secondaryTextColor: secondaryTextColor,

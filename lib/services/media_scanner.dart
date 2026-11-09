@@ -10,6 +10,8 @@ import '../models/media_file.dart';
 class MediaScanner {
   MediaScanner._();
 
+  static List<MediaFile> lastScannedAudios = [];
+
   static const _videoExt = {'mp4', 'mkv', 'webm'};
   static const _audioExt = {'mp3'};
 
@@ -83,6 +85,7 @@ class MediaScanner {
     if (!isVideo) {
       result.sort((x, y) =>
           x.displayTitle.toLowerCase().compareTo(y.displayTitle.toLowerCase()));
+      lastScannedAudios = result;
     }
     return result;
   }

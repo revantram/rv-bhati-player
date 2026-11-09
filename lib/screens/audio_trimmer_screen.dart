@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models/media_file.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/media_scanner.dart';
 import '../utils/format.dart';
 import '../widgets/art_box.dart';
 import '../widgets/glass_bars.dart';
@@ -45,12 +46,18 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
   StreamSubscription? _posSub;
   StreamSubscription? _stateSub;
 
+  bool _isLoadingAudios = false;
+
   @override
   void initState() {
     super.initState();
-    _allAudios = widget.availableTracks.isNotEmpty
-        ? widget.availableTracks
-        : AudioController.instance.queue;
+    _allAudios = List<MediaFile>.from(
+      widget.availableTracks.isNotEmpty
+          ? widget.availableTracks
+          : (MediaScanner.lastScannedAudios.isNotEmpty
+              ? MediaScanner.lastScannedAudios
+              : AudioController.instance.queue),
+    );
 
     _selectedTrack = widget.initialTrack ??
         (_allAudios.isNotEmpty ? _allAudios.first : null);
@@ -73,6 +80,29 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
 
     if (_selectedTrack != null) {
       _loadTrack(_selectedTrack!);
+    } else {
+      _loadDeviceAudioTracks();
+    }
+  }
+
+  Future<void> _loadDeviceAudioTracks() async {
+    setState(() => _isLoadingAudios = true);
+    try {
+      final tracks = await MediaScanner.scan(MediaKind.audio);
+      if (mounted && tracks.isNotEmpty) {
+        setState(() {
+          _allAudios = tracks;
+          _isLoadingAudios = false;
+          if (_selectedTrack == null) {
+            _selectedTrack = tracks.first;
+            _loadTrack(_selectedTrack!);
+          }
+        });
+        return;
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _isLoadingAudios = false);
     }
   }
 
@@ -227,59 +257,116 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
                   const SizedBox(height: 14),
                   const Text('Select Track to Trim', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
                   const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _allAudios.length,
-                      itemBuilder: (context, i) {
-                        final item = _allAudios[i];
-                        final isSel = _selectedTrack?.id == item.id;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context);
-                              _loadTrack(item);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isSel ? AppState.instance.accentColor.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: isSel ? AppState.instance.accentColor : Colors.white12),
-                              ),
-                              child: Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: SizedBox(
-                                      width: 42,
-                                      height: 42,
-                                      child: item.embeddedArt != null
-                                          ? Image.memory(item.embeddedArt!, fit: BoxFit.cover)
-                                          : ArtBox(seed: item.title, radius: 10, iconSize: 20),
+                  if (_isLoadingAudios)
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: AppState.instance.accentColor),
+                            const SizedBox(height: 12),
+                            const Text('Scanning audio files...', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (_allAudios.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.music_off_rounded, color: Colors.white38, size: 52),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'No local audio tracks found yet',
+                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Scan your storage to load device music',
+                              style: TextStyle(color: Colors.white60, fontSize: 13),
+                            ),
+                            const SizedBox(height: 18),
+                            LiquidGlassButton(
+                              icon: Icons.refresh_rounded,
+                              label: 'Scan Storage Now',
+                              tint: AppState.instance.accentColor,
+                              size: 42,
+                              onTap: () async {
+                                setPickerState(() => _isLoadingAudios = true);
+                                final tracks = await MediaScanner.scan(MediaKind.audio);
+                                if (mounted) {
+                                  setState(() {
+                                    _allAudios = tracks;
+                                    _isLoadingAudios = false;
+                                    if (_selectedTrack == null && tracks.isNotEmpty) {
+                                      _selectedTrack = tracks.first;
+                                      _loadTrack(_selectedTrack!);
+                                    }
+                                  });
+                                  setPickerState(() => _isLoadingAudios = false);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _allAudios.length,
+                        itemBuilder: (context, i) {
+                          final item = _allAudios[i];
+                          final isSel = _selectedTrack?.id == item.id;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.pop(context);
+                                _loadTrack(item);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSel ? AppState.instance.accentColor.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: isSel ? AppState.instance.accentColor : Colors.white12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: SizedBox(
+                                        width: 42,
+                                        height: 42,
+                                        child: item.embeddedArt != null
+                                            ? Image.memory(item.embeddedArt!, fit: BoxFit.cover)
+                                            : ArtBox(seed: item.title, radius: 10, iconSize: 20),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-                                        const SizedBox(height: 2),
-                                        Text(item.artist ?? 'Unknown Artist', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white60)),
-                                      ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                                          const SizedBox(height: 2),
+                                          Text(item.artist ?? 'Unknown Artist', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white60)),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  if (isSel)
-                                    Icon(Icons.check_circle_rounded, color: AppState.instance.accentColor, size: 20),
-                                ],
+                                    if (isSel)
+                                      Icon(Icons.check_circle_rounded, color: AppState.instance.accentColor, size: 20),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
                 ],
               ),
             );
