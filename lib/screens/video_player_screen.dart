@@ -878,6 +878,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                             position: v.position,
                             duration: v.duration,
                             accent: AppState.instance.accentColor,
+                            isPlaying: v.isPlaying,
                             onSeek: (d) {
                               c.seekTo(d);
                               _poke();

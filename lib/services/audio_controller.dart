@@ -5,6 +5,7 @@ import '../models/media_file.dart';
 import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import 'app_state.dart';
+import 'equalizer_service.dart';
 import 'radio_controller.dart';
 
 /// Single app-wide audio player. just_audio_background supports exactly one
@@ -13,6 +14,7 @@ import 'radio_controller.dart';
 class AudioController {
   AudioController._() {
     _initSleepListener();
+    _initAudioSessionListener();
   }
   static final AudioController instance = AudioController._();
 
@@ -43,6 +45,14 @@ class AudioController {
           player.pause();
           AppState.instance.cancelSleepTimer();
         }
+      }
+    });
+  }
+
+  void _initAudioSessionListener() {
+    player.androidAudioSessionIdStream.listen((sessionId) {
+      if (sessionId != null && sessionId > 0) {
+        EqualizerService.instance.attachAudioSession(sessionId);
       }
     });
   }
@@ -106,6 +116,10 @@ class AudioController {
       await player.setShuffleModeEnabled(false);
     }
     player.play(); // not awaited: completes only when playback ends
+    final sessId = player.androidAudioSessionId;
+    if (sessId != null && sessId > 0) {
+      EqualizerService.instance.attachAudioSession(sessId);
+    }
   }
 
   Future<void> playOnlineQueue(List<OnlineSong> items, int startIndex, {bool shuffle = false}) async {
@@ -139,6 +153,10 @@ class AudioController {
       await player.setShuffleModeEnabled(false);
     }
     player.play();
+    final onlineSessId = player.androidAudioSessionId;
+    if (onlineSessId != null && onlineSessId > 0) {
+      EqualizerService.instance.attachAudioSession(onlineSessId);
+    }
   }
 
   Future<void> playHybridQueue(List<PlaylistItem> items, int startIndex, {bool shuffle = false}) async {
@@ -184,6 +202,10 @@ class AudioController {
       await player.setShuffleModeEnabled(false);
     }
     player.play();
+    final hybridSessId = player.androidAudioSessionId;
+    if (hybridSessId != null && hybridSessId > 0) {
+      EqualizerService.instance.attachAudioSession(hybridSessId);
+    }
   }
 
   void addOnlineToQueue(OnlineSong song) {

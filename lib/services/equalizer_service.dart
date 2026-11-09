@@ -24,6 +24,9 @@ class EqualizerService extends ChangeNotifier {
   bool _isEnabled = true;
   bool get isEnabled => _isEnabled;
 
+  int? _activeSessionId;
+  int? get activeSessionId => _activeSessionId;
+
   String _currentPreset = 'Flat';
   String get currentPreset => _currentPreset;
 
@@ -38,6 +41,26 @@ class EqualizerService extends ChangeNotifier {
 
   bool _surround3D = false;
   bool get surround3D => _surround3D;
+
+  void attachAudioSession(int? sessionId) {
+    if (sessionId == null || sessionId <= 0 || sessionId == _activeSessionId) return;
+    _activeSessionId = sessionId;
+    try {
+      _channel.invokeMethod('setAudioSession', {'sessionId': sessionId});
+      _syncHardware();
+    } catch (_) {}
+  }
+
+  Future<bool> openSystemEqualizer() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('openSystemEqualizer', {
+        'sessionId': _activeSessionId ?? 0,
+      });
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   static const List<String> bandLabels = ['60Hz', '230Hz', '910Hz', '3.6kHz', '14kHz'];
 
@@ -101,7 +124,10 @@ class EqualizerService extends ChangeNotifier {
     _isEnabled = value;
     notifyListeners();
     try {
-      await _channel.invokeMethod('setEnabled', {'enabled': value});
+      await _channel.invokeMethod('setEnabled', {
+        'enabled': value,
+        'sessionId': _activeSessionId,
+      });
     } catch (_) {}
   }
 
@@ -123,7 +149,11 @@ class EqualizerService extends ChangeNotifier {
     _currentPreset = 'Custom';
     notifyListeners();
     try {
-      await _channel.invokeMethod('setBandLevel', {'band': index, 'level': _bands[index]});
+      await _channel.invokeMethod('setBandLevel', {
+        'band': index,
+        'level': _bands[index],
+        'sessionId': _activeSessionId,
+      });
     } catch (_) {}
   }
 
@@ -132,7 +162,10 @@ class EqualizerService extends ChangeNotifier {
     _currentPreset = 'Custom';
     notifyListeners();
     try {
-      await _channel.invokeMethod('setBassBoost', {'strength': _bassStrength});
+      await _channel.invokeMethod('setBassBoost', {
+        'strength': _bassStrength,
+        'sessionId': _activeSessionId,
+      });
     } catch (_) {}
   }
 
@@ -142,7 +175,10 @@ class EqualizerService extends ChangeNotifier {
     _currentPreset = 'Custom';
     notifyListeners();
     try {
-      await _channel.invokeMethod('setVirtualizer', {'strength': _virtualizerStrength});
+      await _channel.invokeMethod('setVirtualizer', {
+        'strength': _virtualizerStrength,
+        'sessionId': _activeSessionId,
+      });
     } catch (_) {}
   }
 
@@ -151,18 +187,37 @@ class EqualizerService extends ChangeNotifier {
     _virtualizerStrength = value ? 600 : 0;
     notifyListeners();
     try {
-      await _channel.invokeMethod('setVirtualizer', {'strength': _virtualizerStrength});
+      await _channel.invokeMethod('setVirtualizer', {
+        'strength': _virtualizerStrength,
+        'sessionId': _activeSessionId,
+      });
     } catch (_) {}
   }
 
   void _syncHardware() {
     try {
-      _channel.invokeMethod('setEnabled', {'enabled': _isEnabled});
-      for (var i = 0; i < _bands.length; i++) {
-        _channel.invokeMethod('setBandLevel', {'band': i, 'level': _bands[i]});
+      if (_activeSessionId != null && _activeSessionId! > 0) {
+        _channel.invokeMethod('setAudioSession', {'sessionId': _activeSessionId});
       }
-      _channel.invokeMethod('setBassBoost', {'strength': _bassStrength});
-      _channel.invokeMethod('setVirtualizer', {'strength': _virtualizerStrength});
+      _channel.invokeMethod('setEnabled', {
+        'enabled': _isEnabled,
+        'sessionId': _activeSessionId,
+      });
+      for (var i = 0; i < _bands.length; i++) {
+        _channel.invokeMethod('setBandLevel', {
+          'band': i,
+          'level': _bands[i],
+          'sessionId': _activeSessionId,
+        });
+      }
+      _channel.invokeMethod('setBassBoost', {
+        'strength': _bassStrength,
+        'sessionId': _activeSessionId,
+      });
+      _channel.invokeMethod('setVirtualizer', {
+        'strength': _virtualizerStrength,
+        'sessionId': _activeSessionId,
+      });
     } catch (_) {}
   }
 }

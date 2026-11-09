@@ -126,8 +126,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.2.2
-          name: "RV Bhati Player v1.2.2 (Video Options Sheet, Scoped Storage Delete, Share & Details)"
+          tag_name: ${{ github.ref_name }}
+          name: "RV Bhati Player ${{ github.ref_name }} (Hardware Equalizer Fix & Squiggly Wave Seek Bar)"
           files: |
             build/app/outputs/flutter-apk/RV-Bhati-Player.apk
             build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk

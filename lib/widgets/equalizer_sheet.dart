@@ -288,6 +288,53 @@ class _EqualizerSheetState extends State<EqualizerSheet> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 14),
+
+            // System Equalizer Quick Button (Dolby Atmos / Dirac / OEM EQ)
+            Center(
+              child: PressableScale(
+                onTap: () async {
+                  HapticFeedback.lightImpact();
+                  final opened = await _eq.openSystemEqualizer();
+                  if (!opened && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('System equalizer not supported on this device'),
+                        backgroundColor: Colors.black87,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: app.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: app.isLight ? Colors.black.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.equalizer_rounded, size: 14, color: accent),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Device System FX / Dolby Atmos',
+                        style: TextStyle(
+                          color: app.textColor.withValues(alpha: 0.8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

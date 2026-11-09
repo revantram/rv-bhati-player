@@ -4,6 +4,7 @@ import android.app.PictureInPictureParams
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
@@ -29,6 +30,116 @@ class MainActivity : AudioServiceActivity() {
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
+    private var currentSessionId: Int = 0
+    private var isEqEnabled: Boolean = true
+    private var currentBands = shortArrayOf(0, 0, 0, 0, 0)
+    private var currentBass: Short = 0
+    private var currentVirtualizer: Short = 0
+
+    private fun releaseAudioEffects() {
+        try {
+            if (currentSessionId > 0) {
+                val intent = Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, currentSessionId)
+                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                }
+                sendBroadcast(intent)
+            }
+            equalizer?.release()
+            bassBoost?.release()
+            virtualizer?.release()
+        } catch (ignored: Exception) {}
+        equalizer = null
+        bassBoost = null
+        virtualizer = null
+    }
+
+    private fun applyBands() {
+        val eq = equalizer ?: return
+        try {
+            val numBands = eq.numberOfBands.toInt()
+            val range = eq.bandLevelRange ?: shortArrayOf(-1500, 1500)
+            for (i in 0 until minOf(numBands, currentBands.size)) {
+                val clamped = currentBands[i].coerceIn(range[0], range[1])
+                eq.setBandLevel(i.toShort(), clamped)
+            }
+        } catch (ignored: Exception) {}
+    }
+
+    private fun initAudioEffects(sessionId: Int) {
+        if (equalizer != null && currentSessionId == sessionId && sessionId != 0) {
+            return
+        }
+        releaseAudioEffects()
+        currentSessionId = sessionId
+
+        try {
+            if (sessionId > 0) {
+                val openIntent = Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                    putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+                }
+                sendBroadcast(openIntent)
+            }
+        } catch (ignored: Exception) {}
+
+        try {
+            equalizer = Equalizer(1000, sessionId).apply {
+                enabled = isEqEnabled
+            }
+            applyBands()
+        } catch (ignored: Exception) {
+            if (sessionId != 0) {
+                try {
+                    equalizer = Equalizer(1000, 0).apply {
+                        enabled = isEqEnabled
+                    }
+                    applyBands()
+                } catch (ignored2: Exception) {}
+            }
+        }
+
+        try {
+            bassBoost = BassBoost(1000, sessionId).apply {
+                enabled = isEqEnabled
+                if (strengthSupported) {
+                    setStrength(currentBass)
+                }
+            }
+        } catch (ignored: Exception) {
+            if (sessionId != 0) {
+                try {
+                    bassBoost = BassBoost(1000, 0).apply {
+                        enabled = isEqEnabled
+                        if (strengthSupported) {
+                            setStrength(currentBass)
+                        }
+                    }
+                } catch (ignored2: Exception) {}
+            }
+        }
+
+        try {
+            virtualizer = Virtualizer(1000, sessionId).apply {
+                enabled = isEqEnabled
+                if (strengthSupported) {
+                    setStrength(currentVirtualizer)
+                }
+            }
+        } catch (ignored: Exception) {
+            if (sessionId != 0) {
+                try {
+                    virtualizer = Virtualizer(1000, 0).apply {
+                        enabled = isEqEnabled
+                        if (strengthSupported) {
+                            setStrength(currentVirtualizer)
+                        }
+                    }
+                } catch (ignored2: Exception) {}
+            }
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -54,43 +165,79 @@ class MainActivity : AudioServiceActivity() {
 
         // Hardware Equalizer & Audio FX
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, EQ_CHANNEL).setMethodCallHandler { call, result ->
-            val sessionId = call.argument<Int>("sessionId") ?: 0
-            try {
-                if (equalizer == null) {
-                    try {
-                        equalizer = Equalizer(0, sessionId).apply { enabled = true }
-                    } catch (ignored: Exception) {}
-                    try {
-                        bassBoost = BassBoost(0, sessionId).apply { enabled = true }
-                    } catch (ignored: Exception) {}
-                    try {
-                        virtualizer = Virtualizer(0, sessionId).apply { enabled = true }
-                    } catch (ignored: Exception) {}
-                }
+            val sessionIdArg = call.argument<Int>("sessionId")
+            if (sessionIdArg != null && sessionIdArg > 0 && sessionIdArg != currentSessionId) {
+                initAudioEffects(sessionIdArg)
+            } else if (equalizer == null) {
+                initAudioEffects(sessionIdArg ?: currentSessionId)
+            }
 
+            try {
                 when (call.method) {
+                    "setAudioSession" -> {
+                        val newSessionId = call.argument<Int>("sessionId") ?: 0
+                        initAudioEffects(newSessionId)
+                        result.success(true)
+                    }
                     "setEnabled" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: true
+                        isEqEnabled = enabled
                         equalizer?.enabled = enabled
                         bassBoost?.enabled = enabled
                         virtualizer?.enabled = enabled
                         result.success(true)
                     }
                     "setBandLevel" -> {
-                        val band = call.argument<Int>("band")?.toShort() ?: 0
+                        val band = call.argument<Int>("band") ?: 0
                         val level = call.argument<Int>("level")?.toShort() ?: 0
-                        equalizer?.setBandLevel(band, level)
+                        if (band >= 0 && band < currentBands.size) {
+                            currentBands[band] = level
+                        }
+                        equalizer?.let { eq ->
+                            val range = eq.bandLevelRange ?: shortArrayOf(-1500, 1500)
+                            val clamped = level.coerceIn(range[0], range[1])
+                            if (band < eq.numberOfBands.toInt()) {
+                                eq.setBandLevel(band.toShort(), clamped)
+                            }
+                        }
                         result.success(true)
                     }
                     "setBassBoost" -> {
                         val strength = call.argument<Int>("strength")?.toShort() ?: 0
-                        bassBoost?.setStrength(strength)
+                        currentBass = strength.coerceIn(0, 1000)
+                        bassBoost?.let { bb ->
+                            if (bb.strengthSupported) {
+                                bb.setStrength(currentBass)
+                            }
+                        }
                         result.success(true)
                     }
                     "setVirtualizer" -> {
                         val strength = call.argument<Int>("strength")?.toShort() ?: 0
-                        virtualizer?.setStrength(strength)
+                        currentVirtualizer = strength.coerceIn(0, 1000)
+                        virtualizer?.let { virt ->
+                            if (virt.strengthSupported) {
+                                virt.setStrength(currentVirtualizer)
+                            }
+                        }
                         result.success(true)
+                    }
+                    "openSystemEqualizer" -> {
+                        try {
+                            val intent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
+                                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, currentSessionId)
+                                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                                putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+                            }
+                            if (intent.resolveActivity(packageManager) != null) {
+                                startActivity(intent)
+                                result.success(true)
+                            } else {
+                                result.success(false)
+                            }
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
                     }
                     else -> result.notImplemented()
                 }
@@ -292,4 +439,10 @@ class MainActivity : AudioServiceActivity() {
             }
         }
     }
+
+    override fun onDestroy() {
+        releaseAudioEffects()
+        super.onDestroy()
+    }
 }
+

@@ -698,31 +698,37 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                 ],
                               ),
                               const Spacer(),
-                              StreamBuilder<Duration?>(
-                                stream: player.durationStream,
-                                builder: (context, d) => StreamBuilder<Duration>(
-                                  stream: player.positionStream,
-                                  builder: (context, p) => GlassSeekBar(
-                                    position: p.data ?? Duration.zero,
-                                    duration: d.data ?? track.duration,
-                                    accent: appAccent,
-                                    onSeek: player.seek,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
                               StreamBuilder<PlayerState>(
                                 stream: player.playerStateStream,
                                 builder: (context, s) {
                                   final playing = (s.data?.playing ?? false) &&
                                       s.data?.processingState != ProcessingState.completed;
-                                  return WaveVisualizer(
-                                    barCount: 16,
-                                    height: 24,
-                                    barWidth: 3,
-                                    spacing: 3.5,
-                                    isPlaying: playing,
-                                    color: appAccent,
+                                  return Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      StreamBuilder<Duration?>(
+                                        stream: player.durationStream,
+                                        builder: (context, d) => StreamBuilder<Duration>(
+                                          stream: player.positionStream,
+                                          builder: (context, p) => GlassSeekBar(
+                                            position: p.data ?? Duration.zero,
+                                            duration: d.data ?? track.duration,
+                                            accent: appAccent,
+                                            isPlaying: playing,
+                                            onSeek: player.seek,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      WaveVisualizer(
+                                        barCount: 16,
+                                        height: 24,
+                                        barWidth: 3,
+                                        spacing: 3.5,
+                                        isPlaying: playing,
+                                        color: appAccent,
+                                      ),
+                                    ],
                                   );
                                 },
                               ),
