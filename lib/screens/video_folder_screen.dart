@@ -201,7 +201,7 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
           itemCount: folders.length,
           itemBuilder: (context, i) {
             final folder = folders[i];
-            final displayName = cleanFolderName(folder.name);
+            final displayName = VideoFolderScreen.cleanFolderName(folder.name);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
