@@ -3,6 +3,7 @@ name: Build RV Bhati Player APK
 on:
   push:
     branches: [main, master]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -128,6 +129,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: "RV Bhati Player ${{ github.ref_name }} (YouTube Music, My Library Hub & Dynamic Island)"
+          make_latest: true
           files: |
             build/app/outputs/flutter-apk/RV-Bhati-Player.apk
             build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk
