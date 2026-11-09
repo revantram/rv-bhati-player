@@ -18,6 +18,8 @@ class LrcParser {
     }
   }
 
+  static List<LrcLine> parseString(String content) => parseText(content);
+
   static List<LrcLine> parseText(String content) {
     final list = <LrcLine>[];
     final lines = content.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');

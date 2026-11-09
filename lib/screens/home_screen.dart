@@ -893,7 +893,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         displayItems = (top.isNotEmpty ? top : _audios.take(30)).map(PlaylistItem.fromMediaFile).toList();
       } else if (_selectedPlaylist == '⏱️ Recently Added') {
         final sorted = List<MediaFile>.from(_audios)
-          ..sort((a, b) => (b.dateAdded ?? DateTime(2000)).compareTo(a.dateAdded ?? DateTime(2000)));
+          ..sort((a, b) => (b.modifiedDate ?? DateTime(2000)).compareTo(a.modifiedDate ?? DateTime(2000)));
         displayItems = sorted.take(50).map(PlaylistItem.fromMediaFile).toList();
       } else if (_selectedPlaylist == '🕒 Recently Played') {
         final map = {for (final m in _audios) m.id: m};
