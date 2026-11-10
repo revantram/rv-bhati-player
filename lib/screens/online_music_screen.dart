@@ -272,8 +272,8 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
       if (!mounted) return;
 
+      final updatedList = List<OnlineSong>.from(list);
       if (directUrl != null && directUrl.isNotEmpty) {
-        final updatedList = List<OnlineSong>.from(list);
         updatedList[index] = OnlineSong(
           id: song.id,
           title: song.title,
@@ -283,20 +283,13 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           imageUrl: song.imageUrl,
           streamUrl: directUrl,
         );
-        AudioController.instance.playOnlineQueue(updatedList, index);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
-        );
-      } else {
-        // Direct audio extraction blocked -> launch dedicated in-app YouTube player sheet
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => YouTubeMusicSheet(song: song),
-        );
       }
+
+      AudioController.instance.playOnlineQueue(updatedList, index);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+      );
     } else {
       // JioSaavn / Osho / Spotify standard playback
       AudioController.instance.playOnlineQueue(list, index);
