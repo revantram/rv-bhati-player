@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../models/media_file.dart';
+import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import 'audio_controller.dart';
 import 'equalizer_service.dart';
@@ -282,6 +283,35 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? _jioPlaylistUrl;
+  String? _jioPlaylistName;
+  List<OnlineSong> _jioPlaylistSongs = [];
+
+  String? get jioPlaylistUrl => _jioPlaylistUrl;
+  String? get jioPlaylistName => _jioPlaylistName;
+  List<OnlineSong> get jioPlaylistSongs => List.unmodifiable(_jioPlaylistSongs);
+  bool get hasJioPlaylist => _jioPlaylistSongs.isNotEmpty;
+
+  void setJioPlaylist({
+    required String url,
+    required String name,
+    required List<OnlineSong> songs,
+  }) {
+    _jioPlaylistUrl = url;
+    _jioPlaylistName = name;
+    _jioPlaylistSongs = List.from(songs);
+    _save();
+    notifyListeners();
+  }
+
+  void clearJioPlaylist() {
+    _jioPlaylistUrl = null;
+    _jioPlaylistName = null;
+    _jioPlaylistSongs = [];
+    _save();
+    notifyListeners();
+  }
+
   Color _accentColor = const Color(0xFF7C6CFF);
   Color? _dynamicAccentColor;
   Color get accentColor => _dynamicAccentColor ?? _accentColor;
@@ -375,6 +405,14 @@ class AppState extends ChangeNotifier {
         if (map['language'] == 'hi') _language = AppLanguage.hi;
         if (map['userName'] != null) _userName = map['userName'] as String;
         if (map['jioNumber'] != null) _jioNumber = map['jioNumber'] as String;
+        if (map['jioPlaylistUrl'] != null) _jioPlaylistUrl = map['jioPlaylistUrl'] as String;
+        if (map['jioPlaylistName'] != null) _jioPlaylistName = map['jioPlaylistName'] as String;
+        if (map['jioPlaylistSongs'] is List) {
+          _jioPlaylistSongs = (map['jioPlaylistSongs'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((m) => OnlineSong.fromMap(m))
+              .toList();
+        }
         if (map['accent'] != null) _accentColor = Color(map['accent'] as int);
         if (map['favorites'] is List) {
           _favorites.addAll((map['favorites'] as List).cast<String>());
@@ -439,6 +477,9 @@ class AppState extends ChangeNotifier {
         'language': _language == AppLanguage.hi ? 'hi' : 'en',
         'userName': _userName,
         'jioNumber': _jioNumber,
+        'jioPlaylistUrl': _jioPlaylistUrl,
+        'jioPlaylistName': _jioPlaylistName,
+        'jioPlaylistSongs': _jioPlaylistSongs.map((s) => s.toJson()).toList(),
         'accent': _accentColor.toARGB32(),
         'favorites': _favorites.toList(),
         'recentlyPlayed': _recentlyPlayed,

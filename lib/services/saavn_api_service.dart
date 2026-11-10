@@ -15,6 +15,9 @@ class SaavnArtist {
     required this.subtitle,
     required this.avatarUrl,
   });
+
+  bool get isRajasthani => category.toLowerCase().contains('rajasthan');
+  bool get isBollywood => !isRajasthani;
 }
 
 class SaavnApiService {
@@ -123,6 +126,18 @@ class SaavnApiService {
       category: 'Modern Hits',
       subtitle: 'Indie Acoustic Sensation',
       avatarUrl: 'https://c.saavncdn.com/436/Husn-Hindi-2023-20231129054140-500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'B Praak',
+      category: 'Modern Hits',
+      subtitle: 'Teri Mitti & Heartbreak Anthems',
+      avatarUrl: 'https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Sidhu Moose Wala',
+      category: 'Modern Hits',
+      subtitle: 'The Legend of Desi Hip-Hop',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sidhu_Moose_Wala_004_20250617183705_500x500.jpg',
     ),
 
     // --- 90s Icons ---
@@ -267,6 +282,42 @@ class SaavnApiService {
       category: 'Rajasthani & Folk',
       subtitle: 'Coke Studio Chaudhary & Sufi',
       avatarUrl: 'https://c.saavncdn.com/668/Coke-Studio-S2-Hindi-2023-20260606091636-500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Gajendra Verma',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Emptiness & Indie Love Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Gajendra_Verma_007_20241021075316_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Ila Arun',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Rajasthani Folk & Pop Icon',
+      avatarUrl: 'https://c.saavncdn.com/artists/Ila_Arun_20200205103703_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Shyam Paliwal',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Desi Marwari & Santvani Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Shyam_Paliwal_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Sarita Kharwal',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Rajasthani Lokgeet Queen',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sarita_Kharwal_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Shravan Singh Rawat',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Marwari Folk & Traditional',
+      avatarUrl: 'https://c.saavncdn.com/206/Byan-Ka-Chana-Jor-Garam-Rajasthani-2014-500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Rani Rangili',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Marwari DJ Dhamaka Queen',
+      avatarUrl: 'https://c.saavncdn.com/artists/Rani_Rangili_20191129073418_500x500.jpg',
     ),
   ];
 
@@ -531,4 +582,139 @@ class SaavnApiService {
 
     return null;
   }
+
+  /// 7. JioSaavn Playlist Fetcher & Syncer:
+  /// Supports JioSaavn playlist URLs, tokens, list IDs, or search queries
+  Future<JioPlaylistResult> fetchPlaylist(String input) async {
+    final clean = input.trim();
+    if (clean.isEmpty) return const JioPlaylistResult(title: 'Playlist', songs: []);
+
+    String playlistTitle = 'JioSaavn Playlist';
+    try {
+      String? token;
+      String? listId;
+
+      if (clean.contains('jiosaavn.com')) {
+        final uri = Uri.tryParse(clean);
+        if (uri != null) {
+          final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+          if (segments.isNotEmpty) {
+            token = segments.last;
+          }
+        }
+      } else if (RegExp(r'^[0-9]+$').hasMatch(clean)) {
+        listId = clean;
+      } else if (clean.length > 15 && !clean.contains(' ')) {
+        token = clean;
+      }
+
+      // 1. If we have a token, resolve playlist details via webapi.get
+      if (token != null && token.isNotEmpty) {
+        final tokenUrl =
+            '$_baseUrl?__call=webapi.get&token=${Uri.encodeComponent(token)}&type=playlist&_format=json&api_version=4';
+        final body = await _get(tokenUrl);
+        if (body != null) {
+          final data = json.decode(body);
+          if (data is Map) {
+            final t = data['title']?.toString();
+            if (t != null && t.isNotEmpty) playlistTitle = OnlineSong.unescapeHtml(t);
+            final foundId = data['id']?.toString() ?? data['listid']?.toString();
+            if (foundId != null && foundId.isNotEmpty) {
+              listId = foundId;
+            } else if (data['list'] is List) {
+              final list = <OnlineSong>[];
+              for (final item in data['list']) {
+                if (item is Map<String, dynamic>) {
+                  final s = OnlineSong.fromJson(item);
+                  if (s != null) list.add(s);
+                }
+              }
+              if (list.isNotEmpty) {
+                return JioPlaylistResult(title: playlistTitle, songs: list);
+              }
+            }
+          }
+        }
+      }
+
+      // 2. If listId resolved, fetch full songs list
+      if (listId != null && listId.isNotEmpty) {
+        final listUrl =
+            '$_baseUrl?__call=playlist.getDetails&listid=${Uri.encodeComponent(listId)}&_format=json&api_version=4&n=50';
+        final body = await _get(listUrl);
+        if (body != null) {
+          final data = json.decode(body);
+          if (data is Map) {
+            final t = data['title']?.toString() ?? data['listname']?.toString();
+            if (t != null && t.isNotEmpty) playlistTitle = OnlineSong.unescapeHtml(t);
+            final rawList = data['list'] ?? data['songs'];
+            if (rawList is List) {
+              final list = <OnlineSong>[];
+              for (final item in rawList) {
+                if (item is Map<String, dynamic>) {
+                  final s = OnlineSong.fromJson(item);
+                  if (s != null) list.add(s);
+                }
+              }
+              if (list.isNotEmpty) {
+                return JioPlaylistResult(title: playlistTitle, songs: list);
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Search playlist by query
+      final searchUrl =
+          '$_baseUrl?__call=search.getPlaylistResults&q=${Uri.encodeComponent(clean)}&_format=json&api_version=4&n=5';
+      final searchBody = await _get(searchUrl);
+      if (searchBody != null) {
+        final searchData = json.decode(searchBody);
+        if (searchData is Map &&
+            searchData['results'] is List &&
+            (searchData['results'] as List).isNotEmpty) {
+          final first = searchData['results'][0];
+          final t = first['title']?.toString();
+          if (t != null && t.isNotEmpty) playlistTitle = OnlineSong.unescapeHtml(t);
+          final pid = first['id']?.toString() ?? first['listid']?.toString();
+          if (pid != null && pid.isNotEmpty) {
+            final plBody = await _get(
+                '$_baseUrl?__call=playlist.getDetails&listid=$pid&_format=json&api_version=4&n=50');
+            if (plBody != null) {
+              final plData = json.decode(plBody);
+              final rawList = plData['list'] ?? plData['songs'];
+              if (rawList is List) {
+                final list = <OnlineSong>[];
+                for (final item in rawList) {
+                  if (item is Map<String, dynamic>) {
+                    final s = OnlineSong.fromJson(item);
+                    if (s != null) list.add(s);
+                  }
+                }
+                if (list.isNotEmpty) {
+                  return JioPlaylistResult(title: playlistTitle, songs: list);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 4. Fallback: Search songs
+      final songs = await searchSongs(clean, limit: 35);
+      return JioPlaylistResult(
+        title: clean,
+        songs: songs,
+      );
+    } catch (_) {}
+
+    return JioPlaylistResult(title: playlistTitle, songs: const []);
+  }
 }
+
+class JioPlaylistResult {
+  final String title;
+  final List<OnlineSong> songs;
+  const JioPlaylistResult({required this.title, required this.songs});
+}
+
