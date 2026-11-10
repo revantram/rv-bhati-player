@@ -57,7 +57,7 @@ class YtAudioResolver {
     try {
       final manifest = await _yt.videos.streamsClient
           .getManifest(cleanId)
-          .timeout(const Duration(milliseconds: 3500));
+          .timeout(const Duration(milliseconds: 6000));
       final audioStreams = manifest.audioOnly.sortByBitrate();
       if (audioStreams.isNotEmpty) {
         final directUrl = audioStreams.last.url.toString();

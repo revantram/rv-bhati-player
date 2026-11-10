@@ -1,7 +1,7 @@
 name: rv_bhati_player
 description: RV Bhati Player - Liquid Glass video and MP3 player.
 publish_to: "none"
-version: 1.2.22+34
+version: 1.2.23+35
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -14,7 +14,7 @@ dependencies:
   just_audio_background: ^0.0.1-beta.13  # background audio + lock-screen controls
   flutter_inappwebview: ^6.1.5    # in-app webview
   http: ^1.2.2                    # piped & invidious API requests
-  youtube_explode_dart: ^2.2.0    # 100% native ad-free YouTube parser
+  youtube_explode_dart: ^2.5.3    # 100% native ad-free YouTube parser
   permission_handler: ^12.0.0     # READ_MEDIA_VIDEO / READ_MEDIA_AUDIO / storage
   photo_manager: ^3.6.0           # MediaStore scanning of local videos & audio
   device_info_plus: ^11.3.0       # Android SDK version check

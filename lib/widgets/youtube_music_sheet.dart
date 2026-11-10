@@ -45,7 +45,8 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
   </style>
 </head>
 <body>
-  <iframe src="https://www.youtube-nocookie.com/embed/$_videoId?autoplay=1&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3"
+  <iframe src="https://www.youtube.com/embed/$_videoId?autoplay=1&playsinline=1&enablejsapi=1&origin=https://revantram.github.io"
+          referrerpolicy="strict-origin-when-cross-origin"
           allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
           allowfullscreen>
   </iframe>
@@ -152,7 +153,7 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
                   InAppWebView(
                     initialData: InAppWebViewInitialData(
                       data: embedHtml,
-                      baseUrl: WebUri('https://www.youtube.com'),
+                      baseUrl: WebUri('https://revantram.github.io/rv-bhati-player/'),
                       mimeType: 'text/html',
                       encoding: 'utf-8',
                     ),
@@ -162,6 +163,8 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
                       cacheEnabled: true,
                       javaScriptEnabled: true,
                       transparentBackground: true,
+                      userAgent:
+                          'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36',
                     ),
                     onWebViewCreated: (ctrl) {
                       _webViewController = ctrl;
