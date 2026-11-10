@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
@@ -110,6 +112,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   @override
   void dispose() {
     _lyricsScroll.dispose();
+    _userLyricsTimer?.cancel();
     super.dispose();
   }
 
@@ -230,10 +233,14 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     final track = _getCurrentTrack(idx);
     if (track == null) return;
 
+    _userLyricsTimer?.cancel();
     setState(() {
       _loadingLyrics = true;
       _lyrics = [];
       _plainLyrics = null;
+      _lastActiveLyricIdx = null;
+      _lyricKeys.clear();
+      _userInteractingWithLyrics = false;
     });
 
     // 1. Check local .lrc file first
@@ -992,7 +999,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                         duration: const Duration(milliseconds: 400),
                                         curve: Curves.easeOutBack,
                                         child: GestureDetector(
-                                          onTap: () => setState(() => _showLyrics = !_showLyrics),
+                                          onTap: () {
+                                            setState(() => _showLyrics = !_showLyrics);
+                                            if (_showLyrics) {
+                                              _lastActiveLyricIdx = null;
+                                              _userInteractingWithLyrics = false;
+                                            }
+                                          },
                                           child: AnimatedSwitcher(
                                             duration: const Duration(milliseconds: 350),
                                             child: Container(
@@ -1204,7 +1217,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           },
                                         ),
                                         PressableScale(
-                                          onTap: () => setState(() => _showLyrics = !_showLyrics),
+                                          onTap: () {
+                                            setState(() => _showLyrics = !_showLyrics);
+                                            if (_showLyrics) {
+                                              _lastActiveLyricIdx = null;
+                                              _userInteractingWithLyrics = false;
+                                            }
+                                          },
                                           child: Container(
                                             padding: const EdgeInsets.all(8),
                                             child: Icon(
@@ -1387,21 +1406,43 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     );
   }
 
+  final Map<int, GlobalKey> _lyricKeys = {};
   int? _lastActiveLyricIdx;
+  bool _userInteractingWithLyrics = false;
+  Timer? _userLyricsTimer;
 
-  void _checkAndScrollLyric(int activeIdx) {
-    if (activeIdx < 0 || activeIdx == _lastActiveLyricIdx) return;
+  void _checkAndScrollLyric(int activeIdx, {bool force = false}) {
+    if (activeIdx < 0) return;
+    if (!force && activeIdx == _lastActiveLyricIdx) return;
     _lastActiveLyricIdx = activeIdx;
+
+    if (!force && _userInteractingWithLyrics) return;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_lyricsScroll.hasClients) return;
-      final target = (activeIdx * 48.0) - 100.0;
+      if (!mounted || !_lyricsScroll.hasClients) return;
+      _scrollToLyric(activeIdx);
+    });
+  }
+
+  void _scrollToLyric(int activeIdx) {
+    final key = _lyricKeys[activeIdx];
+    final itemContext = key?.currentContext;
+    if (itemContext != null && itemContext.mounted) {
+      Scrollable.ensureVisible(
+        itemContext,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      final target = activeIdx * 52.0;
       final clamped = target.clamp(0.0, _lyricsScroll.position.maxScrollExtent);
       _lyricsScroll.animateTo(
         clamped,
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 380),
         curve: Curves.easeOutCubic,
       );
-    });
+    }
   }
 
   Widget _buildLyricsView(AudioPlayer player) {
@@ -1432,7 +1473,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       }
     }
 
-    // Synced scrolling lyrics
+    // Synced scrolling lyrics with exact centering
     if (displayLyrics.isNotEmpty) {
       return StreamBuilder<Duration>(
         stream: player.positionStream,
@@ -1443,44 +1484,66 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
           return LiquidGlassContainer(
             borderRadius: BorderRadius.circular(28),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: ListView.builder(
-              controller: _lyricsScroll,
-              physics: const BouncingScrollPhysics(),
-              itemCount: displayLyrics.length,
-              itemBuilder: (context, i) {
-                final line = displayLyrics[i];
-                final isActive = i == activeIdx;
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    player.seek(line.time);
+            padding: EdgeInsets.zero,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final vHeight = constraints.maxHeight;
+                // Vertical padding allows any line (including first and last) to reach the exact vertical center
+                final verticalPadding = math.max(40.0, (vHeight / 2) - 30.0);
+
+                return NotificationListener<ScrollNotification>(
+                  onNotification: (notif) {
+                    if (notif is UserScrollNotification) {
+                      if (notif.direction != ScrollDirection.idle) {
+                        _userInteractingWithLyrics = true;
+                        _userLyricsTimer?.cancel();
+                        _userLyricsTimer = Timer(const Duration(seconds: 3), () {
+                          if (mounted) {
+                            setState(() {
+                              _userInteractingWithLyrics = false;
+                            });
+                            if (_lastActiveLyricIdx != null) {
+                              _scrollToLyric(_lastActiveLyricIdx!);
+                            }
+                          }
+                        });
+                      }
+                    }
+                    return false;
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 7),
-                    child: AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 250),
-                      style: TextStyle(
-                        fontSize: isActive ? 21 : 15,
-                        fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-                        color: isActive
-                            ? AppState.instance.accentColor
-                            : (AppState.instance.isLight
-                                ? AppState.instance.secondaryTextColor.withValues(alpha: 0.55)
-                                : Colors.white38),
-                        shadows: isActive
-                            ? [
-                                Shadow(
-                                  color: AppState.instance.accentColor.withValues(alpha: 0.65),
-                                  blurRadius: 12,
-                                ),
-                              ]
-                            : null,
+                  child: ShaderMask(
+                    shaderCallback: (rect) {
+                      return const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.white,
+                          Colors.white,
+                          Colors.transparent,
+                        ],
+                        stops: [0.0, 0.12, 0.88, 1.0],
+                      ).createShader(rect);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: SingleChildScrollView(
+                      controller: _lyricsScroll,
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.symmetric(
+                        vertical: verticalPadding,
+                        horizontal: 16,
                       ),
-                      child: Text(
-                        line.text,
-                        textAlign: TextAlign.center,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (int i = 0; i < displayLyrics.length; i++)
+                            _buildLyricLine(
+                              displayLyrics[i],
+                              i,
+                              isActive: i == activeIdx,
+                              player: player,
+                            ),
+                        ],
                       ),
                     ),
                   ),
@@ -1507,6 +1570,64 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               style: TextStyle(fontSize: 14, color: AppState.instance.secondaryTextColor),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLyricLine(
+    LrcLine line,
+    int index, {
+    required bool isActive,
+    required AudioPlayer player,
+  }) {
+    final key = _lyricKeys.putIfAbsent(index, () => GlobalKey());
+    final isLight = AppState.instance.isLight;
+    final accent = AppState.instance.accentColor;
+
+    return GestureDetector(
+      key: key,
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        player.seek(line.time);
+        _userInteractingWithLyrics = false;
+        _userLyricsTimer?.cancel();
+        _checkAndScrollLyric(index, force: true);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: EdgeInsets.symmetric(
+          vertical: isActive ? 8 : 6,
+          horizontal: 10,
+        ),
+        child: AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          style: TextStyle(
+            fontSize: isActive ? 22 : 16,
+            fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+            height: 1.35,
+            color: isActive
+                ? accent
+                : (isLight
+                    ? AppState.instance.textColor.withValues(alpha: 0.38)
+                    : Colors.white.withValues(alpha: 0.35)),
+            shadows: isActive
+                ? [
+                    Shadow(
+                      color: accent.withValues(alpha: 0.70),
+                      blurRadius: 16,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            line.text,
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     );
