@@ -443,9 +443,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         title: app.tr('app_name'),
                         subtitle: _loading
                             ? 'Scanning storage...'
-                            : _tab == 2
-                                ? 'JioSaavn • YouTube • Spotify • Live Radio'
-                                : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
+                            : _tab == 0
+                                ? '${_videos.length} ${app.tr('videos').toLowerCase()}'
+                                : _tab == 1
+                                    ? 'All India Live FM Stations'
+                                    : 'JioSaavn HD • 320kbps Lossless',
                         leading: Container(
                           width: 44,
                           height: 44,
@@ -488,11 +490,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 bottom: pad.bottom + 84,
                 child: DynamicIslandPlayer(
                   onOpen: _openNowPlaying,
-                  onOpenRadio: () => setState(() => _tab = 2),
+                  onOpenRadio: () => setState(() => _tab = 1),
                   onOpenOnline: _openNowPlaying,
                 ),
               ),
-              // Bottom Nav: 3 items (Videos, Music, Online Hub)
+              // Bottom Nav: 3 items (Videos, FM Radio, JioSaavn)
               Positioned(
                 left: 16,
                 right: 16,
@@ -508,8 +510,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                   items: [
                     GlassNavItem(Icons.movie_filter_rounded, app.tr('videos')),
-                    GlassNavItem(Icons.library_music_rounded, app.tr('music')),
-                    GlassNavItem(Icons.travel_explore_rounded, 'Online Hub'),
+                    GlassNavItem(Icons.radio_rounded, 'FM Radio'),
+                    GlassNavItem(Icons.music_note_rounded, 'JioSaavn'),
                   ],
                 ),
               ),
@@ -630,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: _tab == 0
           ? _buildVideosSection(topOffset, bottomOffset)
           : _tab == 1
-              ? _buildMusicSection(topOffset, bottomOffset)
+              ? RadioScreen(topOffset: topOffset, bottomOffset: bottomOffset)
               : OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset),
     );
   }

@@ -272,6 +272,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? _jioNumber;
+  String? get jioNumber => _jioNumber;
+  bool get isJioLinked => _jioNumber != null && _jioNumber!.isNotEmpty;
+
+  void setJioNumber(String? number) {
+    _jioNumber = number?.trim();
+    _save();
+    notifyListeners();
+  }
+
   Color _accentColor = const Color(0xFF7C6CFF);
   Color? _dynamicAccentColor;
   Color get accentColor => _dynamicAccentColor ?? _accentColor;
@@ -364,6 +374,7 @@ class AppState extends ChangeNotifier {
         final map = jsonDecode(content) as Map<String, dynamic>;
         if (map['language'] == 'hi') _language = AppLanguage.hi;
         if (map['userName'] != null) _userName = map['userName'] as String;
+        if (map['jioNumber'] != null) _jioNumber = map['jioNumber'] as String;
         if (map['accent'] != null) _accentColor = Color(map['accent'] as int);
         if (map['favorites'] is List) {
           _favorites.addAll((map['favorites'] as List).cast<String>());
@@ -427,6 +438,7 @@ class AppState extends ChangeNotifier {
       final data = {
         'language': _language == AppLanguage.hi ? 'hi' : 'en',
         'userName': _userName,
+        'jioNumber': _jioNumber,
         'accent': _accentColor.toARGB32(),
         'favorites': _favorites.toList(),
         'recentlyPlayed': _recentlyPlayed,

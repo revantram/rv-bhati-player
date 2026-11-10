@@ -17,6 +17,7 @@ import 'albums_browser_screen.dart';
 import 'artists_hub_screen.dart';
 import 'downloads_screen.dart';
 import 'liked_songs_screen.dart';
+import 'local_storage_music_screen.dart';
 import 'playlists_manager_screen.dart';
 import 'shows_hub_screen.dart';
 
@@ -1134,11 +1135,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildDivider(isLight),
 
               // Items
+              // 1. Local Storage Music
+              _buildLibraryTile(
+                icon: Icons.folder_open_rounded,
+                title: 'Local Storage Music (लोकल संगीत)',
+                count: '${MediaScanner.lastScannedAudios.length} Tracks',
+                textColor: textColor,
+                secondaryTextColor: secondaryTextColor,
+                accent: accent,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LocalStorageMusicScreen()),
+                  );
+                },
+              ),
+              _buildDivider(isLight),
+
+              // 2. Liked Songs
               ListenableBuilder(
                 listenable: _app,
                 builder: (context, _) => _buildLibraryTile(
-                  icon: Icons.music_note_rounded,
-                  title: 'Liked Songs',
+                  icon: Icons.favorite_rounded,
+                  title: 'Liked Songs (पसंदीदा गाने)',
                   count: '${_app.favorites.length}',
                   textColor: textColor,
                   secondaryTextColor: secondaryTextColor,
@@ -1152,59 +1171,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               _buildDivider(isLight),
-              ListenableBuilder(
-                listenable: _app,
-                builder: (context, _) => _buildLibraryTile(
-                  icon: Icons.album_outlined,
-                  title: 'Albums',
-                  count: '${MediaScanner.lastScannedAudios.map((a) => a.album ?? "").where((s) => s.trim().isNotEmpty).toSet().length}',
-                  textColor: textColor,
-                  secondaryTextColor: secondaryTextColor,
-                  accent: accent,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AlbumsBrowserScreen()),
-                    );
-                  },
-                ),
-              ),
-              _buildDivider(isLight),
-              _buildLibraryTile(
-                icon: Icons.mic_none_rounded,
-                title: 'Artists',
-                count: '${SaavnApiService.curatedArtists.length}',
-                textColor: textColor,
-                secondaryTextColor: secondaryTextColor,
-                accent: accent,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ArtistsHubScreen()),
-                  );
-                },
-              ),
-              _buildDivider(isLight),
-              _buildLibraryTile(
-                icon: Icons.podcasts_rounded,
-                title: 'Shows',
-                count: '15+ Shows',
-                textColor: textColor,
-                secondaryTextColor: secondaryTextColor,
-                accent: accent,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
-                  );
-                },
-              ),
-              _buildDivider(isLight),
+
+              // 3. Downloads
               ListenableBuilder(
                 listenable: DownloadService.instance,
                 builder: (context, _) => _buildLibraryTile(
-                  icon: Icons.download_outlined,
-                  title: 'Downloads',
+                  icon: Icons.download_rounded,
+                  title: 'Downloads (डाउनलोड)',
                   count: '${DownloadService.instance.downloadedSongs.length}',
                   textColor: textColor,
                   secondaryTextColor: secondaryTextColor,
@@ -1218,11 +1191,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               _buildDivider(isLight),
+
+              // 4. Playlists
               ListenableBuilder(
                 listenable: _app,
                 builder: (context, _) => _buildLibraryTile(
                   icon: Icons.queue_music_rounded,
-                  title: 'Playlists',
+                  title: 'Playlists (प्लेलिस्ट)',
                   count: '${_app.playlists.length + _app.customPlaylists.length}',
                   textColor: textColor,
                   secondaryTextColor: secondaryTextColor,
