@@ -1071,7 +1071,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           ),
                                         ),
                                         const SizedBox(width: 12),
-                                        if (isOnline) ...[
+                                        if (track.isOnline) ...[
                                           ListenableBuilder(
                                             listenable: DownloadService.instance,
                                             builder: (context, _) {
