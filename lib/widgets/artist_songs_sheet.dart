@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/online_song.dart';
+import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
@@ -585,7 +586,7 @@ class _ArtistSongTile extends StatelessWidget {
                 color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
                 size: 20,
               ),
-              onPressed: () => app.toggleFavorite(song.id),
+              onPressed: () => app.toggleFavorite(song.id, item: PlaylistItem.fromOnlineSong(song)),
             ),
 
             // Three-dot menu

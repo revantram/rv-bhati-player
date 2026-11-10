@@ -139,24 +139,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // My Library Hub
                     _buildMyLibrarySection(context, textColor, secondaryTextColor, accent, isLight),
 
-                    // Section: Online Search & Music Engine
-                    _buildSectionHeader('ONLINE SEARCH & MUSIC ENGINE', textColor),
-                    LiquidGlassContainer(
-                      borderRadius: BorderRadius.circular(22),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      blur: 14,
-                      child: Column(
-                        children: [
-                          for (final engine in MusicEngine.values) ...[
-                            _buildEngineTile(engine, textColor, secondaryTextColor, accent),
-                            if (engine != MusicEngine.values.last)
-                              _buildDivider(isLight),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
 
                     // Section 1: Streaming Quality
                     _buildSectionHeader('AUDIO STREAMING QUALITY', textColor),
@@ -967,81 +949,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildEngineTile(
-    MusicEngine engine,
-    Color textColor,
-    Color secondaryTextColor,
-    Color accent,
-  ) {
-    final selected = _settings.musicEngine == engine;
-    final isYt = engine == MusicEngine.youtube;
 
-    return iOSBounceButton(
-      onTap: () => _settings.setMusicEngine(engine),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: isYt
-                    ? const Color(0xFFFF0000).withValues(alpha: 0.15)
-                    : accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                isYt ? Icons.play_circle_fill_rounded : Icons.graphic_eq_rounded,
-                color: isYt ? const Color(0xFFFF0000) : accent,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    engine.label,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 15,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    engine.description,
-                    style: TextStyle(
-                      color: secondaryTextColor,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? accent : secondaryTextColor.withValues(alpha: 0.4),
-                  width: 2,
-                ),
-                color: selected ? accent : Colors.transparent,
-              ),
-              child: selected
-                  ? const Center(
-                      child: Icon(Icons.check, size: 14, color: Colors.white),
-                    )
-                  : null,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildMyLibrarySection(
     BuildContext context,

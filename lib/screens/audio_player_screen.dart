@@ -1154,7 +1154,20 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           size: 44,
                                           iconSize: 24,
                                           tint: isFav ? const Color(0xFFFF2D55) : null,
-                                          onTap: () => AppState.instance.toggleFavorite(track.id),
+                                          onTap: () {
+                                            final item = PlaylistItem(
+                                              id: track.id,
+                                              title: track.title,
+                                              artist: track.artist,
+                                              album: track.album,
+                                              duration: track.duration,
+                                              isOnline: track.isOnline,
+                                              localPath: track.mediaFile?.path,
+                                              streamUrl: track.isOnline ? (AudioController.instance.currentOnlineSong?.streamUrl) : null,
+                                              imageUrl: track.imageUrl,
+                                            );
+                                            AppState.instance.toggleFavorite(track.id, item: item);
+                                          },
                                         ),
                                       ],
                                     ),

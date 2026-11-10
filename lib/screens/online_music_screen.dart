@@ -1071,7 +1071,7 @@ class _OnlineSongTile extends StatelessWidget {
                 color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
                 size: 21,
               ),
-              onPressed: () => app.toggleFavorite(song.id),
+              onPressed: () => app.toggleFavorite(song.id, item: PlaylistItem.fromOnlineSong(song)),
             ),
 
             // Popup Actions Menu

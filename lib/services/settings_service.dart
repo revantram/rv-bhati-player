@@ -39,7 +39,7 @@ class SettingsService extends ChangeNotifier {
   AudioQuality _audioQuality = AudioQuality.standard160;
   AudioQuality get audioQuality => _audioQuality;
 
-  MusicEngine _musicEngine = MusicEngine.youtube;
+  MusicEngine _musicEngine = MusicEngine.jioSaavn;
   MusicEngine get musicEngine => _musicEngine;
 
   bool _autoQuality = true;

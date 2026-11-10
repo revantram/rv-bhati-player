@@ -1546,7 +1546,7 @@ class _MediaCard extends StatelessWidget {
                   color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
                   size: 22,
                 ),
-                onPressed: () => app.toggleFavorite(item.id),
+                onPressed: () => app.toggleFavorite(item.id, item: PlaylistItem.fromMediaFile(item)),
               ),
               PopupMenuButton<String>(
                 icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),

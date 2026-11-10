@@ -1,18 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../models/media_file.dart';
+import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
-import '../services/media_scanner.dart';
 import '../utils/format.dart';
 import '../widgets/ios_bounce_button.dart';
-import '../widgets/liquid_glass_container.dart';
+import 'audio_player_screen.dart';
 
-class LikedSongsScreen extends StatelessWidget {
+class LikedSongsScreen extends StatefulWidget {
   const LikedSongsScreen({super.key});
 
+  @override
+  State<LikedSongsScreen> createState() => _LikedSongsScreenState();
+}
+
+class _LikedSongsScreenState extends State<LikedSongsScreen> {
   AppState get app => AppState.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    // Resolve online metadata for liked songs if needed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      app.ensureFavoriteItemsResolved();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,21 +85,21 @@ class LikedSongsScreen extends StatelessWidget {
                     child: ListenableBuilder(
                       listenable: app,
                       builder: (context, _) {
-                        final favs = _getFavoriteFiles();
+                        final count = app.favorites.length;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Liked Songs',
+                              'Liked Songs (पसंदीदा गाने)',
                               style: TextStyle(
                                 color: textColor,
-                                fontSize: 20,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.3,
                               ),
                             ),
                             Text(
-                              '${favs.length} Favorite Tracks',
+                              '$count Favorite Tracks',
                               style: TextStyle(
                                 color: secondaryTextColor,
                                 fontSize: 12,
@@ -106,9 +119,29 @@ class LikedSongsScreen extends StatelessWidget {
               child: ListenableBuilder(
                 listenable: app,
                 builder: (context, _) {
-                  final list = _getFavoriteFiles();
+                  final list = app.favoritePlaylistItems;
 
                   if (list.isEmpty) {
+                    if (app.favorites.isNotEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: accent),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Loading liked songs...',
+                              style: TextStyle(
+                                color: secondaryTextColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -157,20 +190,20 @@ class LikedSongsScreen extends StatelessWidget {
                                   backgroundColor: accent,
                                   foregroundColor: Colors.white,
                                   elevation: 0,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                                icon: const Icon(Icons.play_arrow_rounded,
-                                    size: 22),
+                                icon: const Icon(Icons.play_arrow_rounded, size: 22),
                                 label: const Text('Play All',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
+                                    style: TextStyle(fontWeight: FontWeight.w700)),
                                 onPressed: () {
-                                  AudioController.instance
-                                      .playQueue(list, 0, shuffle: false);
+                                  AudioController.instance.playHybridQueue(list, 0, shuffle: false);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+                                  );
                                 },
                               ),
                             ),
@@ -184,20 +217,20 @@ class LikedSongsScreen extends StatelessWidget {
                                         ? Colors.black.withValues(alpha: 0.12)
                                         : Colors.white.withValues(alpha: 0.15),
                                   ),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                                icon: const Icon(Icons.shuffle_rounded,
-                                    size: 20),
+                                icon: const Icon(Icons.shuffle_rounded, size: 20),
                                 label: const Text('Shuffle',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
+                                    style: TextStyle(fontWeight: FontWeight.w700)),
                                 onPressed: () {
-                                  AudioController.instance
-                                      .playQueue(list, 0, shuffle: true);
+                                  AudioController.instance.playHybridQueue(list, 0, shuffle: true);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+                                  );
                                 },
                               ),
                             ),
@@ -208,24 +241,24 @@ class LikedSongsScreen extends StatelessWidget {
                       // List
                       Expanded(
                         child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           itemCount: list.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final f = list[index];
 
                             return iOSBounceButton(
                               onTap: () {
-                                AudioController.instance.playQueue(list, index);
+                                AudioController.instance.playHybridQueue(list, index);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+                                );
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: isLight
-                                      ? Colors.white
-                                      : const Color(0xFF1E293B),
+                                  color: isLight ? Colors.white : const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: isLight
@@ -235,30 +268,24 @@ class LikedSongsScreen extends StatelessWidget {
                                 ),
                                 child: Row(
                                   children: [
-                                    Container(
-                                      width: 50,
-                                      height: 50,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(12),
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.redAccent,
-                                            Colors.pinkAccent
-                                          ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                      ),
-                                      child: const Center(
-                                        child: Icon(Icons.favorite_rounded,
-                                            color: Colors.white, size: 24),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: SizedBox(
+                                        width: 50,
+                                        height: 50,
+                                        child: (f.imageUrl != null && f.imageUrl!.isNotEmpty)
+                                            ? Image.network(
+                                                f.imageUrl!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => _buildFallbackArt(),
+                                              )
+                                            : _buildFallbackArt(),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             f.title,
@@ -272,7 +299,9 @@ class LikedSongsScreen extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            '${f.artist ?? "Unknown"} • ${FormatUtils.duration(f.duration)}',
+                                            f.duration.inSeconds > 0
+                                                ? '${f.artist} • ${FormatUtils.duration(f.duration)}'
+                                                : '${f.artist} • ${f.isOnline ? "JioSaavn" : "Local Music"}',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
@@ -312,8 +341,18 @@ class LikedSongsScreen extends StatelessWidget {
     );
   }
 
-  List<MediaFile> _getFavoriteFiles() {
-    final favIds = app.favorites;
-    return MediaScanner.lastScannedAudios.where((a) => favIds.contains(a.id)).toList();
+  Widget _buildFallbackArt() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.redAccent, Colors.pinkAccent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.favorite_rounded, color: Colors.white, size: 24),
+      ),
+    );
   }
 }

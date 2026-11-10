@@ -8,6 +8,8 @@ import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import 'audio_controller.dart';
 import 'equalizer_service.dart';
+import 'media_scanner.dart';
+import 'saavn_api_service.dart';
 import 'settings_service.dart';
 
 enum AppLanguage { en, hi }
@@ -344,6 +346,9 @@ class AppState extends ChangeNotifier {
   final Set<String> _favorites = {};
   Set<String> get favorites => _favorites;
 
+  final Map<String, PlaylistItem> _favoriteItems = {};
+  Map<String, PlaylistItem> get favoriteItems => _favoriteItems;
+
   final Map<String, List<String>> _playlists = {};
   Map<String, List<String>> get playlists => _playlists;
 
@@ -417,6 +422,16 @@ class AppState extends ChangeNotifier {
         if (map['favorites'] is List) {
           _favorites.addAll((map['favorites'] as List).cast<String>());
         }
+        if (map['favoriteItems'] is List) {
+          for (final itemJson in map['favoriteItems'] as List) {
+            if (itemJson is Map) {
+              try {
+                final item = PlaylistItem.fromJson(Map<String, dynamic>.from(itemJson));
+                _favoriteItems[item.id] = item;
+              } catch (_) {}
+            }
+          }
+        }
         if (map['recentlyPlayed'] is List) {
           _recentlyPlayed.addAll((map['recentlyPlayed'] as List).cast<String>());
         }
@@ -482,6 +497,7 @@ class AppState extends ChangeNotifier {
         'jioPlaylistSongs': _jioPlaylistSongs.map((s) => s.toJson()).toList(),
         'accent': _accentColor.toARGB32(),
         'favorites': _favorites.toList(),
+        'favoriteItems': _favoriteItems.values.map((item) => item.toJson()).toList(),
         'recentlyPlayed': _recentlyPlayed,
         'playlists': _playlists,
         'customPlaylists': _customPlaylists.map(
@@ -516,14 +532,76 @@ class AppState extends ChangeNotifier {
 
   bool isFavorite(String pathOrId) => _favorites.contains(pathOrId);
 
-  void toggleFavorite(String pathOrId) {
+  void toggleFavorite(String pathOrId, {PlaylistItem? item}) {
     if (_favorites.contains(pathOrId)) {
       _favorites.remove(pathOrId);
+      _favoriteItems.remove(pathOrId);
     } else {
       _favorites.add(pathOrId);
+      if (item != null) {
+        _favoriteItems[pathOrId] = item;
+      } else {
+        final local = MediaScanner.lastScannedAudios.where((a) => a.id == pathOrId).firstOrNull;
+        if (local != null) {
+          _favoriteItems[pathOrId] = PlaylistItem.fromMediaFile(local);
+        }
+      }
     }
     _save();
     notifyListeners();
+  }
+
+  void toggleFavoriteItem(PlaylistItem item) {
+    if (_favorites.contains(item.id)) {
+      _favorites.remove(item.id);
+      _favoriteItems.remove(item.id);
+    } else {
+      _favorites.add(item.id);
+      _favoriteItems[item.id] = item;
+    }
+    _save();
+    notifyListeners();
+  }
+
+  List<PlaylistItem> get favoritePlaylistItems {
+    final list = <PlaylistItem>[];
+    for (final id in _favorites) {
+      if (_favoriteItems.containsKey(id)) {
+        list.add(_favoriteItems[id]!);
+      } else {
+        final local = MediaScanner.lastScannedAudios.where((a) => a.id == id).firstOrNull;
+        if (local != null) {
+          final item = PlaylistItem.fromMediaFile(local);
+          _favoriteItems[id] = item;
+          list.add(item);
+        }
+      }
+    }
+    return list;
+  }
+
+  Future<void> ensureFavoriteItemsResolved() async {
+    final missing = <String>[];
+    for (final id in _favorites) {
+      if (!_favoriteItems.containsKey(id)) {
+        final local = MediaScanner.lastScannedAudios.where((a) => a.id == id).firstOrNull;
+        if (local != null) {
+          _favoriteItems[id] = PlaylistItem.fromMediaFile(local);
+        } else {
+          missing.add(id);
+        }
+      }
+    }
+    if (missing.isNotEmpty) {
+      try {
+        final onlineSongs = await SaavnApiService.instance.fetchSongsByPids(missing);
+        for (final s in onlineSongs) {
+          _favoriteItems[s.id] = PlaylistItem.fromOnlineSong(s);
+        }
+        _save();
+        notifyListeners();
+      } catch (_) {}
+    }
   }
 
   // --- Hybrid Custom Playlists ---

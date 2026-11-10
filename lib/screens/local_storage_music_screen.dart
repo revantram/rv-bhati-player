@@ -438,7 +438,7 @@ class _LocalStorageMusicScreenState extends State<LocalStorageMusicScreen> {
                           color: isFav ? Colors.redAccent : secondaryTextColor,
                           size: 20,
                         ),
-                        onPressed: () => app.toggleFavorite(song.id),
+                        onPressed: () => app.toggleFavorite(song.id, item: PlaylistItem.fromMediaFile(song)),
                       ),
                       IconButton(
                         icon: Icon(Icons.more_vert_rounded, color: secondaryTextColor, size: 20),

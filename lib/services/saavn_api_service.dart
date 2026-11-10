@@ -995,7 +995,9 @@ class SaavnApiService {
   }
 
   /// 7. JioSaavn Playlist Fetcher & Syncer:
-  /// Supports JioSaavn playlist URLs, tokens, list IDs, or search queries
+  /// Public helper to fetch songs by batch of pids (preserves order)
+  Future<List<OnlineSong>> fetchSongsByPids(List<String> pids) => _fetchSongsByPids(pids);
+
   /// Helper to fetch songs by batch of pids (preserves order)
   Future<List<OnlineSong>> _fetchSongsByPids(List<String> pids) async {
     if (pids.isEmpty) return const [];
