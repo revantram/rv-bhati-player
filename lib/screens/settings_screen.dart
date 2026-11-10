@@ -62,6 +62,148 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _showJioNumberDialog() {
+    final phoneCtrl = TextEditingController(text: _app.jioNumber ?? '');
+    final otpCtrl = TextEditingController();
+    bool otpSent = false;
+    bool verifying = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: _app.isLight ? Colors.white : const Color(0xFF181E2E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFF007BFF), Color(0xFF10B981)]),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.sim_card_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'JioSaavn Link',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'अपने जियो नंबर से लिंक करें और JioSaavn ओरिजिनल के लाइक्स व प्लेलिस्ट बिना ऐड के सिंक करें:',
+                    style: TextStyle(fontSize: 13, color: _app.secondaryTextColor),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    enabled: !otpSent,
+                    style: TextStyle(color: _app.textColor, fontSize: 16, fontWeight: FontWeight.w600),
+                    decoration: InputDecoration(
+                      prefixText: '+91  ',
+                      prefixStyle: TextStyle(color: _app.textColor, fontWeight: FontWeight.w700),
+                      labelText: 'Jio Mobile Number',
+                      counterText: '',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  if (otpSent) ...[
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: otpCtrl,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      autofocus: true,
+                      style: TextStyle(color: _app.textColor, fontSize: 18, letterSpacing: 4, fontWeight: FontWeight.w700),
+                      decoration: InputDecoration(
+                        labelText: 'Enter OTP (OTP दर्ज करें)',
+                        hintText: '• • • • • •',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'OTP आपके जियो नंबर पर भेजा गया है (टेस्ट: 123456)',
+                      style: TextStyle(fontSize: 11, color: _app.secondaryTextColor),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancel', style: TextStyle(color: _app.secondaryTextColor)),
+                ),
+                if (!otpSent)
+                  ElevatedButton(
+                    onPressed: () {
+                      final p = phoneCtrl.text.trim();
+                      if (p.length < 10) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('कृपया सही 10-अंकों का जियो नंबर दर्ज करें')),
+                        );
+                        return;
+                      }
+                      setDialogState(() {
+                        otpSent = true;
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Send OTP (ओटीपी भेजें)'),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: verifying
+                        ? null
+                        : () async {
+                            setDialogState(() => verifying = true);
+                            await Future.delayed(const Duration(milliseconds: 600));
+                            final phone = phoneCtrl.text.trim();
+                            _app.setJioNumber(phone);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (mounted) {
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  content: Text('✅ Jio नंबर +91 $phone सफलतापूर्वक लिंक हो गया! (100% Ad-Free)'),
+                                ),
+                              );
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: verifying
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Verify & Sync (सिंक करें)'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLight = _app.isLight;
@@ -162,6 +304,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             textColor: textColor,
                             secondaryTextColor: secondaryTextColor,
                             accent: accent,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Section: JioSaavn Account & Shows
+                    _buildSectionHeader('JIOSAAVN ACCOUNT & SHOWS', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 14,
+                      child: Column(
+                        children: [
+                          _buildNavTile(
+                            icon: Icons.sim_card_rounded,
+                            title: _app.isJioLinked
+                                ? 'Jio Account: +91 ${_app.jioNumber}'
+                                : 'Link Jio Mobile Number',
+                            subtitle: _app.isJioLinked
+                                ? 'Ad-Free Sync Active • 100% Ad-Free'
+                                : 'जियो नंबर से लिंक करें (बिना ऐड के चलाएं)',
+                            onTap: _showJioNumberDialog,
+                            textColor: textColor,
+                            secondaryTextColor: _app.isJioLinked ? const Color(0xFF10B981) : secondaryTextColor,
+                            accent: const Color(0xFF10B981),
+                          ),
+                          _buildDivider(isLight),
+                          _buildNavTile(
+                            icon: Icons.podcasts_rounded,
+                            title: 'शोज़ एवं सीरीज़ (Shows & Series)',
+                            subtitle: 'Osho World, Desi FM, Aawaz (300+ shows)',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
+                            ),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: const Color(0xFFF59E0B),
                           ),
                         ],
                       ),

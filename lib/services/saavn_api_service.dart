@@ -139,6 +139,66 @@ class SaavnApiService {
       subtitle: 'The Legend of Desi Hip-Hop',
       avatarUrl: 'https://c.saavncdn.com/artists/Sidhu_Moose_Wala_004_20250617183705_500x500.jpg',
     ),
+    SaavnArtist(
+      name: 'Vishal Mishra',
+      category: 'Modern Hits',
+      subtitle: 'Pehle Bhi Main & Soul Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Vishal_Mishra_005_20251120085316_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Stebin Ben',
+      category: 'Modern Hits',
+      subtitle: 'Romantic Chartbusters',
+      avatarUrl: 'https://c.saavncdn.com/artists/Stebin_Ben_005_20240124093234_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Shilpa Rao',
+      category: 'Modern Hits',
+      subtitle: 'Chaleya & Besharam Rang Diva',
+      avatarUrl: 'https://c.saavncdn.com/artists/Shilpa_Rao_002_20230321111415_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Jonita Gandhi',
+      category: 'Modern Hits',
+      subtitle: 'What Jhumka & Arabic Kuthu',
+      avatarUrl: 'https://c.saavncdn.com/artists/Jonita_Gandhi_003_20180507091741_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Monali Thakur',
+      category: 'Modern Hits',
+      subtitle: 'Moh Moh Ke Dhaage & Sawaar Loon',
+      avatarUrl: 'https://c.saavncdn.com/artists/Monali_Thakur_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Prateek Kuhad',
+      category: 'Modern Hits',
+      subtitle: 'Cold/Mess & Indie Acoustic',
+      avatarUrl: 'https://c.saavncdn.com/artists/Prateek_Kuhad_006_20260515064251_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'King',
+      category: 'Modern Hits',
+      subtitle: 'Maan Meri Jaan & Tu Aake Dekhle',
+      avatarUrl: 'https://c.saavncdn.com/artists/King_004_20240819092014_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'DIVINE',
+      category: 'Modern Hits',
+      subtitle: 'Gully Boy & Desi Rap Pioneer',
+      avatarUrl: 'https://c.saavncdn.com/artists/DIVINE_006_20250911071442_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Javed Ali',
+      category: 'Modern Hits',
+      subtitle: 'Kun Faya Kun & Srivalli',
+      avatarUrl: 'https://c.saavncdn.com/artists/Javed_Ali_006_20260821184545_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Pritam',
+      category: 'Modern Hits',
+      subtitle: 'The Hitmaker of Bollywood',
+      avatarUrl: 'https://c.saavncdn.com/artists/Pritam_Chakraborty-20170711073326_500x500.jpg',
+    ),
 
     // --- 90s Icons ---
     SaavnArtist(
@@ -207,6 +267,18 @@ class SaavnApiService {
       subtitle: 'Chaiyya Chaiyya & Power Hits',
       avatarUrl: 'https://c.saavncdn.com/artists/Sukhwinder_Singh_500x500.jpg',
     ),
+    SaavnArtist(
+      name: 'Hariharan',
+      category: '90s Icons',
+      subtitle: 'Colonial Cousins & Roja Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Hariharan_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Suresh Wadkar',
+      category: '90s Icons',
+      subtitle: 'Lagi Aaj Sawan Ki & Classics',
+      avatarUrl: 'https://c.saavncdn.com/artists/Suresh_Wadkar_005_20230825062730_500x500.jpg',
+    ),
 
     // --- Legends ---
     SaavnArtist(
@@ -256,6 +328,18 @@ class SaavnApiService {
       category: 'Legends',
       subtitle: 'Classical Playback Legend',
       avatarUrl: 'https://c.saavncdn.com/artists/Manna_Dey_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Anup Jalota',
+      category: 'Legends',
+      subtitle: 'Bhajan Samrat of India',
+      avatarUrl: 'https://c.saavncdn.com/artists/Anup_Jalota_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Lakhbir Singh Lakkha',
+      category: 'Legends',
+      subtitle: 'Mata Ke Bhajan & Shiv Bhakti',
+      avatarUrl: 'https://c.saavncdn.com/435/Saj-Rahe-Bhole-Baba-Nirale-Dulhe-Mein-Hindi-2019-20190709224546-500x500.jpg',
     ),
 
     // --- Rajasthani & Folk ---
@@ -319,6 +403,36 @@ class SaavnApiService {
       subtitle: 'Marwari DJ Dhamaka Queen',
       avatarUrl: 'https://c.saavncdn.com/artists/Rani_Rangili_20191129073418_500x500.jpg',
     ),
+    SaavnArtist(
+      name: 'Swaroop Khan',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Tharki Chokro & Rajasthani Folk',
+      avatarUrl: 'https://c.saavncdn.com/artists/Swaroop_Khan_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Salim Shekhawas',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Marwari DJ & Folk Dhamaka',
+      avatarUrl: 'https://c.saavncdn.com/artists/Salim_Shekhawas_20191130124656_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Asha Vaishnav',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Desi Bhajan & Marwari Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Asha_Vaishnav_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Neeta Nayak',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Rajasthani Lokgeet & Live Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Neeta_Nayak_003_20220411174944_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Hemraj Goyal',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Veena Rajasthani Classics',
+      avatarUrl: 'https://c.saavncdn.com/artists/Hemraj_Goyal_500x500.jpg',
+    ),
   ];
 
   static SaavnArtist? findCuratedArtist(String name) {
@@ -346,8 +460,6 @@ class SaavnApiService {
     return null;
   }
 
-  /// 1. Search Query:
-  /// Song name, movie, ya artist search karne par accurate results
   Future<List<OnlineSong>> searchSongs(String query, {int page = 1, int limit = 30}) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return const [];
@@ -357,6 +469,36 @@ class SaavnApiService {
       return _cachedQueries[cacheKey]!;
     }
 
+    if (limit > 40) {
+      final pagesNeeded = (limit / 40).ceil().clamp(1, 4);
+      final futures = <Future<List<OnlineSong>>>[];
+      for (int p = 1; p <= pagesNeeded; p++) {
+        futures.add(_searchSinglePage(cleanQuery, page: p, limit: 40));
+      }
+      final results = await Future.wait(futures);
+      final combined = <OnlineSong>[];
+      final seenIds = <String>{};
+      for (final list in results) {
+        for (final song in list) {
+          if (seenIds.add(song.id)) {
+            combined.add(song);
+          }
+        }
+      }
+      if (combined.isNotEmpty) {
+        _cachedQueries[cacheKey] = combined;
+      }
+      return combined;
+    }
+
+    final single = await _searchSinglePage(cleanQuery, page: page, limit: limit);
+    if (single.isNotEmpty) {
+      _cachedQueries[cacheKey] = single;
+    }
+    return single;
+  }
+
+  Future<List<OnlineSong>> _searchSinglePage(String cleanQuery, {required int page, required int limit}) async {
     try {
       final q = Uri.encodeComponent(cleanQuery);
       final url =
@@ -373,9 +515,6 @@ class SaavnApiService {
             final song = OnlineSong.fromJson(item);
             if (song != null) list.add(song);
           }
-        }
-        if (list.isNotEmpty) {
-          _cachedQueries[cacheKey] = list;
         }
         return list;
       }
@@ -640,7 +779,7 @@ class SaavnApiService {
       // 2. If listId resolved, fetch full songs list
       if (listId != null && listId.isNotEmpty) {
         final listUrl =
-            '$_baseUrl?__call=playlist.getDetails&listid=${Uri.encodeComponent(listId)}&_format=json&api_version=4&n=50';
+            '$_baseUrl?__call=playlist.getDetails&listid=${Uri.encodeComponent(listId)}&_format=json&api_version=4&n=500';
         final body = await _get(listUrl);
         if (body != null) {
           final data = json.decode(body);
@@ -679,7 +818,7 @@ class SaavnApiService {
           final pid = first['id']?.toString() ?? first['listid']?.toString();
           if (pid != null && pid.isNotEmpty) {
             final plBody = await _get(
-                '$_baseUrl?__call=playlist.getDetails&listid=$pid&_format=json&api_version=4&n=50');
+                '$_baseUrl?__call=playlist.getDetails&listid=$pid&_format=json&api_version=4&n=500');
             if (plBody != null) {
               final plData = json.decode(plBody);
               final rawList = plData['list'] ?? plData['songs'];
@@ -701,7 +840,7 @@ class SaavnApiService {
       }
 
       // 4. Fallback: Search songs
-      final songs = await searchSongs(clean, limit: 35);
+      final songs = await searchSongs(clean, limit: 120);
       return JioPlaylistResult(
         title: clean,
         songs: songs,

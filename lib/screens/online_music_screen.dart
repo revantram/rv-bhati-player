@@ -16,7 +16,7 @@ import '../widgets/artist_songs_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import 'audio_player_screen.dart';
 import 'artists_hub_screen.dart';
-import 'shows_hub_screen.dart';
+import 'settings_screen.dart';
 
 class OnlineMusicScreen extends StatefulWidget {
   const OnlineMusicScreen({
@@ -131,7 +131,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _isLoadingCustomSongs = true;
       _customSongs = [];
     });
-    final songs = await SaavnApiService.instance.searchSongs(query, limit: 35);
+    final songs = await SaavnApiService.instance.searchSongs(query, limit: 120);
     if (mounted) {
       setState(() {
         _customSongs = songs;
@@ -153,89 +153,6 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
-    );
-  }
-
-  void _openQualitySheet() {
-    final isLight = app.isLight;
-    final currentQ = SettingsService.instance.audioQuality;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          decoration: BoxDecoration(
-            color: isLight ? Colors.white : const Color(0xFF14192B),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 20,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isLight ? Colors.black12 : Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'ऑडियो स्ट्रीमिंग क्वालिटी (Audio Quality)',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: app.textColor,
-                ),
-              ),
-              const SizedBox(height: 14),
-              for (final q in AudioQuality.values) ...[
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  tileColor: currentQ == q
-                      ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                      : Colors.transparent,
-                  title: Text(
-                    q.label,
-                    style: TextStyle(
-                      fontWeight: currentQ == q ? FontWeight.w700 : FontWeight.w500,
-                      color: currentQ == q ? const Color(0xFF10B981) : app.textColor,
-                    ),
-                  ),
-                  subtitle: Text(
-                    q.description,
-                    style: TextStyle(fontSize: 12, color: app.secondaryTextColor),
-                  ),
-                  trailing: currentQ == q
-                      ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981))
-                      : null,
-                  onTap: () {
-                    SettingsService.instance.setAudioQuality(q);
-                    Navigator.pop(ctx);
-                    if (mounted) setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Audio streaming quality: ${q.label}')),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -684,118 +601,58 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildJioSaavnHeader(Color saavnColor) {
-    final isLight = app.isLight;
-    final curQuality = SettingsService.instance.audioQuality;
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
       child: Row(
         children: [
-          // JioSaavn Official Logo Badge
           Container(
-            width: 44,
-            height: 44,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF00E676), Color(0xFF10B981), Color(0xFF047857)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                colors: [Color(0xFF00E676), Color(0xFF10B981)],
               ),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: saavnColor.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(10),
             ),
             child: const Center(
-              child: Icon(Icons.music_note_rounded, color: Colors.white, size: 26),
+              child: Icon(Icons.music_note_rounded, color: Colors.white, size: 18),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'JioSaavn HD',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: app.textColor,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: saavnColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'PRO',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: saavnColor,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  '320 kbps Lossless • Ad-Free Music',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: app.secondaryTextColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          const SizedBox(width: 10),
+          Text(
+            'JioSaavn HD',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: app.textColor,
+              letterSpacing: -0.3,
             ),
           ),
-
-          // Quality Switcher Button
-          GestureDetector(
-            onTap: _openQualitySheet,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: isLight ? Colors.white : const Color(0xFF1C2230),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isLight ? const Color(0xFFE2E8F0) : Colors.white12,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 6,
-                  ),
-                ],
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: saavnColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '320 kbps HD',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: saavnColor,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.bolt_rounded, size: 16, color: Color(0xFF10B981)),
-                  const SizedBox(width: 4),
-                  Text(
-                    curQuality.label,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: app.textColor,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: app.secondaryTextColor),
-                ],
-              ),
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(Icons.settings_outlined, color: app.secondaryTextColor, size: 21),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],
@@ -840,41 +697,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   Widget _buildHomeView(Color saavnColor) {
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, math.max(160.0, widget.bottomOffset)),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, math.max(160.0, widget.bottomOffset)),
       children: [
-        // 1. Top Hub Row: Indian Artists & Shows (Placed at top)
-        Row(
-          children: [
-            Expanded(
-              child: _buildTopHubCard(
-                title: 'भारतीय कलाकार',
-                subtitle: 'Indian Artists (50+)',
-                icon: Icons.mic_external_on_rounded,
-                color: const Color(0xFF3B82F6),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ArtistsHubScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildTopHubCard(
-                title: 'शोज़ एवं सीरीज़',
-                subtitle: 'Osho, Desi FM, Aawaz',
-                icon: Icons.podcasts_rounded,
-                color: const Color(0xFFF59E0B),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // 2. Quick Category Cards: 90s Special & Moods
+        // 1. Quick Category Cards: 90s Special & Moods
         Row(
           children: [
             Expanded(
@@ -900,7 +725,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         ),
         const SizedBox(height: 12),
 
-        // 3. My Playlist & All Artists Row
+        // 2. My Playlist & All Artists Row
         Row(
           children: [
             Expanded(
@@ -936,7 +761,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               child: _buildActionCard(
                 emoji: '🎙️',
                 title: 'All Artists',
-                subtitle: '50+ Singers',
+                subtitle: '${SaavnApiService.curatedArtists.length}+ Singers',
                 bgColor: const Color(0xFFEDE9FE),
                 onTap: _openArtistModal,
               ),
@@ -945,41 +770,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         ),
         const SizedBox(height: 14),
 
-        // 4. Jio Number Link & Sync Card
-        _buildJioSyncCard(saavnColor),
+        // 3. Indian Artists Avatars Row
+        _buildIndianArtistsSection(saavnColor),
         const SizedBox(height: 16),
 
-        // 5. Indian Artists Avatars Row
-        _buildIndianArtistsSection(saavnColor),
-        const SizedBox(height: 18),
-
-        // 6. Curated Era Folders (New Bollywood Hits / Old Is Gold)
-        Row(
-          children: [
-            Expanded(
-              child: _buildEraCard(
-                'New Bollywood Hits',
-                'Latest 2024 Hits',
-                Icons.whatshot_rounded,
-                const Color(0xFF00D2FF),
-                () => _openCategory('New Bollywood Hits'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildEraCard(
-                'Old Is Gold',
-                '70s-90s Classics',
-                Icons.radio_rounded,
-                const Color(0xFFFFB300),
-                () => _openCategory('Old Is Gold'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // 7. Popular Right Now or Active Query / Mood / Playlist Section
+        // 4. Popular Right Now or Active Query / Mood / Playlist Section
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           child: Row(
@@ -1034,7 +829,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   ),
                 ))
         else
-          ..._trendingSongs.take(25).map((song) => Padding(
+          ..._trendingSongs.map((song) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: _OnlineSongTile(
                   song: song,
@@ -1124,164 +919,6 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       ),
     );
   }
-
-  Widget _buildTopHubCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final isLight = app.isLight;
-    return iOSBounceButton(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isLight ? Colors.white : const Color(0xFF181E2E),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isLight ? const Color(0xFFE2E8F0) : Colors.white10,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: isLight ? 0.08 : 0.18),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: app.textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: app.secondaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJioSyncCard(Color saavnColor) {
-    final isLight = app.isLight;
-    final isLinked = app.isJioLinked;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isLight ? Colors.white : const Color(0xFF181E2E),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isLinked
-              ? const Color(0xFF10B981).withValues(alpha: 0.4)
-              : (isLight ? const Color(0xFFE2E8F0) : Colors.white10),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isLinked
-                    ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                    : [const Color(0xFF007BFF), const Color(0xFF0056B3)],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isLinked ? Icons.check_circle_rounded : Icons.sync_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isLinked
-                      ? 'Jio Account Linked: +91 ${app.jioNumber}'
-                      : 'जियो नंबर से लिंक करें (Link Jio Number)',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: app.textColor,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isLinked
-                      ? 'Ad-Free Sync Active • No Ads'
-                      : 'Playlists & Liked Songs सिंक करें (बिना ऐड)',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isLinked ? const Color(0xFF10B981) : app.secondaryTextColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: _showJioNumberDialog,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLinked ? saavnColor.withValues(alpha: 0.15) : saavnColor,
-              foregroundColor: isLinked ? saavnColor : Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(
-              isLinked ? 'Change' : 'Link',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildIndianArtistsSection(Color saavnColor) {
     final artists = SaavnApiService.curatedArtists;
     return Column(
@@ -1361,41 +998,6 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildEraCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
-    final isLight = app.isLight;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isLight ? Colors.white : const Color(0xFF181E2E),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isLight ? const Color(0xFFE2E8F0) : Colors.white12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.18)),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: app.textColor), maxLines: 1),
-                  Text(subtitle, style: TextStyle(fontSize: 11, color: app.secondaryTextColor), maxLines: 1),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
