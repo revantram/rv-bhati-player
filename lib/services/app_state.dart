@@ -409,8 +409,8 @@ class AppState extends ChangeNotifier {
         if (map['jioPlaylistName'] != null) _jioPlaylistName = map['jioPlaylistName'] as String;
         if (map['jioPlaylistSongs'] is List) {
           _jioPlaylistSongs = (map['jioPlaylistSongs'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map((m) => OnlineSong.fromMap(m))
+              .map((m) => m is Map ? OnlineSong.fromMap(Map<String, dynamic>.from(m)) : null)
+              .whereType<OnlineSong>()
               .toList();
         }
         if (map['accent'] != null) _accentColor = Color(map['accent'] as int);

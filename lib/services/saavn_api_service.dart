@@ -996,38 +996,152 @@ class SaavnApiService {
 
   /// 7. JioSaavn Playlist Fetcher & Syncer:
   /// Supports JioSaavn playlist URLs, tokens, list IDs, or search queries
+  /// Helper to fetch songs by batch of pids (preserves order)
+  Future<List<OnlineSong>> _fetchSongsByPids(List<String> pids) async {
+    if (pids.isEmpty) return const [];
+    try {
+      final url =
+          '$_baseUrl?__call=song.getDetails&pids=${Uri.encodeComponent(pids.join(','))}&_format=json&api_version=4';
+      final body = await _get(url);
+      if (body != null) {
+        final data = json.decode(body);
+        if (data is Map) {
+          final list = <OnlineSong>[];
+          for (final pid in pids) {
+            final item = data[pid];
+            if (item is Map<String, dynamic>) {
+              final s = OnlineSong.fromJson(item);
+              if (s != null) list.add(s);
+            }
+          }
+          return list;
+        }
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  /// Fetches 100% of the songs in a playlist without the 50 song cap
+  Future<JioPlaylistResult?> _fetchFullPlaylistDetails(String listId, {String? fallbackTitle}) async {
+    try {
+      final listUrl =
+          '$_baseUrl?__call=playlist.getDetails&listid=${Uri.encodeComponent(listId)}&_format=json&api_version=4&n=50';
+      final body = await _get(listUrl);
+      if (body == null) return null;
+
+      final data = json.decode(body);
+      if (data is! Map) return null;
+
+      final t = data['title']?.toString() ?? data['listname']?.toString() ?? fallbackTitle ?? 'JioSaavn Playlist';
+      final playlistTitle = OnlineSong.unescapeHtml(t);
+
+      final songList = <OnlineSong>[];
+      final seenIds = <String>{};
+
+      final rawList = data['list'] ?? data['songs'];
+      if (rawList is List) {
+        for (final item in rawList) {
+          if (item is Map<String, dynamic>) {
+            final s = OnlineSong.fromJson(item);
+            if (s != null && seenIds.add(s.id)) {
+              songList.add(s);
+            }
+          }
+        }
+      }
+
+      // Check more_info.contents which contains ALL song IDs in the playlist (e.g. 100, 200, 300+ songs)
+      final moreInfo = data['more_info'];
+      final contents = moreInfo is Map ? moreInfo['contents']?.toString() : null;
+      if (contents != null && contents.isNotEmpty) {
+        final allIds = contents.split(',').map((x) => x.trim()).where((x) => x.isNotEmpty).toList();
+        final remainingIds = allIds.where((id) => !seenIds.contains(id)).toList();
+        if (remainingIds.isNotEmpty) {
+          final batchFutures = <Future<List<OnlineSong>>>[];
+          for (int i = 0; i < remainingIds.length; i += 50) {
+            final chunk = remainingIds.skip(i).take(50).toList();
+            batchFutures.add(_fetchSongsByPids(chunk));
+          }
+          final batchResults = await Future.wait(batchFutures);
+          for (final list in batchResults) {
+            for (final s in list) {
+              if (seenIds.add(s.id)) {
+                songList.add(s);
+              }
+            }
+          }
+        }
+      }
+
+      if (songList.isNotEmpty) {
+        return JioPlaylistResult(title: playlistTitle, songs: songList);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// 7. JioSaavn Playlist Fetcher & Syncer:
+  /// Supports JioSaavn playlist URLs, shared WhatsApp text, tokens, list IDs, or search queries.
+  /// Fetches ALL songs in the playlist (not just 50).
   Future<JioPlaylistResult> fetchPlaylist(String input) async {
     final clean = input.trim();
     if (clean.isEmpty) return const JioPlaylistResult(title: 'Playlist', songs: []);
 
     String playlistTitle = 'JioSaavn Playlist';
     try {
-      String? token;
-      String? listId;
-
-      if (clean.contains('jiosaavn.com')) {
-        final uri = Uri.tryParse(clean);
-        if (uri != null) {
-          final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-          if (segments.isNotEmpty) {
-            token = segments.last;
-          }
-        }
-      } else if (RegExp(r'^[0-9]+$').hasMatch(clean)) {
-        listId = clean;
-      } else if (clean.length > 15 && !clean.contains(' ')) {
-        token = clean;
+      // 1. Extract pure URL if user pasted share text (e.g. "Check out this playlist: https://...")
+      final urlReg = RegExp(r'https?://[^\s]+');
+      final urlMatch = urlReg.firstMatch(clean);
+      String textToParse = clean;
+      if (urlMatch != null) {
+        textToParse = urlMatch.group(0)!.replaceAll(RegExp(r'[,.?!]+$'), '');
       }
 
-      // 1. If we have a token, resolve playlist details via webapi.get
+      String? token;
+      String? listId;
+      bool isAlbum = false;
+
+      if (textToParse.contains('jiosaavn.com') || textToParse.contains('saavn.com')) {
+        final uri = Uri.tryParse(textToParse);
+        if (uri != null) {
+          if (uri.queryParameters.containsKey('id')) {
+            listId = uri.queryParameters['id'];
+          } else if (uri.queryParameters.containsKey('listid')) {
+            listId = uri.queryParameters['listid'];
+          }
+
+          if (uri.path.contains('/album/')) {
+            isAlbum = true;
+          }
+
+          if (listId == null) {
+            final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+            if (segments.isNotEmpty) {
+              final last = segments.last;
+              if (RegExp(r'^[0-9]+$').hasMatch(last)) {
+                listId = last;
+              } else {
+                token = last;
+              }
+            }
+          }
+        }
+      } else if (RegExp(r'^[0-9]+$').hasMatch(textToParse)) {
+        listId = textToParse;
+      } else if (textToParse.length > 15 && !textToParse.contains(' ') && !textToParse.startsWith('http')) {
+        token = textToParse;
+      }
+
+      // 2. If we have a token, resolve playlist or album details via webapi.get
       if (token != null && token.isNotEmpty) {
+        final type = isAlbum ? 'album' : 'playlist';
         final tokenUrl =
-            '$_baseUrl?__call=webapi.get&token=${Uri.encodeComponent(token)}&type=playlist&_format=json&api_version=4';
+            '$_baseUrl?__call=webapi.get&token=${Uri.encodeComponent(token)}&type=$type&_format=json&api_version=4';
         final body = await _get(tokenUrl);
         if (body != null) {
           final data = json.decode(body);
           if (data is Map) {
-            final t = data['title']?.toString();
+            final t = data['title']?.toString() ?? data['name']?.toString();
             if (t != null && t.isNotEmpty) playlistTitle = OnlineSong.unescapeHtml(t);
             final foundId = data['id']?.toString() ?? data['listid']?.toString();
             if (foundId != null && foundId.isNotEmpty) {
@@ -1048,36 +1162,19 @@ class SaavnApiService {
         }
       }
 
-      // 2. If listId resolved, fetch full songs list
+      // 3. If listId resolved, fetch 100% full songs list (no 50 song cap)
       if (listId != null && listId.isNotEmpty) {
-        final listUrl =
-            '$_baseUrl?__call=playlist.getDetails&listid=${Uri.encodeComponent(listId)}&_format=json&api_version=4&n=500';
-        final body = await _get(listUrl);
-        if (body != null) {
-          final data = json.decode(body);
-          if (data is Map) {
-            final t = data['title']?.toString() ?? data['listname']?.toString();
-            if (t != null && t.isNotEmpty) playlistTitle = OnlineSong.unescapeHtml(t);
-            final rawList = data['list'] ?? data['songs'];
-            if (rawList is List) {
-              final list = <OnlineSong>[];
-              for (final item in rawList) {
-                if (item is Map<String, dynamic>) {
-                  final s = OnlineSong.fromJson(item);
-                  if (s != null) list.add(s);
-                }
-              }
-              if (list.isNotEmpty) {
-                return JioPlaylistResult(title: playlistTitle, songs: list);
-              }
-            }
-          }
+        final res = await _fetchFullPlaylistDetails(listId, fallbackTitle: playlistTitle);
+        if (res != null && res.songs.isNotEmpty) {
+          return res;
         }
       }
 
-      // 3. Search playlist by query
+      // 4. Search playlist by query (if user typed/pasted a playlist name)
+      final searchClean = clean.replaceAll(RegExp(r'https?://[^\s]+'), '').trim();
+      final queryToSearch = searchClean.isNotEmpty ? searchClean : clean;
       final searchUrl =
-          '$_baseUrl?__call=search.getPlaylistResults&q=${Uri.encodeComponent(clean)}&_format=json&api_version=4&n=5';
+          '$_baseUrl?__call=search.getPlaylistResults&q=${Uri.encodeComponent(queryToSearch)}&_format=json&api_version=4&n=5';
       final searchBody = await _get(searchUrl);
       if (searchBody != null) {
         final searchData = json.decode(searchBody);
@@ -1085,36 +1182,21 @@ class SaavnApiService {
             searchData['results'] is List &&
             (searchData['results'] as List).isNotEmpty) {
           final first = searchData['results'][0];
-          final t = first['title']?.toString();
-          if (t != null && t.isNotEmpty) playlistTitle = OnlineSong.unescapeHtml(t);
           final pid = first['id']?.toString() ?? first['listid']?.toString();
+          final t = first['title']?.toString();
           if (pid != null && pid.isNotEmpty) {
-            final plBody = await _get(
-                '$_baseUrl?__call=playlist.getDetails&listid=$pid&_format=json&api_version=4&n=500');
-            if (plBody != null) {
-              final plData = json.decode(plBody);
-              final rawList = plData['list'] ?? plData['songs'];
-              if (rawList is List) {
-                final list = <OnlineSong>[];
-                for (final item in rawList) {
-                  if (item is Map<String, dynamic>) {
-                    final s = OnlineSong.fromJson(item);
-                    if (s != null) list.add(s);
-                  }
-                }
-                if (list.isNotEmpty) {
-                  return JioPlaylistResult(title: playlistTitle, songs: list);
-                }
-              }
+            final res = await _fetchFullPlaylistDetails(pid, fallbackTitle: t);
+            if (res != null && res.songs.isNotEmpty) {
+              return res;
             }
           }
         }
       }
 
-      // 4. Fallback: Search songs
-      final songs = await searchSongs(clean, limit: 120);
+      // 5. Fallback: Search songs
+      final songs = await searchSongs(queryToSearch, limit: 150);
       return JioPlaylistResult(
-        title: clean,
+        title: queryToSearch,
         songs: songs,
       );
     } catch (_) {}
