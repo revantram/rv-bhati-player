@@ -433,6 +433,216 @@ class SaavnApiService {
       subtitle: 'Veena Rajasthani Classics',
       avatarUrl: 'https://c.saavncdn.com/artists/Hemraj_Goyal_500x500.jpg',
     ),
+    SaavnArtist(
+      name: 'Twinkle Vaishnav',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Marwari Lokgeet & Dance',
+      avatarUrl: 'https://c.saavncdn.com/artists/Twinkle_Vaishnav_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Sarita Kharwal',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Desi Marwari & Folk Diva',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sarita_Kharwal_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Gajendra Ajmera',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Tejaji Bhajan & Folk Star',
+      avatarUrl: 'https://c.saavncdn.com/artists/Gajendra_Ajmera_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Mamta Vajpayee',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Rajasthani Ghoomar & Geet',
+      avatarUrl: 'https://c.saavncdn.com/artists/Mamta_Vajpayee_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Mame Khan',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Chaudhary & Coke Studio Legend',
+      avatarUrl: 'https://c.saavncdn.com/artists/Mame_Khan_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Ila Arun',
+      category: 'Rajasthani & Folk',
+      subtitle: 'Choli Ke Peeche & Folk Power',
+      avatarUrl: 'https://c.saavncdn.com/artists/Ila_Arun_500x500.jpg',
+    ),
+
+    // --- Punjabi & Haryanvi ---
+    SaavnArtist(
+      name: 'Sidhu Moose Wala',
+      category: 'Punjabi',
+      subtitle: 'The Legend • 295 & So High',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sidhu_Moose_Wala_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Karan Aujla',
+      category: 'Punjabi',
+      subtitle: 'Tauba Tauba & Making Memories',
+      avatarUrl: 'https://c.saavncdn.com/artists/Karan_Aujla_004_20240404092241_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'AP Dhillon',
+      category: 'Punjabi',
+      subtitle: 'Brown Munde & With You',
+      avatarUrl: 'https://c.saavncdn.com/artists/AP_Dhillon_003_20230818113527_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Shubh',
+      category: 'Punjabi',
+      subtitle: 'Cheques & Baller Anthems',
+      avatarUrl: 'https://c.saavncdn.com/artists/Shubh_003_20230526063428_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Ammy Virk',
+      category: 'Punjabi',
+      subtitle: 'Qismat & Romantic Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Ammy_Virk_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Guru Randhawa',
+      category: 'Punjabi',
+      subtitle: 'High Rated Gabru & Lahore',
+      avatarUrl: 'https://c.saavncdn.com/artists/Guru_Randhawa_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'B Praak',
+      category: 'Punjabi',
+      subtitle: 'Filhall & Teri Mitti Sensation',
+      avatarUrl: 'https://c.saavncdn.com/artists/B_Praak_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Harrdy Sandhu',
+      category: 'Punjabi',
+      subtitle: 'Bijlee Bijlee & Kya Baat Ay',
+      avatarUrl: 'https://c.saavncdn.com/artists/Harrdy_Sandhu_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Renuka Panwar',
+      category: 'Punjabi',
+      subtitle: '52 Gaj Ka Daman Queen',
+      avatarUrl: 'https://c.saavncdn.com/artists/Renuka_Panwar_004_20240715112921_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Gulzaar Chhaniwala',
+      category: 'Punjabi',
+      subtitle: 'Desi Haryanvi Bangers',
+      avatarUrl: 'https://c.saavncdn.com/artists/Gulzaar_Chhaniwala_500x500.jpg',
+    ),
+
+    // --- Devotional / Bhakti ---
+    SaavnArtist(
+      name: 'Hansraj Raghuwanshi',
+      category: 'Legends',
+      subtitle: 'Mera Bhola Hai Bhandari Star',
+      avatarUrl: 'https://c.saavncdn.com/artists/Hansraj_Raghuwanshi_003_20220412093836_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Narendra Chanchal',
+      category: 'Legends',
+      subtitle: 'Mata Ke Bhent Bhajan Samrat',
+      avatarUrl: 'https://c.saavncdn.com/artists/Narendra_Chanchal_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Kanhaiya Mittal',
+      category: 'Legends',
+      subtitle: 'Khatu Shyam Ji Ke Bhajan',
+      avatarUrl: 'https://c.saavncdn.com/artists/Kanhaiya_Mittal_002_20220818131338_500x500.jpg',
+    ),
+
+    // --- More Modern Bollywood & 90s ---
+    SaavnArtist(
+      name: 'Sachin-Jigar',
+      category: 'Modern Hits',
+      subtitle: 'Stree 2 & Apna Bana Le Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sachin-Jigar_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Amit Trivedi',
+      category: 'Modern Hits',
+      subtitle: 'Namo Namo & Soulful Maestro',
+      avatarUrl: 'https://c.saavncdn.com/artists/Amit_Trivedi_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Shankar Mahadevan',
+      category: 'Modern Hits',
+      subtitle: 'Breathless & National Awardee',
+      avatarUrl: 'https://c.saavncdn.com/artists/Shankar_Mahadevan_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Mika Singh',
+      category: 'Modern Hits',
+      subtitle: 'King of Party Anthems',
+      avatarUrl: 'https://c.saavncdn.com/artists/Mika_Singh_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Himesh Reshammiya',
+      category: 'Modern Hits',
+      subtitle: 'Aashiq Banaya Aapne & Tera Suroor',
+      avatarUrl: 'https://c.saavncdn.com/artists/Himesh_Reshammiya_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Raftaar',
+      category: 'Modern Hits',
+      subtitle: 'Desi Hip-Hop Pioneer & Dhaakad',
+      avatarUrl: 'https://c.saavncdn.com/artists/Raftaar_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'MC Stan',
+      category: 'Modern Hits',
+      subtitle: 'Basti Ka Hasti & New School Rap',
+      avatarUrl: 'https://c.saavncdn.com/artists/MC_Stan_002_20221102071946_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Kavita Krishnamurthy',
+      category: '90s Icons',
+      subtitle: 'Dola Re Dola & 90s Magic',
+      avatarUrl: 'https://c.saavncdn.com/artists/Kavita_Krishnamurthy_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Sadhana Sargam',
+      category: '90s Icons',
+      subtitle: 'Saat Samundar Paar & Melodies',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sadhana_Sargam_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Abhijeet Bhattacharya',
+      category: '90s Icons',
+      subtitle: 'Shah Rukh Khan 90s Voice',
+      avatarUrl: 'https://c.saavncdn.com/artists/Abhijeet_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Lucky Ali',
+      category: '90s Icons',
+      subtitle: 'O Sanam & Indipop Maestro',
+      avatarUrl: 'https://c.saavncdn.com/artists/Lucky_Ali_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Altaf Raja',
+      category: '90s Icons',
+      subtitle: 'Tum To Thehre Pardesi Legend',
+      avatarUrl: 'https://c.saavncdn.com/artists/Altaf_Raja_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'A.R. Rahman',
+      category: 'Legends',
+      subtitle: 'Oscar-Winning Musical Genius',
+      avatarUrl: 'https://c.saavncdn.com/artists/A_R_Rahman_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Sid Sriram',
+      category: 'Modern Hits',
+      subtitle: 'Srivalli & Soulful Pan-India Hits',
+      avatarUrl: 'https://c.saavncdn.com/artists/Sid_Sriram_003_20240129080516_500x500.jpg',
+    ),
+    SaavnArtist(
+      name: 'Anirudh Ravichander',
+      category: 'Modern Hits',
+      subtitle: 'Jawan & Hukum Rockstar',
+      avatarUrl: 'https://c.saavncdn.com/artists/Anirudh_Ravichander_005_20230818113524_500x500.jpg',
+    ),
   ];
 
   static SaavnArtist? findCuratedArtist(String name) {
@@ -460,6 +670,28 @@ class SaavnApiService {
     return null;
   }
 
+  static String _normalizeTitleForDedup(String raw) {
+    var t = raw.toLowerCase()
+        .replaceAll('&quot;', '')
+        .replaceAll('&#039;', "'")
+        .replaceAll('&amp;', '&');
+    final p = t.indexOf('(');
+    if (p > 0) {
+      final inside = t.substring(p).toLowerCase();
+      if (inside.contains('from') ||
+          inside.contains('feat') ||
+          inside.contains('movie') ||
+          inside.contains('soundtrack')) {
+        t = t.substring(0, p).trim();
+      }
+    }
+    final b = t.indexOf('[');
+    if (b > 0) {
+      t = t.substring(0, b).trim();
+    }
+    return t.replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
   Future<List<OnlineSong>> searchSongs(String query, {int page = 1, int limit = 30}) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return const [];
@@ -470,19 +702,21 @@ class SaavnApiService {
     }
 
     if (limit > 40) {
-      final pagesNeeded = (limit / 40).ceil().clamp(1, 4);
+      final pagesNeeded = (limit / 50).ceil().clamp(1, 8);
       final futures = <Future<List<OnlineSong>>>[];
       for (int p = 1; p <= pagesNeeded; p++) {
-        futures.add(_searchSinglePage(cleanQuery, page: p, limit: 40));
+        futures.add(_searchSinglePage(cleanQuery, page: p, limit: 50));
       }
       final results = await Future.wait(futures);
       final combined = <OnlineSong>[];
       final seenIds = <String>{};
+      final seenTitles = <String>{};
       for (final list in results) {
         for (final song in list) {
-          if (seenIds.add(song.id)) {
-            combined.add(song);
-          }
+          if (!seenIds.add(song.id)) continue;
+          final norm = _normalizeTitleForDedup(song.title);
+          if (norm.isNotEmpty && !seenTitles.add(norm)) continue;
+          combined.add(song);
         }
       }
       if (combined.isNotEmpty) {
@@ -596,7 +830,7 @@ class SaavnApiService {
 
   /// 4. Artist Catalog Fetcher:
   /// Specific Artist query se us singer ke top 20-30 songs dynamically load karna
-  Future<List<OnlineSong>> getArtistSongs(String artistName, {int limit = 30}) async {
+  Future<List<OnlineSong>> getArtistSongs(String artistName, {int limit = 300}) async {
     final key = artistName.trim().toLowerCase();
     if (_cachedArtists.containsKey(key)) {
       return _cachedArtists[key]!;
@@ -607,6 +841,44 @@ class SaavnApiService {
       _cachedArtists[key] = songs;
     }
     return songs;
+  }
+
+  /// Search online artists dynamically from JioSaavn
+  Future<List<SaavnArtist>> searchArtists(String query) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return const [];
+    try {
+      final url =
+          '$_baseUrl?__call=search.getArtistResults&q=${Uri.encodeComponent(clean)}&_format=json&api_version=4&n=20';
+      final body = await _get(url);
+      if (body != null) {
+        final data = json.decode(body);
+        if (data is Map && data['results'] is List) {
+          final list = <SaavnArtist>[];
+          for (final item in data['results']) {
+            if (item is Map) {
+              final name = item['name']?.toString() ?? '';
+              if (name.isEmpty) continue;
+              var img = item['image']?.toString() ?? '';
+              if (img.contains('50x50')) {
+                img = img.replaceAll('50x50', '500x500');
+              } else if (img.contains('150x150')) {
+                img = img.replaceAll('150x150', '500x500');
+              }
+              final role = item['role']?.toString() ?? 'Artist';
+              list.add(SaavnArtist(
+                name: OnlineSong.unescapeHtml(name),
+                category: 'All',
+                subtitle: role,
+                avatarUrl: img,
+              ));
+            }
+          }
+          return list;
+        }
+      }
+    } catch (_) {}
+    return const [];
   }
 
   /// 5. Dynamic Mood & Regional Playlists:

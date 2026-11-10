@@ -17,6 +17,7 @@ import '../widgets/ios_bounce_button.dart';
 import 'audio_player_screen.dart';
 import 'artists_hub_screen.dart';
 import 'settings_screen.dart';
+import 'shows_hub_screen.dart';
 
 class OnlineMusicScreen extends StatefulWidget {
   const OnlineMusicScreen({
@@ -131,7 +132,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _isLoadingCustomSongs = true;
       _customSongs = [];
     });
-    final songs = await SaavnApiService.instance.searchSongs(query, limit: 120);
+    final songs = await SaavnApiService.instance.searchSongs(query, limit: 300);
     if (mounted) {
       setState(() {
         _customSongs = songs;
@@ -725,9 +726,22 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         ),
         const SizedBox(height: 12),
 
-        // 2. My Playlist & All Artists Row
+        // 2. Shows & Series & My Playlist Row
         Row(
           children: [
+            Expanded(
+              child: _buildActionCard(
+                emoji: '📻',
+                title: 'शोज़ एवं सीरीज़',
+                subtitle: 'Osho, Desi FM, Aawaz',
+                bgColor: const Color(0xFFFFEDD5),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: _buildActionCard(
                 emoji: '🎵',
@@ -754,16 +768,6 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                     _openPlaylistSyncModal();
                   }
                 },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                emoji: '🎙️',
-                title: 'All Artists',
-                subtitle: '${SaavnApiService.curatedArtists.length}+ Singers',
-                bgColor: const Color(0xFFEDE9FE),
-                onTap: _openArtistModal,
               ),
             ),
           ],

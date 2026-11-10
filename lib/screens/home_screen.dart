@@ -432,57 +432,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               Positioned.fill(child: LiquidBackground(accent: accent)),
               Positioned.fill(child: _buildContent(pad)),
-              // Top Bar
-              Positioned(
-                top: pad.top + 8,
-                left: 16,
-                right: 16,
-                child: _isSearching
-                    ? _buildSearchBar()
-                    : GlassTopBar(
-                        title: app.tr('app_name'),
-                        subtitle: _loading
-                            ? 'Scanning storage...'
-                            : _tab == 0
-                                ? '${_videos.length} ${app.tr('videos').toLowerCase()}'
-                                : _tab == 1
-                                    ? 'All India Live FM Stations'
-                                    : 'JioSaavn HD • 320kbps Lossless',
-                        leading: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [accent, const Color(0xFF00D2FF)],
-                            ),
-                          ),
-                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                        ),
-                        actions: [
-                          // Search
-                          LiquidGlassButton(
-                            icon: Icons.search_rounded,
-                            size: 44,
-                            iconSize: 22,
-                            onTap: () => setState(() => _isSearching = true),
-                          ),
-                          const SizedBox(width: 8),
-                          // Settings
-                          LiquidGlassButton(
-                            icon: Icons.settings_rounded,
-                            size: 44,
-                            iconSize: 22,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
+              // Top Bar: only show floating search bar when user searches
+              if (_isSearching)
+                Positioned(
+                  top: pad.top + 8,
+                  left: 16,
+                  right: 16,
+                  child: _buildSearchBar(),
+                ),
               // Dynamic Island: Floats above bottom nav when audio/radio is playing
               Positioned(
                 left: 16,
@@ -494,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onOpenOnline: _openNowPlaying,
                 ),
               ),
-              // Bottom Nav: 3 items (Videos, FM Radio, JioSaavn)
+              // Bottom Nav: 4 items (Videos, FM Radio, JioSaavn, Settings)
               Positioned(
                 left: 16,
                 right: 16,
@@ -512,6 +469,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     GlassNavItem(Icons.movie_filter_rounded, app.tr('videos')),
                     GlassNavItem(Icons.radio_rounded, 'FM Radio'),
                     GlassNavItem(Icons.music_note_rounded, 'JioSaavn'),
+                    GlassNavItem(Icons.settings_rounded, 'Settings'),
                   ],
                 ),
               ),
@@ -624,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    final topOffset = pad.top + 78;
+    final topOffset = pad.top + 8;
     final bottomOffset = pad.bottom + 155;
 
     return AnimatedSwitcher(
@@ -633,7 +591,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ? _buildVideosSection(topOffset, bottomOffset)
           : _tab == 1
               ? RadioScreen(topOffset: topOffset, bottomOffset: bottomOffset)
-              : OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset),
+              : _tab == 2
+                  ? OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset)
+                  : SettingsScreen(isTab: true, bottomOffset: bottomOffset),
     );
   }
 

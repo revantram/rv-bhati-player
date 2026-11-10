@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -18,6 +20,8 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _selectedCategory = 'All';
   String _searchQuery = '';
+  List<SaavnArtist> _onlineSearchResults = [];
+  Timer? _debounceTimer;
 
   AppState get app => AppState.instance;
 
@@ -32,8 +36,26 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    setState(() => _searchQuery = val.trim());
+    _debounceTimer?.cancel();
+    if (_searchQuery.length >= 2) {
+      _debounceTimer = Timer(const Duration(milliseconds: 350), () async {
+        final results = await SaavnApiService.instance.searchArtists(_searchQuery);
+        if (mounted && _searchQuery.isNotEmpty) {
+          setState(() {
+            _onlineSearchResults = results;
+          });
+        }
+      });
+    } else {
+      setState(() => _onlineSearchResults = []);
+    }
   }
 
   List<SaavnArtist> get _filteredArtists {
@@ -42,6 +64,7 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
       list = list.where((a) {
         if (_selectedCategory == 'Punjabi') {
           return a.subtitle.toLowerCase().contains('punjabi') ||
+              a.category == 'Punjabi' ||
               a.name.toLowerCase().contains('diljit') ||
               a.name.toLowerCase().contains('sidhu') ||
               a.name.toLowerCase().contains('badshah') ||
@@ -52,11 +75,18 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
     }
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
-      list = list
+      final local = list
           .where((a) =>
               a.name.toLowerCase().contains(q) ||
               a.subtitle.toLowerCase().contains(q))
           .toList();
+      final seen = local.map((a) => a.name.toLowerCase()).toSet();
+      for (final a in _onlineSearchResults) {
+        if (seen.add(a.name.toLowerCase())) {
+          local.add(a);
+        }
+      }
+      return local;
     }
     return list;
   }
@@ -176,15 +206,14 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
                               border: InputBorder.none,
                               isDense: true,
                             ),
-                            onChanged: (val) =>
-                                setState(() => _searchQuery = val.trim()),
+                            onChanged: _onSearchChanged,
                           ),
                         ),
                         if (_searchQuery.isNotEmpty)
                           GestureDetector(
                             onTap: () {
                               _searchCtrl.clear();
-                              setState(() => _searchQuery = '');
+                              _onSearchChanged('');
                             },
                             child: Icon(Icons.close_rounded,
                                 size: 18, color: secondaryTextColor),

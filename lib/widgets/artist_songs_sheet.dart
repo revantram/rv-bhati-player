@@ -68,7 +68,7 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
   }
 
   Future<void> _fetch() async {
-    final songs = await SaavnApiService.instance.getArtistSongs(widget.artistName, limit: 40);
+    final songs = await SaavnApiService.instance.getArtistSongs(widget.artistName, limit: 300);
     if (mounted) {
       setState(() {
         _songs = songs;
