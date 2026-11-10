@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../models/media_file.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/media_scanner.dart';
 import '../utils/format.dart';
+import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
 
 class LikedSongsScreen extends StatelessWidget {
@@ -312,6 +314,6 @@ class LikedSongsScreen extends StatelessWidget {
 
   List<MediaFile> _getFavoriteFiles() {
     final favIds = app.favorites;
-    return app.audios.where((a) => favIds.contains(a.id)).toList();
+    return MediaScanner.lastScannedAudios.where((a) => favIds.contains(a.id)).toList();
   }
 }

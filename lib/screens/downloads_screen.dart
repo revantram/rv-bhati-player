@@ -5,6 +5,7 @@ import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
 import '../utils/format.dart';
+import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
 
 class DownloadsScreen extends StatelessWidget {

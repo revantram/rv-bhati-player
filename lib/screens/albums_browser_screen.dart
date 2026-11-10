@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../models/media_file.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/media_scanner.dart';
 import '../utils/format.dart';
+import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
 
 class AlbumsBrowserScreen extends StatefulWidget {
@@ -18,6 +20,18 @@ class _AlbumsBrowserScreenState extends State<AlbumsBrowserScreen> {
   AppState get app => AppState.instance;
 
   String? _selectedAlbum;
+
+  Map<String, List<MediaFile>> get _albumsMap {
+    final map = <String, List<MediaFile>>{};
+    for (final a in MediaScanner.lastScannedAudios) {
+      final name = (a.album != null && a.album!.trim().isNotEmpty)
+          ? a.album!.trim()
+          : 'Unknown Album';
+      map.putIfAbsent(name, () => []).add(a);
+    }
+    return map;
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +117,7 @@ class _AlbumsBrowserScreenState extends State<AlbumsBrowserScreen> {
                         Text(
                           _selectedAlbum != null
                               ? 'Tap any track to play'
-                              : '${app.albums.length} Total Albums',
+                              : '${_albumsMap.length} Total Albums',
                           style: TextStyle(
                             color: secondaryTextColor,
                             fontSize: 12,
@@ -134,7 +148,7 @@ class _AlbumsBrowserScreenState extends State<AlbumsBrowserScreen> {
     Color accent,
     bool isLight,
   ) {
-    final albums = app.albums;
+    final albums = _albumsMap;
 
     if (albums.isEmpty) {
       return Center(
@@ -249,7 +263,7 @@ class _AlbumsBrowserScreenState extends State<AlbumsBrowserScreen> {
     Color accent,
     bool isLight,
   ) {
-    final songs = app.albums[_selectedAlbum] ?? [];
+    final songs = _albumsMap[_selectedAlbum] ?? [];
 
     return Column(
       children: [

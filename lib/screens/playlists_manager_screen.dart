@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../models/media_file.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/media_scanner.dart';
 import '../utils/format.dart';
+import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
 
 class PlaylistsManagerScreen extends StatefulWidget {
@@ -335,7 +337,7 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
   ) {
     final name = _selectedPlaylist!;
     final songIds = app.playlists[name] ?? app.customPlaylists[name] ?? [];
-    final songs = app.audios.where((a) => songIds.contains(a.id)).toList();
+    final songs = MediaScanner.lastScannedAudios.where((a) => songIds.contains(a.id)).toList();
 
     return Column(
       children: [

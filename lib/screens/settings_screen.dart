@@ -1157,7 +1157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 builder: (context, _) => _buildLibraryTile(
                   icon: Icons.album_outlined,
                   title: 'Albums',
-                  count: '${_app.albums.length}',
+                  count: '${MediaScanner.lastScannedAudios.map((a) => a.album ?? "").where((s) => s.trim().isNotEmpty).toSet().length}',
                   textColor: textColor,
                   secondaryTextColor: secondaryTextColor,
                   accent: accent,
