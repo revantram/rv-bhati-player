@@ -292,10 +292,14 @@ class AppState extends ChangeNotifier {
 
   bool get isLight => SettingsService.instance.isLight;
   bool get isDark => !isLight;
-  Color get textColor => isLight ? const Color(0xFF0F172A) : Colors.white;
-  Color get secondaryTextColor => isLight ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
-  Color get cardColor => isLight ? Colors.white.withValues(alpha: 0.95) : const Color(0xFF1E2438).withValues(alpha: 0.85);
-  Color get cardBorderColor => isLight ? const Color(0xFFCBD5E1) : Colors.white.withValues(alpha: 0.14);
+  Color get backgroundColor => isLight ? const Color(0xFFF8FAFC) : const Color(0xFF090D16);
+  Color get surfaceColor => isLight ? Colors.white : const Color(0xFF131722);
+  Color get surfaceColorSecondary => isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1C2230);
+  Color get textColor => isLight ? const Color(0xFF0F172A) : const Color(0xFFFFFFFF);
+  Color get secondaryTextColor => isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+  Color get cardColor => surfaceColor;
+  Color get cardBorderColor => isLight ? const Color(0xFFE2E8F0) : const Color(0x1FFFFFFF);
+  Color get dividerColor => isLight ? const Color(0xFFE2E8F0) : const Color(0x14FFFFFF);
 
   final Set<String> _favorites = {};
   Set<String> get favorites => _favorites;

@@ -293,52 +293,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Divider(color: isLight ? Colors.black12 : Colors.white12, height: 1),
                           const SizedBox(height: 16),
 
-                          // Accent Color Selector
-                          Text(
-                            AppState.translate('theme_color'),
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: AppState.accentOptions.map((color) {
-                              final active = _app.accentColor.toARGB32() == color.toARGB32();
-                              return iOSBounceButton(
-                                onTap: () => _app.setAccentColor(color),
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: color.withValues(alpha: 0.45),
-                                        blurRadius: 8,
-                                        spreadRadius: active ? 2 : 0,
-                                      ),
-                                    ],
-                                    border: Border.all(
-                                      color: active ? Colors.white : Colors.transparent,
-                                      width: 3,
-                                    ),
-                                  ),
-                                  child: active
-                                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
-                                      : null,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-
-                          const SizedBox(height: 18),
-                          Divider(color: isLight ? Colors.black12 : Colors.white12, height: 1),
-                          const SizedBox(height: 16),
-
                           // Language Toggle
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -249,25 +249,22 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
                 },
               ),
 
-              // Dynamic Floating Blur Header (iOS Top Bar)
+              // Studio Top Bar Header
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-                      decoration: BoxDecoration(
-                        color: (isLight ? Colors.white : const Color(0xFF0D1224)).withValues(alpha: 0.72),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.08),
-                            width: 1,
-                          ),
-                        ),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                  decoration: BoxDecoration(
+                    color: isLight ? Colors.white : const Color(0xFF090D16),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isLight ? const Color(0xFFE2E8F0) : const Color(0x1FFFFFFF),
+                        width: 1,
                       ),
+                    ),
+                  ),
                       child: Row(
                         children: [
                           GestureDetector(
@@ -339,8 +336,6 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
                       ),
                     ),
                   ),
-                ),
-              ),
             ],
           ),
         ),

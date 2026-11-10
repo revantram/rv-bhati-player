@@ -12,12 +12,14 @@ import 'folder_videos_list_screen.dart';
 
 class VideoFolderScreen extends StatefulWidget {
   final List<MediaFile> videos;
+  final double topOffset;
   final double bottomOffset;
   final ValueChanged<MediaFile>? onVideoDeleted;
 
   const VideoFolderScreen({
     super.key,
     required this.videos,
+    this.topOffset = 68,
     this.bottomOffset = 160,
     this.onVideoDeleted,
   });
@@ -323,25 +325,22 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
           },
         ),
 
-        // Dynamic Blur Header (Title, Subtitle & 3. Sort Action Refactor)
+        // Studio Header (Title, Subtitle & Sort Action)
         Positioned(
           top: 0,
           left: 0,
           right: 0,
-          child: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-                decoration: BoxDecoration(
-                  color: (isLight ? Colors.white : const Color(0xFF0D1224)).withValues(alpha: 0.75),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.08),
-                      width: 1,
-                    ),
-                  ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+            decoration: BoxDecoration(
+              color: isLight ? Colors.white : const Color(0xFF090D16),
+              border: Border(
+                bottom: BorderSide(
+                  color: isLight ? const Color(0xFFE2E8F0) : const Color(0x1FFFFFFF),
+                  width: 1,
                 ),
+              ),
+            ),
                 child: Row(
                   children: [
                     Expanded(
@@ -378,8 +377,6 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                     ),
                   ],
                 ),
-              ),
-            ),
           ),
         ),
       ],

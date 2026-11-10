@@ -442,7 +442,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.white.withValues(alpha: 0.65),
+                                color: app.secondaryTextColor,
                               ),
                             ),
                           ],
@@ -856,6 +856,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               }
 
               final isFav = AppState.instance.isFavorite(track.id);
+              final isLight = app.isLight;
 
               return GestureDetector(
                 behavior: HitTestBehavior.translucent,
@@ -891,20 +892,31 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        // Left: Frosted glass down-chevron icon
+                                        // Left: Studio down-chevron icon
                                         LiquidGlassButton(
                                           icon: Icons.keyboard_arrow_down_rounded,
                                           size: 44,
                                           iconSize: 28,
                                           onTap: () => Navigator.of(context).maybePop(),
                                         ),
-                                        // Center: Minimal frosted 'Now Playing' pill badge
-                                        LiquidGlassContainer(
-                                          borderRadius: BorderRadius.circular(20),
+                                        // Center: Minimal studio 'Now Playing' pill badge
+                                        Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                          blur: 20,
-                                          opacity: 0.12,
-                                          borderColor: Colors.white.withValues(alpha: 0.18),
+                                          decoration: BoxDecoration(
+                                            color: isLight ? Colors.white : const Color(0xFF1C2230),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: isLight ? const Color(0xFFE2E8F0) : Colors.white.withValues(alpha: 0.12),
+                                              width: 1.0,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.3),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
@@ -916,7 +928,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                                   fontSize: 11,
                                                   letterSpacing: 1.2,
                                                   fontWeight: FontWeight.w700,
-                                                  color: Colors.white.withValues(alpha: 0.9),
+                                                  color: isLight ? const Color(0xFF0F172A) : Colors.white,
                                                 ),
                                               ),
                                             ],
@@ -1094,7 +1106,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             child: Icon(
                                               Icons.replay_10_rounded,
                                               size: 24,
-                                              color: Colors.white.withValues(alpha: 0.65),
+                                              color: app.secondaryTextColor,
                                             ),
                                           ),
                                         ),
@@ -1107,16 +1119,16 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                               child: Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.white.withValues(alpha: 0.10),
+                                                  color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1C2230),
                                                   borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                                                  border: Border.all(color: isLight ? const Color(0xFFE2E8F0) : const Color(0x28FFFFFF)),
                                                 ),
                                                 child: Text(
                                                   '${speed}x',
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w600,
-                                                    color: Colors.white.withValues(alpha: 0.85),
+                                                    color: app.textColor,
                                                   ),
                                                 ),
                                               ),
@@ -1141,7 +1153,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             child: Icon(
                                               Icons.queue_music_rounded,
                                               size: 24,
-                                              color: Colors.white.withValues(alpha: 0.65),
+                                              color: app.secondaryTextColor,
                                             ),
                                           ),
                                         ),
@@ -1152,7 +1164,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             child: Icon(
                                               Icons.forward_10_rounded,
                                               size: 24,
-                                              color: Colors.white.withValues(alpha: 0.65),
+                                              color: app.secondaryTextColor,
                                             ),
                                           ),
                                         ),
@@ -1161,14 +1173,24 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
                                     const SizedBox(height: 12),
 
-                                    // 5. LIQUID FROSTED CONTROL DOCK
-                                    LiquidGlassContainer(
-                                      borderRadius: BorderRadius.circular(36),
+                                    // 5. MODERN STUDIO CONTROL DOCK
+                                    Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                      blur: 25,
-                                      opacity: 0.14,
-                                      borderColor: Colors.white.withValues(alpha: 0.18),
-                                      borderWidth: 1.2,
+                                      decoration: BoxDecoration(
+                                        color: isLight ? Colors.white : const Color(0xFF131722),
+                                        borderRadius: BorderRadius.circular(36),
+                                        border: Border.all(
+                                          color: isLight ? const Color(0xFFE2E8F0) : const Color(0x1FFFFFFF),
+                                          width: 1.0,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.45),
+                                            blurRadius: 18,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                         children: [
@@ -1184,7 +1206,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                                   child: Icon(
                                                     Icons.shuffle_rounded,
                                                     size: 22,
-                                                    color: isShuf ? appAccent : Colors.white.withValues(alpha: 0.75),
+                                                    color: isShuf ? appAccent : app.secondaryTextColor,
                                                   ),
                                                 ),
                                               );
@@ -1196,7 +1218,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             onTap: _previous,
                                             child: Container(
                                               padding: const EdgeInsets.all(8),
-                                              child: const Icon(
+                                              child: Icon(
                                                 Icons.skip_previous_rounded,
                                                 size: 34,
                                                 color: Colors.white,
@@ -1251,7 +1273,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                               child: Icon(
                                                 Icons.skip_next_rounded,
                                                 size: 34,
-                                                color: player.hasNext ? Colors.white : Colors.white38,
+                                                color: player.hasNext ? app.textColor : app.secondaryTextColor.withValues(alpha: 0.35),
                                               ),
                                             ),
                                           ),
@@ -1269,7 +1291,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                                   child: Icon(
                                                     mode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
                                                     size: 22,
-                                                    color: isLoop ? appAccent : Colors.white.withValues(alpha: 0.75),
+                                                    color: isLoop ? appAccent : app.secondaryTextColor,
                                                   ),
                                                 ),
                                               );
@@ -1461,6 +1483,8 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppState.instance;
+    final isLight = app.isLight;
     final totalMs = math.max(widget.duration.inMilliseconds, 1);
     final curMs = widget.position.inMilliseconds.clamp(0, totalMs);
     final currentFraction = _dragFraction ?? (curMs / totalMs).clamp(0.0, 1.0);
@@ -1500,7 +1524,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
                       height: 6,
                       width: width,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: isLight ? const Color(0xFFE2E8F0) : Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
@@ -1569,7 +1593,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.75),
+                color: app.secondaryTextColor,
                 fontFeatures: const [ui.FontFeature.tabularFigures()],
               ),
             ),
@@ -1578,7 +1602,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.75),
+                color: app.secondaryTextColor,
                 fontFeatures: const [ui.FontFeature.tabularFigures()],
               ),
             ),
@@ -1596,72 +1620,50 @@ class _BlurredArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = AppState.instance.accentColor;
+    final app = AppState.instance;
+    final isLight = app.isLight;
+    final accent = app.accentColor;
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Dynamic album art ambient background
-        if (track.imageUrl != null && track.imageUrl!.isNotEmpty)
-          Positioned.fill(
-            child: Transform.scale(
-              scale: 1.25,
-              child: Opacity(
-                opacity: 0.38,
-                child: Image.network(
-                  track.imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-          )
-        else if (track.embeddedArt != null)
-          Positioned.fill(
-            child: Transform.scale(
-              scale: 1.25,
-              child: Opacity(
-                opacity: 0.38,
-                child: Image.memory(
-                  track.embeddedArt!,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
-
-        // 2. Heavy frosted backdrop blur (Gaussian Blur sigma: 45)
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 45, sigmaY: 45),
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.42),
-            ),
-          ),
+        // Studio Base Solid Background (Zero-lag)
+        Container(
+          color: isLight ? const Color(0xFFF8FAFC) : const Color(0xFF090D16),
         ),
 
-        // 3. Dynamic mesh radiant accent glows
-        Positioned.fill(
-          child: DecoratedBox(
+        // Subtle Ambient Accent Glow at top
+        Positioned(
+          top: -100,
+          left: -50,
+          right: -50,
+          height: 380,
+          child: Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: const Alignment(0, -0.3),
-                radius: 0.95,
+                center: Alignment.topCenter,
+                radius: 1.0,
                 colors: [
-                  accent.withValues(alpha: 0.45),
+                  accent.withValues(alpha: isLight ? 0.12 : 0.25),
                   Colors.transparent,
                 ],
               ),
             ),
           ),
         ),
-        Positioned.fill(
-          child: DecoratedBox(
+
+        // Subtle Ambient Accent Glow at bottom
+        Positioned(
+          bottom: -80,
+          right: -60,
+          width: 320,
+          height: 320,
+          child: Container(
             decoration: BoxDecoration(
+              shape: BoxShape.circle,
               gradient: RadialGradient(
-                center: const Alignment(0.65, 0.7),
-                radius: 0.85,
                 colors: [
-                  accent.withValues(alpha: 0.22),
+                  accent.withValues(alpha: isLight ? 0.08 : 0.18),
                   Colors.transparent,
                 ],
               ),

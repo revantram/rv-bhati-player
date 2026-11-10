@@ -36,7 +36,6 @@ import 'radio_screen.dart';
 import 'video_folder_screen.dart';
 import 'video_player_screen.dart';
 import 'settings_screen.dart';
-import 'youtube_liquid_hub_screen.dart';
 import '../widgets/wave_visualizer.dart';
 
 enum SortOption {
@@ -64,8 +63,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<MediaFile> _videos = const [];
   List<MediaFile> _audios = const [];
 
-  // Video Sub-view: 0 = all, 1 = folders
-  int _videoSubTab = 0;
   String? _selectedFolder;
 
   // Music Sub-view: 0 = all, 1 = favorites, 2 = playlists
@@ -680,47 +677,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isLight = app.isLight;
     final accent = app.accentColor;
 
-    // Sub-tab: Folders vs YouTube Zero-Ads Hub
-    return Column(
+    // Video section: Direct Clean Folders list (YouTube tab removed)
+    return Stack(
       children: [
-        SizedBox(height: topOffset),
-        // Sub-tabs pill selector
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              _subTabPill(app.tr('folders'), _videoSubTab == 0, () {
-                setState(() => _videoSubTab = 0);
-              }),
-              const SizedBox(width: 10),
-              _subTabPill('YouTube (Zero-Ads)', _videoSubTab == 1, () {
-                setState(() => _videoSubTab = 1);
-              }),
-            ],
+        Positioned.fill(
+          child: Padding(
+            padding: EdgeInsets.only(top: topOffset),
+            child: VideoFolderScreen(
+              videos: _videos,
+              bottomOffset: bottomOffset + 68,
+              onVideoDeleted: (deleted) {
+                setState(() {
+                  _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+                });
+              },
+            ),
           ),
         ),
-        Expanded(
-          child: _videoSubTab == 1
-              ? YoutubeLiquidHubScreen(
-                  topOffset: 0,
-                  bottomOffset: bottomOffset,
-                  isEmbedded: true,
-                  onBack: () => setState(() => _videoSubTab = 0),
-                )
-              : Stack(
-                  children: [
-                    Positioned.fill(
-                      child: VideoFolderScreen(
-                        videos: _videos,
-                        bottomOffset: bottomOffset + 68,
-                        onVideoDeleted: (deleted) {
-                          setState(() {
-                            _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
-                          });
-                        },
-                      ),
-                    ),
-                    // Quick Resume Button for user's most recent video
+        // Quick Resume Button for user's most recent video
                     Builder(builder: (context) {
                       final recentVideos = _getRecentlyPlayed(MediaKind.video);
                       final recentVideo = recentVideos.isNotEmpty ? recentVideos.first : null;
@@ -807,9 +781,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                       );
                     }),
-                  ],
-                ),
-        ),
       ],
     );
   }
