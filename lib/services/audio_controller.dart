@@ -17,6 +17,7 @@ class AudioController {
   AudioController._() {
     _initSleepListener();
     _initAudioSessionListener();
+    _initAutoAdvanceListener();
   }
   static final AudioController instance = AudioController._();
 
@@ -66,6 +67,42 @@ class AudioController {
         EqualizerService.instance.attachAudioSession(sessionId);
       }
     });
+  }
+
+  void _initAutoAdvanceListener() {
+    // Default loop mode to LoopMode.all so queue never stops at the end
+    try {
+      player.setLoopMode(LoopMode.all);
+    } catch (_) {}
+
+    // Auto-advance on completion
+    player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        if (AppState.instance.isSleepEndOfSong) {
+          player.pause();
+          AppState.instance.cancelSleepTimer();
+          return;
+        }
+        if (player.hasNext) {
+          player.seekToNext();
+          player.play();
+        } else if (queue.isNotEmpty || onlineQueue.isNotEmpty || hybridQueue.isNotEmpty) {
+          player.seek(Duration.zero, index: 0);
+          player.play();
+        }
+      }
+    });
+
+    // Guard against background stream stalls/errors by auto-advancing to next song
+    player.playbackEventStream.listen(
+      (_) {},
+      onError: (Object e, StackTrace st) {
+        if (player.hasNext) {
+          player.seekToNext();
+          player.play();
+        }
+      },
+    );
   }
 
   OnlineSong? get currentOnlineSong {
@@ -127,6 +164,7 @@ class AudioController {
     } else {
       await player.setShuffleModeEnabled(false);
     }
+    await player.setLoopMode(LoopMode.all);
     player.play(); // not awaited: completes only when playback ends
     final sessId = player.androidAudioSessionId;
     if (sessId != null && sessId > 0) {
@@ -209,6 +247,7 @@ class AudioController {
     } else {
       await player.setShuffleModeEnabled(false);
     }
+    await player.setLoopMode(LoopMode.all);
     player.play();
     final onlineSessId = player.androidAudioSessionId;
     if (onlineSessId != null && onlineSessId > 0) {
@@ -259,6 +298,7 @@ class AudioController {
     } else {
       await player.setShuffleModeEnabled(false);
     }
+    await player.setLoopMode(LoopMode.all);
     player.play();
     final hybridSessId = player.androidAudioSessionId;
     if (hybridSessId != null && hybridSessId > 0) {
@@ -313,7 +353,11 @@ class AudioController {
   }
 
   void next() {
-    if (player.hasNext) player.seekToNext();
+    if (player.hasNext) {
+      player.seekToNext();
+    } else if (queue.isNotEmpty || onlineQueue.isNotEmpty || hybridQueue.isNotEmpty) {
+      player.seek(Duration.zero, index: 0);
+    }
   }
 
   void previous() {

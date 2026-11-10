@@ -596,7 +596,7 @@ class _ArtistSongTile extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onSelected: (val) {
                 if (val == 'play_now') {
-                  AudioController.instance.playOnlineQueue([song], 0);
+                  onTap();
                 } else if (val == 'download') {
                   DownloadService.instance.downloadSong(song);
                   ScaffoldMessenger.of(context).showSnackBar(
