@@ -24,8 +24,8 @@ class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
-  static const String currentVersion = '1.2.16';
-  static const int currentBuildNumber = 28;
+  static const String currentVersion = '1.2.18';
+  static const int currentBuildNumber = 30;
 
   static const String _releasesUrl =
       'https://api.github.com/repos/revantram/rv-bhati-player/releases/latest';
@@ -139,6 +139,8 @@ class UpdateService {
       final request = await client.getUrl(Uri.parse(url));
       request.followRedirects = true;
       request.maxRedirects = 8;
+      request.headers.set('Connection', 'close');
+      request.headers.set('User-Agent', 'RV-Bhati-Player/$currentVersion');
       final response = await request.close();
 
       if (response.statusCode != 200) {
@@ -169,6 +171,9 @@ class UpdateService {
         sink.add(chunk);
         if (total > 0) {
           onProgress(received / total, received, total);
+          if (received >= total) {
+            break;
+          }
         }
       }
 

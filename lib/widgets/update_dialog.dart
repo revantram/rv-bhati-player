@@ -26,10 +26,66 @@ class UpdateDialog extends StatefulWidget {
 class _UpdateDialogState extends State<UpdateDialog> {
   bool _isDownloading = false;
   bool _isInstalling = false;
+  bool _downloadCompleted = false;
+  File? _downloadedFile;
   double _progress = 0.0;
   int _receivedBytes = 0;
   int _totalBytes = 0;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingDownload();
+  }
+
+  Future<void> _checkExistingDownload() async {
+    try {
+      final candidates = [
+        File('/storage/emulated/0/Download/RV-Bhati-Player-update.apk'),
+        File('/sdcard/Download/RV-Bhati-Player-update.apk'),
+        File('/storage/emulated/0/Download/RV-Bhati-Player.apk'),
+        File('/sdcard/Download/RV-Bhati-Player.apk'),
+      ];
+      for (final f in candidates) {
+        if (await f.exists() && await f.length() > 10 * 1024 * 1024) {
+          if (mounted) {
+            setState(() {
+              _downloadedFile = f;
+              _downloadCompleted = true;
+            });
+          }
+          break;
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _installFile(File file) async {
+    setState(() {
+      _isInstalling = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final success = await UpdateService.instance.installApk(file.path);
+      if (mounted) {
+        setState(() {
+          _isInstalling = false;
+          if (!success) {
+            _errorMessage = 'पैकेज इंस्टालर ओपन नहीं हुआ। कृपया फोन सेटिंग्स में "Install Unknown Apps" की अनुमति दें या फाइल मैनेजर से APK इंस्टॉल करें।';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isInstalling = false;
+          _errorMessage = 'इंस्टॉल एरर: $e';
+        });
+      }
+    }
+  }
 
   Future<void> _startUpdate() async {
     setState(() {
@@ -61,17 +117,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _isInstalling = true;
+          _downloadCompleted = true;
+          _downloadedFile = file;
         });
       }
 
-      final success = await UpdateService.instance.installApk(file.path);
-      if (!success && mounted) {
-        setState(() {
-          _isInstalling = false;
-          _errorMessage = 'Installation intent failed to launch.';
-        });
-      }
+      await _installFile(file);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -322,47 +373,100 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
                 // Action Buttons
                 if (!_isDownloading && !_isInstalling) ...[
-                  iOSBounceButton(
-                    onTap: _startUpdate,
-                    child: Container(
-                      height: 50,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [accent, const Color(0xFF00D2FF)],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accent.withValues(alpha: 0.35),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                  if (_downloadCompleted && _downloadedFile != null) ...[
+                    iOSBounceButton(
+                      onTap: () => _installFile(_downloadedFile!),
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF10B981), Color(0xFF059669)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
                           ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.download_rounded, color: Colors.white, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              widget.info.apkSize > 0
-                                  ? 'अभी अपडेट करें (${formatBytes(widget.info.apkSize)})'
-                                  : 'अभी अपडेट करें',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
+                        child: const Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.system_update_rounded, color: Colors.white, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'अभी इंस्टॉल करें (Install Now)',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _startUpdate,
+                      child: Text(
+                        'दोबारा डाउनलोड करें',
+                        style: TextStyle(
+                          color: secondaryTextColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    iOSBounceButton(
+                      onTap: _startUpdate,
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [accent, const Color(0xFF00D2FF)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accent.withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.info.apkSize > 0
+                                    ? 'अभी अपडेट करें (${formatBytes(widget.info.apkSize)})'
+                                    : 'अभी अपडेट करें',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: Text(

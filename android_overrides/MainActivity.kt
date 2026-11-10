@@ -260,6 +260,17 @@ class MainActivity : AudioServiceActivity() {
                         result.error("FILE_NOT_FOUND", "File not found: $filePath", null)
                         return@setMethodCallHandler
                     }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (!packageManager.canRequestPackageInstalls()) {
+                            try {
+                                val manageIntent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                    data = Uri.parse("package:$packageName")
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                startActivity(manageIntent)
+                            } catch (ignored: Exception) {}
+                        }
+                    }
                     val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
                     } else {
