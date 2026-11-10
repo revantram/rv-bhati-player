@@ -8,6 +8,7 @@ import '../models/playlist_item.dart';
 import 'app_state.dart';
 import 'equalizer_service.dart';
 import 'radio_controller.dart';
+import 'yt_audio_resolver.dart';
 
 /// Single app-wide audio player. just_audio_background supports exactly one
 /// AudioPlayer, and keeping it global lets music continue (notification +
@@ -138,26 +139,68 @@ class AudioController {
     RadioController.instance.clear();
     queue = const [];
     hybridQueue = const [];
-    onlineQueue = items;
+
+    final resolvedItems = List<OnlineSong>.from(items);
+    if (resolvedItems.isNotEmpty && startIndex >= 0 && startIndex < resolvedItems.length) {
+      final cur = resolvedItems[startIndex];
+      if (cur.streamUrl.isEmpty || cur.id.startsWith('yt_')) {
+        final ytId = cur.id.startsWith('yt_') ? cur.id.replaceFirst('yt_', '') : cur.id;
+        final directUrl = await YtAudioResolver.resolveAudioStream(
+          ytId,
+          fallbackTitle: cur.title,
+          fallbackArtist: cur.artist,
+        );
+        if (directUrl != null && directUrl.isNotEmpty) {
+          resolvedItems[startIndex] = OnlineSong(
+            id: cur.id,
+            title: cur.title,
+            artist: cur.artist,
+            album: cur.album,
+            duration: cur.duration,
+            imageUrl: cur.imageUrl,
+            streamUrl: directUrl,
+          );
+        }
+      }
+    }
+
+    onlineQueue = resolvedItems;
     _lastPlayedIndex = startIndex;
 
-    final source = ConcatenatingAudioSource(
-      children: [
-        for (final s in items)
-          AudioSource.uri(
-            Uri.parse(s.streamUrl),
-            tag: MediaItem(
-              id: s.id,
-              title: s.title,
-              artist: s.artist,
-              album: s.album.isNotEmpty ? s.album : 'JioSaavn Online',
-              duration: s.duration,
-              artUri: Uri.tryParse(s.imageUrl),
-            ),
+    final audioSources = <AudioSource>[];
+    int targetIndex = 0;
+
+    for (var i = 0; i < resolvedItems.length; i++) {
+      final s = resolvedItems[i];
+      if (s.streamUrl.isEmpty) continue;
+
+      final uri = s.streamUrl.startsWith('/') || s.streamUrl.startsWith('file:')
+          ? (s.streamUrl.startsWith('file:') ? Uri.parse(s.streamUrl) : Uri.file(s.streamUrl))
+          : Uri.parse(s.streamUrl);
+
+      if (i == startIndex) {
+        targetIndex = audioSources.length;
+      }
+
+      audioSources.add(
+        AudioSource.uri(
+          uri,
+          tag: MediaItem(
+            id: s.id,
+            title: s.title,
+            artist: s.artist,
+            album: s.album.isNotEmpty ? s.album : 'RV Player',
+            duration: s.duration,
+            artUri: Uri.tryParse(s.imageUrl),
           ),
-      ],
-    );
-    await player.setAudioSource(source, initialIndex: startIndex);
+        ),
+      );
+    }
+
+    if (audioSources.isEmpty) return;
+
+    final source = ConcatenatingAudioSource(children: audioSources);
+    await player.setAudioSource(source, initialIndex: targetIndex);
     if (shuffle) {
       await player.setShuffleModeEnabled(true);
       await player.shuffle();

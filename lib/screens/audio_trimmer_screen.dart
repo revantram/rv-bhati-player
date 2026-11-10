@@ -447,9 +447,11 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
     final track = _selectedTrack;
     final selectionDur = (_endSec - _startSec).clamp(0.0, _totalDurationSec);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: LiquidBackground(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: LiquidBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -698,8 +700,9 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _presetButton(String label, double seconds) {
     return GestureDetector(

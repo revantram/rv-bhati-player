@@ -406,8 +406,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       listenable: app,
       builder: (context, _) {
         final accent = app.accentColor;
-        return Scaffold(
-          body: Stack(
+        return PopScope(
+          canPop: !_isSearching && _tab == 0 && _musicSubTab == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (_isSearching) {
+              setState(() {
+                _isSearching = false;
+                _searchCtrl.clear();
+                _searchQuery = '';
+              });
+              return;
+            }
+            if (_tab != 0) {
+              setState(() => _tab = 0);
+              return;
+            }
+            if (_musicSubTab != 0) {
+              setState(() => _musicSubTab = 0);
+              return;
+            }
+          },
+          child: Scaffold(
+            body: Stack(
             children: [
               Positioned.fill(child: LiquidBackground(accent: accent)),
               Positioned.fill(child: _buildContent(pad)),
@@ -497,8 +518,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 

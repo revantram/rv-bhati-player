@@ -6,12 +6,20 @@ import '../models/radio_station.dart';
 import '../services/app_state.dart';
 import '../services/media_scanner.dart';
 import '../services/saavn_api_service.dart';
+import '../services/download_service.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
 import '../widgets/equalizer_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import 'albums_browser_screen.dart';
+import 'artists_hub_screen.dart';
+import 'downloads_screen.dart';
+import 'liked_songs_screen.dart';
+import 'playlists_manager_screen.dart';
+import 'shows_hub_screen.dart';
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -60,9 +68,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final secondaryTextColor = _app.secondaryTextColor;
     final accent = _app.accentColor;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: LiquidBackground(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: LiquidBackground(
         child: SafeArea(
           top: true,
           bottom: false,
@@ -619,8 +629,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSectionHeader(String text, Color textColor) {
     return Padding(
@@ -1123,69 +1134,108 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildDivider(isLight),
 
               // Items
-              _buildLibraryTile(
-                icon: Icons.music_note_rounded,
-                title: 'Liked Songs',
-                count: '${_app.favorites.length}',
-                textColor: textColor,
-                secondaryTextColor: secondaryTextColor,
-                accent: accent,
-                onTap: () {
-                  Navigator.pop(context);
-                },
+              ListenableBuilder(
+                listenable: _app,
+                builder: (context, _) => _buildLibraryTile(
+                  icon: Icons.music_note_rounded,
+                  title: 'Liked Songs',
+                  count: '${_app.favorites.length}',
+                  textColor: textColor,
+                  secondaryTextColor: secondaryTextColor,
+                  accent: accent,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LikedSongsScreen()),
+                    );
+                  },
+                ),
               ),
               _buildDivider(isLight),
-              _buildLibraryTile(
-                icon: Icons.album_outlined,
-                title: 'Albums',
-                count: '14',
-                textColor: textColor,
-                secondaryTextColor: secondaryTextColor,
-                accent: accent,
-                onTap: () {},
+              ListenableBuilder(
+                listenable: _app,
+                builder: (context, _) => _buildLibraryTile(
+                  icon: Icons.album_outlined,
+                  title: 'Albums',
+                  count: '${_app.albums.length}',
+                  textColor: textColor,
+                  secondaryTextColor: secondaryTextColor,
+                  accent: accent,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AlbumsBrowserScreen()),
+                    );
+                  },
+                ),
               ),
               _buildDivider(isLight),
               _buildLibraryTile(
                 icon: Icons.mic_none_rounded,
                 title: 'Artists',
-                count: '${SaavnApiService.curatedArtists.length + 10}',
+                count: '${SaavnApiService.curatedArtists.length}',
                 textColor: textColor,
                 secondaryTextColor: secondaryTextColor,
                 accent: accent,
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ArtistsHubScreen()),
+                  );
+                },
               ),
               _buildDivider(isLight),
               _buildLibraryTile(
                 icon: Icons.podcasts_rounded,
                 title: 'Shows',
-                count: '${RadioStation.stations.length}',
-                textColor: textColor,
-                secondaryTextColor: secondaryTextColor,
-                accent: accent,
-                onTap: () {},
-              ),
-              _buildDivider(isLight),
-              _buildLibraryTile(
-                icon: Icons.download_outlined,
-                title: 'Downloads',
-                count: '0',
-                textColor: textColor,
-                secondaryTextColor: secondaryTextColor,
-                accent: accent,
-                onTap: () {},
-              ),
-              _buildDivider(isLight),
-              _buildLibraryTile(
-                icon: Icons.queue_music_rounded,
-                title: 'Playlists',
-                count: '${_app.playlists.length + _app.customPlaylists.length}',
+                count: '15+ Shows',
                 textColor: textColor,
                 secondaryTextColor: secondaryTextColor,
                 accent: accent,
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
+                  );
                 },
               ),
+              _buildDivider(isLight),
+              ListenableBuilder(
+                listenable: DownloadService.instance,
+                builder: (context, _) => _buildLibraryTile(
+                  icon: Icons.download_outlined,
+                  title: 'Downloads',
+                  count: '${DownloadService.instance.downloadedSongs.length}',
+                  textColor: textColor,
+                  secondaryTextColor: secondaryTextColor,
+                  accent: accent,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                    );
+                  },
+                ),
+              ),
+              _buildDivider(isLight),
+              ListenableBuilder(
+                listenable: _app,
+                builder: (context, _) => _buildLibraryTile(
+                  icon: Icons.queue_music_rounded,
+                  title: 'Playlists',
+                  count: '${_app.playlists.length + _app.customPlaylists.length}',
+                  textColor: textColor,
+                  secondaryTextColor: secondaryTextColor,
+                  accent: accent,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PlaylistsManagerScreen()),
+                    );
+                  },
+                ),
+              ),
+
             ],
           ),
         ),

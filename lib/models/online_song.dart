@@ -136,6 +136,21 @@ class OnlineSong {
         'streamUrl': streamUrl,
       };
 
+  factory OnlineSong.fromMap(Map<String, dynamic> map) {
+    return OnlineSong(
+      id: map['id']?.toString() ?? '',
+      title: map['title']?.toString() ?? '',
+      artist: map['artist']?.toString() ?? '',
+      album: map['album']?.toString() ?? '',
+      year: map['year']?.toString(),
+      duration: Duration(seconds: (map['duration'] as num?)?.toInt() ?? 0),
+      imageUrl: map['imageUrl']?.toString() ?? '',
+      encryptedMediaUrl: map['encryptedMediaUrl']?.toString() ?? '',
+      streamUrl: map['streamUrl']?.toString() ?? '',
+    );
+  }
+
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

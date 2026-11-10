@@ -4,11 +4,13 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 import 'screens/home_screen.dart';
 import 'services/app_state.dart';
+import 'services/download_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await AppState.instance.init();
+  await DownloadService.instance.init();
 
   // Background audio: notification + lock-screen controls.
   await JustAudioBackground.init(

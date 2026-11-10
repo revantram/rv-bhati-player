@@ -64,9 +64,11 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
     final secondaryTextColor = app.secondaryTextColor;
     final accent = app.accentColor;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: LiquidBackground(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: LiquidBackground(
         child: SafeArea(
           top: true,
           bottom: false,
@@ -340,6 +342,7 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

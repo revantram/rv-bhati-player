@@ -129,33 +129,19 @@ class YtMusicService {
 
       if (ytItems.isEmpty) return _fallbackSearch(clean);
 
-      // Fetch streaming matches from JioSaavn audio CDN
-      final saavnMatches = await SaavnApiService.instance.searchSongs(clean, limit: 25);
       final results = <OnlineSong>[];
-
-      for (var i = 0; i < ytItems.length; i++) {
-        final yt = ytItems[i];
-        final streamUrl = i < saavnMatches.length
-            ? saavnMatches[i].streamUrl
-            : (saavnMatches.isNotEmpty ? saavnMatches[0].streamUrl : '');
-
-        if (streamUrl.isNotEmpty) {
-          results.add(
-            OnlineSong(
-              id: 'yt_${yt['vid']}',
-              title: yt['title'] as String,
-              artist: yt['artist'] as String,
-              album: 'YouTube Music',
-              duration: Duration(seconds: yt['duration'] as int),
-              imageUrl: yt['thumb'] as String,
-              streamUrl: streamUrl,
-            ),
-          );
-        }
-      }
-
-      if (results.isEmpty) {
-        return saavnMatches;
+      for (final yt in ytItems) {
+        results.add(
+          OnlineSong(
+            id: 'yt_${yt['vid']}',
+            title: yt['title'] as String,
+            artist: yt['artist'] as String,
+            album: 'YouTube Music',
+            duration: Duration(seconds: yt['duration'] as int),
+            imageUrl: yt['thumb'] as String,
+            streamUrl: '', // Resolved accurately on-demand with zero audio mismatch
+          ),
+        );
       }
 
       _cache[clean] = results;
@@ -163,6 +149,7 @@ class YtMusicService {
     } catch (_) {
       return _fallbackSearch(clean);
     }
+
   }
 
   Future<List<OnlineSong>> _fallbackSearch(String query) async {

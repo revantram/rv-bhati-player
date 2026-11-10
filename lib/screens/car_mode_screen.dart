@@ -44,8 +44,10 @@ class _CarModeScreenState extends State<CarModeScreen> {
     final isRadio = currentStation != null;
     final accent = isRadio ? currentStation.color : const Color(0xFF00E5FF);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF07090E),
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF07090E),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
@@ -335,8 +337,9 @@ class _CarModeScreenState extends State<CarModeScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCircleButton({
     required IconData icon,

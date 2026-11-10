@@ -173,21 +173,8 @@ class GlassBottomNav extends StatelessWidget {
   }
 }
 
-/// Soft fade + scale page transition (iOS-ish).
+/// Native material page route supporting Android predictive back gestures & swipe back
 Route<T> glassRoute<T>(Widget page) {
-  return PageRouteBuilder<T>(
-    transitionDuration: const Duration(milliseconds: 380),
-    reverseTransitionDuration: const Duration(milliseconds: 300),
-    pageBuilder: (_, __, ___) => page,
-    transitionsBuilder: (_, anim, __, child) {
-      final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
-      return FadeTransition(
-        opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
-          child: child,
-        ),
-      );
-    },
-  );
+  return MaterialPageRoute<T>(builder: (_) => page);
 }
+

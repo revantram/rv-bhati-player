@@ -12,11 +12,13 @@ import '../services/audio_controller.dart';
 import '../services/saavn_api_service.dart';
 import '../services/settings_service.dart';
 import '../services/yt_music_service.dart';
+import '../services/download_service.dart';
 import '../utils/format.dart';
 import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/artist_songs_sheet.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_glass_container.dart';
+import 'artists_hub_screen.dart';
 
 class OnlineMusicScreen extends StatefulWidget {
   const OnlineMusicScreen({
@@ -1052,6 +1054,33 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   ),
                 ),
               ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ArtistsHubScreen()),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: app.accentColor,
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded,
+                          size: 18, color: app.accentColor),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1317,6 +1346,51 @@ class _OnlineSongTile extends StatelessWidget {
               ),
             ),
 
+            // Download button
+            ListenableBuilder(
+              listenable: DownloadService.instance,
+              builder: (context, _) {
+                final isDl = DownloadService.instance.isDownloaded(song.id);
+                final isDownloading = DownloadService.instance.isDownloading(song.id);
+
+                return IconButton(
+                  icon: isDownloading
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: app.accentColor,
+                          ),
+                        )
+                      : Icon(
+                          isDl ? Icons.download_done_rounded : Icons.download_rounded,
+                          color: isDl ? Colors.green : app.secondaryTextColor.withValues(alpha: 0.6),
+                          size: 20,
+                        ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    if (!isDl && !isDownloading) {
+                      DownloadService.instance.downloadSong(song);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Downloading "${song.title}"...'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    } else if (isDl) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('"${song.title}" is downloaded offline.'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+
             // Heart / Favourite button
             IconButton(
               icon: Icon(
@@ -1335,6 +1409,11 @@ class _OnlineSongTile extends StatelessWidget {
               onSelected: (val) {
                 if (val == 'play_now') {
                   AudioController.instance.playOnlineQueue([song], 0);
+                } else if (val == 'download') {
+                  DownloadService.instance.downloadSong(song);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Downloading "${song.title}"...')),
+                  );
                 } else if (val == 'play_next') {
                   AudioController.instance.playOnlineNext(song);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1359,6 +1438,16 @@ class _OnlineSongTile extends StatelessWidget {
                       Icon(Icons.play_arrow_rounded, color: app.secondaryTextColor, size: 20),
                       const SizedBox(width: 10),
                       Text('Play Now', style: TextStyle(color: app.textColor)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'download',
+                  child: Row(
+                    children: [
+                      Icon(Icons.download_rounded, color: app.secondaryTextColor, size: 20),
+                      const SizedBox(width: 10),
+                      Text('Download Offline', style: TextStyle(color: app.textColor)),
                     ],
                   ),
                 ),

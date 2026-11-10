@@ -17,6 +17,7 @@ import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/download_service.dart';
 import '../services/equalizer_service.dart';
 import '../services/saavn_api_service.dart';
 import '../utils/format.dart';
@@ -840,8 +841,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       listenable: AppState.instance,
       builder: (context, _) {
         final appAccent = AppState.instance.accentColor;
-        return Scaffold(
-          body: StreamBuilder<int?>(
+        return PopScope(
+          canPop: true,
+          child: Scaffold(
+            body: StreamBuilder<int?>(
             stream: player.currentIndexStream,
             builder: (context, snap) {
               final idx = (snap.data ?? widget.startIndex);
@@ -1068,6 +1071,39 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           ),
                                         ),
                                         const SizedBox(width: 12),
+                                        if (isOnline) ...[
+                                          ListenableBuilder(
+                                            listenable: DownloadService.instance,
+                                            builder: (context, _) {
+                                              final isDl = DownloadService.instance.isDownloaded(track.id);
+                                              final isDownloading = DownloadService.instance.isDownloading(track.id);
+
+                                              return LiquidGlassButton(
+                                                icon: isDownloading
+                                                    ? Icons.hourglass_top_rounded
+                                                    : (isDl ? Icons.download_done_rounded : Icons.download_rounded),
+                                                size: 44,
+                                                iconSize: 22,
+                                                tint: isDl ? Colors.green : null,
+                                                onTap: () {
+                                                  HapticFeedback.lightImpact();
+                                                  final os = AudioController.instance.currentOnlineSong;
+                                                  if (os != null && !isDl && !isDownloading) {
+                                                    DownloadService.instance.downloadSong(os);
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(content: Text('Downloading "${os.title}"...')),
+                                                    );
+                                                  } else if (isDl) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(content: Text('"${track.title}" is saved for offline play.')),
+                                                    );
+                                                  }
+                                                },
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
                                         LiquidGlassButton(
                                           icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                                           size: 44,
@@ -1313,8 +1349,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               );
             },
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 

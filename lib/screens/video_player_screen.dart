@@ -1034,8 +1034,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   @override
   Widget build(BuildContext context) {
     final c = _controller;
-    return Scaffold(
-      backgroundColor: Colors.black,
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: Colors.black,
       body: LayoutBuilder(
         builder: (context, box) {
           final w = box.maxWidth;
@@ -1108,8 +1110,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildVideo(VideoPlayerController c) {
     final size = c.value.size;
