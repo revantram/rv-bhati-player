@@ -165,4 +165,15 @@ class MediaActionService {
     }
     return '$w × $h';
   }
+
+  /// Triggers Android MediaScannerConnection to register downloaded audio/video
+  /// in the system MediaStore so that ALL media players on the device can see it.
+  static Future<void> scanFile(String filePath) async {
+    try {
+      if (filePath.isEmpty) return;
+      await _mediaChannel.invokeMethod('scanFile', {'path': filePath});
+    } catch (e) {
+      debugPrint('MediaActionService scanFile error: $e');
+    }
+  }
 }

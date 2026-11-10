@@ -11,12 +11,15 @@ import '../services/download_service.dart';
 import '../services/saavn_api_service.dart';
 import '../services/settings_service.dart';
 import '../services/spotify_service.dart';
+import '../services/yt_audio_resolver.dart';
 import '../services/yt_music_service.dart';
 import '../utils/format.dart';
 import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/artist_songs_sheet.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/youtube_music_sheet.dart';
+import 'audio_player_screen.dart';
 import 'artists_hub_screen.dart';
 import 'radio_screen.dart';
 
@@ -247,8 +250,61 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     });
   }
 
-  void _playSong(List<OnlineSong> list, int index) {
-    AudioController.instance.playOnlineQueue(list, index);
+  Future<void> _playSong(List<OnlineSong> list, int index) async {
+    final song = list[index];
+
+    // If it is a YouTube song, resolve with instant feedback
+    if (song.id.startsWith('yt_')) {
+      final ytId = song.id.replaceFirst('yt_', '');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Starting "${song.title}"...'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      final directUrl = await YtAudioResolver.resolveAudioStream(
+        ytId,
+        fallbackTitle: song.title,
+        fallbackArtist: song.artist,
+      );
+
+      if (!mounted) return;
+
+      if (directUrl != null && directUrl.isNotEmpty) {
+        final updatedList = List<OnlineSong>.from(list);
+        updatedList[index] = OnlineSong(
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          album: song.album,
+          duration: song.duration,
+          imageUrl: song.imageUrl,
+          streamUrl: directUrl,
+        );
+        AudioController.instance.playOnlineQueue(updatedList, index);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+        );
+      } else {
+        // Direct audio extraction blocked -> launch dedicated in-app YouTube player sheet
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => YouTubeMusicSheet(song: song),
+        );
+      }
+    } else {
+      // JioSaavn / Osho / Spotify standard playback
+      AudioController.instance.playOnlineQueue(list, index);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+      );
+    }
   }
 
   void _openQualitySheet() {
@@ -1392,7 +1448,7 @@ class _OnlineSongTile extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               onSelected: (val) {
                 if (val == 'play_now') {
-                  AudioController.instance.playOnlineQueue([song], 0);
+                  onTap();
                 } else if (val == 'download') {
                   DownloadService.instance.downloadSong(song);
                   ScaffoldMessenger.of(context).showSnackBar(

@@ -53,11 +53,11 @@ class YtAudioResolver {
       return _cache[cleanId];
     }
 
-    // 1. Try YoutubeExplode with 12s timeout
+    // 1. Try YoutubeExplode with fast 3.5s timeout
     try {
       final manifest = await _yt.videos.streamsClient
           .getManifest(cleanId)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(milliseconds: 3500));
       final audioStreams = manifest.audioOnly.sortByBitrate();
       if (audioStreams.isNotEmpty) {
         final directUrl = audioStreams.last.url.toString();
@@ -68,11 +68,11 @@ class YtAudioResolver {
       debugPrint('[YtAudioResolver] YoutubeExplode error for $cleanId: $e');
     }
 
-    // 2. Query Piped API mirrors
+    // 2. Query Piped API mirrors with fast timeout
     for (final mirror in _pipedMirrors) {
       try {
         final uri = Uri.parse('$mirror/streams/$cleanId');
-        final resp = await http.get(uri).timeout(const Duration(seconds: 5));
+        final resp = await http.get(uri).timeout(const Duration(milliseconds: 2500));
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
           final audioList = data['audioStreams'] as List? ?? [];

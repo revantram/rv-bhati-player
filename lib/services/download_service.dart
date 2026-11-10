@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/online_song.dart';
+import 'media_action_service.dart';
 import 'yt_audio_resolver.dart';
 
 class DownloadedSong {
@@ -97,17 +98,8 @@ class DownloadService extends ChangeNotifier {
   }
 
   Future<Directory> _getDownloadDirectory() async {
-    // 1. Try public Music folder
-    final musicDir = Directory('/storage/emulated/0/Music/RVPlayer');
-    try {
-      if (!musicDir.existsSync()) {
-        musicDir.createSync(recursive: true);
-      }
-      return musicDir;
-    } catch (_) {}
-
-    // 2. Try public Download folder
-    final dlDir = Directory('/storage/emulated/0/Download/RVPlayer');
+    // 1. Primary Public Download folder (visible to all file managers & media players)
+    final dlDir = Directory('/storage/emulated/0/Download/RV-Bhati-Player');
     try {
       if (!dlDir.existsSync()) {
         dlDir.createSync(recursive: true);
@@ -115,7 +107,24 @@ class DownloadService extends ChangeNotifier {
       return dlDir;
     } catch (_) {}
 
-    // 3. Fallback to App internal storage
+    // 2. Secondary Public Music folder
+    final musicDir = Directory('/storage/emulated/0/Music/RV-Bhati-Player');
+    try {
+      if (!musicDir.existsSync()) {
+        musicDir.createSync(recursive: true);
+      }
+      return musicDir;
+    } catch (_) {}
+
+    // 3. Standard public Download root
+    final rootDl = Directory('/storage/emulated/0/Download');
+    try {
+      if (rootDl.existsSync()) {
+        return rootDl;
+      }
+    } catch (_) {}
+
+    // 4. Fallback to App internal storage if external cannot be written
     final internalDir = Directory('/data/user/0/com.rvbhati.player/files/Downloads');
     if (!internalDir.existsSync()) {
       internalDir.createSync(recursive: true);
@@ -181,7 +190,11 @@ class DownloadService extends ChangeNotifier {
       String streamUrl = song.streamUrl;
       if (streamUrl.isEmpty || song.id.startsWith('yt_')) {
         final ytId = song.id.startsWith('yt_') ? song.id.replaceFirst('yt_', '') : song.id;
-        final resolved = await YtAudioResolver.resolveAudioStream(ytId);
+        final resolved = await YtAudioResolver.resolveAudioStream(
+          ytId,
+          fallbackTitle: song.title,
+          fallbackArtist: song.artist,
+        );
         if (resolved != null && resolved.isNotEmpty) {
           streamUrl = resolved;
         }
@@ -236,6 +249,9 @@ class DownloadService extends ChangeNotifier {
 
       _downloadedSongs.insert(0, downloadedSong);
       await _saveToDisk();
+
+      // Trigger MediaScanner so third party music players can immediately find and play it
+      await MediaActionService.scanFile(targetFile.path);
 
       _progress.remove(song.id);
       _activeDownloads.remove(song.id);

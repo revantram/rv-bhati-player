@@ -411,6 +411,19 @@ class MainActivity : AudioServiceActivity() {
                         result.success(false)
                     }
                 }
+                "scanFile" -> {
+                    val path = call.argument<String>("path")
+                    if (path != null && path.isNotEmpty()) {
+                        try {
+                            MediaScannerConnection.scanFile(this, arrayOf(path), null, null)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    } else {
+                        result.success(false)
+                    }
+                }
                 "getVideoInfo" -> {
                     val path = call.argument<String>("path")
                     if (path == null) {
