@@ -377,7 +377,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         return ListenableBuilder(
           listenable: AppState.instance,
           builder: (context, _) {
-            final appAccent = AppState.instance.accentColor;
+            final app = AppState.instance;
+            final isLight = app.isLight;
+            final textColor = app.textColor;
+            final secondaryTextColor = app.secondaryTextColor;
+            final appAccent = app.accentColor;
+
             return LiquidGlassContainer(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
@@ -390,7 +395,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: isLight ? Colors.black26 : Colors.white24,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -430,10 +435,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                               track.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: textColor,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -443,7 +448,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: app.secondaryTextColor,
+                                color: secondaryTextColor,
                               ),
                             ),
                           ],
@@ -452,16 +457,19 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  const Divider(color: Colors.white12, height: 1),
+                  Divider(
+                    color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white12,
+                    height: 1,
+                  ),
                   const SizedBox(height: 8),
                   _sheetActionTile(
                     icon: Icons.bedtime_rounded,
-                    title: AppState.instance.tr('sleep_timer'),
-                    subtitle: AppState.instance.isSleepTimerActive
-                        ? AppState.instance.sleepTimerFormatted
+                    title: app.tr('sleep_timer'),
+                    subtitle: app.isSleepTimerActive
+                        ? app.sleepTimerFormatted
                         : null,
                     accentColor: appAccent,
-                    isActive: AppState.instance.isSleepTimerActive,
+                    isActive: app.isSleepTimerActive,
                     onTap: () {
                       Navigator.pop(context);
                       SleepTimerSheet.show(context);
@@ -469,7 +477,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   ),
                   _sheetActionTile(
                     icon: Icons.tune_rounded,
-                    title: AppState.instance.tr('equalizer'),
+                    title: app.tr('equalizer'),
                     subtitle: EqualizerService.instance.isEnabled ? 'Active' : 'Off',
                     accentColor: appAccent,
                     isActive: EqualizerService.instance.isEnabled,
@@ -502,7 +510,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   ),
                   _sheetActionTile(
                     icon: Icons.queue_music_rounded,
-                    title: AppState.instance.tr('queue'),
+                    title: app.tr('queue'),
                     accentColor: appAccent,
                     onTap: () {
                       Navigator.pop(context);
@@ -511,7 +519,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   ),
                   _sheetActionTile(
                     icon: Icons.speed_rounded,
-                    title: AppState.instance.tr('speed'),
+                    title: app.tr('speed'),
                     subtitle: '${_ac.player.speed}x',
                     accentColor: appAccent,
                     onTap: () {
@@ -546,6 +554,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     bool isActive = false,
     required VoidCallback onTap,
   }) {
+    final isLight = AppState.instance.isLight;
+    final textColor = AppState.instance.textColor;
+    final secondaryTextColor = AppState.instance.secondaryTextColor;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: PressableScale(
@@ -554,19 +566,29 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
             color: isActive
-                ? accentColor.withValues(alpha: 0.18)
-                : Colors.white.withValues(alpha: 0.06),
+                ? accentColor.withValues(alpha: isLight ? 0.12 : 0.18)
+                : (isLight
+                    ? Colors.black.withValues(alpha: 0.04)
+                    : Colors.white.withValues(alpha: 0.06)),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isActive
-                  ? accentColor.withValues(alpha: 0.45)
-                  : Colors.white.withValues(alpha: 0.10),
+                  ? accentColor.withValues(alpha: isLight ? 0.35 : 0.45)
+                  : (isLight
+                      ? Colors.black.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.10)),
               width: 1,
             ),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 22, color: isActive ? accentColor : Colors.white),
+              Icon(
+                icon,
+                size: 22,
+                color: isActive
+                    ? accentColor
+                    : (isLight ? const Color(0xFF334155) : Colors.white),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -574,7 +596,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: isActive ? accentColor : Colors.white,
+                    color: isActive
+                        ? accentColor
+                        : (isLight ? const Color(0xFF0F172A) : Colors.white),
                   ),
                 ),
               ),
@@ -584,12 +608,20 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: isActive ? accentColor : Colors.white.withValues(alpha: 0.6),
+                    color: isActive
+                        ? accentColor
+                        : (isLight
+                            ? const Color(0xFF64748B)
+                            : Colors.white.withValues(alpha: 0.6)),
                   ),
                 ),
                 const SizedBox(width: 6),
               ],
-              Icon(Icons.chevron_right_rounded, size: 18, color: Colors.white38),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: isLight ? Colors.black26 : Colors.white38,
+              ),
             ],
           ),
         ),
@@ -1061,7 +1093,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                                       Icon(
                                                         Icons.arrow_forward_ios_rounded,
                                                         size: 11,
-                                                        color: Colors.white.withValues(alpha: 0.5),
+                                                        color: isLight ? const Color(0xFF64748B) : Colors.white.withValues(alpha: 0.5),
                                                       ),
                                                     ],
                                                   ],
@@ -1178,7 +1210,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             child: Icon(
                                               Icons.lyrics_rounded,
                                               size: 24,
-                                              color: _showLyrics ? appAccent : Colors.white.withValues(alpha: 0.65),
+                                              color: _showLyrics ? appAccent : (isLight ? app.secondaryTextColor : Colors.white.withValues(alpha: 0.65)),
                                             ),
                                           ),
                                         ),
@@ -1257,7 +1289,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                               child: Icon(
                                                 Icons.skip_previous_rounded,
                                                 size: 34,
-                                                color: Colors.white,
+                                                color: isLight ? const Color(0xFF0F172A) : Colors.white,
                                               ),
                                             ),
                                           ),
