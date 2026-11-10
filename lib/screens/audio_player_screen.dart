@@ -1026,8 +1026,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                                 track.title,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
+                                                style: TextStyle(
+                                                  color: isLight ? const Color(0xFF0F172A) : Colors.white,
                                                   fontSize: 22,
                                                   fontWeight: FontWeight.bold,
                                                   letterSpacing: -0.3,
@@ -1050,7 +1050,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                                         maxLines: 1,
                                                         overflow: TextOverflow.ellipsis,
                                                         style: TextStyle(
-                                                          color: Colors.white.withValues(alpha: 0.72),
+                                                          color: isLight ? const Color(0xFF475569) : Colors.white.withValues(alpha: 0.72),
                                                           fontSize: 15,
                                                           fontWeight: FontWeight.w500,
                                                         ),

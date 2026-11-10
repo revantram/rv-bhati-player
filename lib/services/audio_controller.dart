@@ -164,10 +164,8 @@ class AudioController {
       }
     }
 
-    onlineQueue = resolvedItems;
-    _lastPlayedIndex = startIndex;
-
     final audioSources = <AudioSource>[];
+    final playableQueue = <OnlineSong>[];
     int targetIndex = 0;
 
     for (var i = 0; i < resolvedItems.length; i++) {
@@ -182,6 +180,7 @@ class AudioController {
         targetIndex = audioSources.length;
       }
 
+      playableQueue.add(s);
       audioSources.add(
         AudioSource.uri(
           uri,
@@ -198,6 +197,9 @@ class AudioController {
     }
 
     if (audioSources.isEmpty) return;
+
+    onlineQueue = playableQueue;
+    _lastPlayedIndex = targetIndex;
 
     final source = ConcatenatingAudioSource(children: audioSources);
     await player.setAudioSource(source, initialIndex: targetIndex);

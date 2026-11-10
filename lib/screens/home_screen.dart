@@ -444,10 +444,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         subtitle: _loading
                             ? 'Scanning storage...'
                             : _tab == 2
-                                ? 'JioSaavn 320kbps HD Online Music'
-                                : _tab == 3
-                                    ? '24x7 Live FM & Online Radio'
-                                    : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
+                                ? 'JioSaavn • YouTube • Spotify • Live Radio'
+                                : '${_videos.length} ${app.tr('videos').toLowerCase()}  -  ${_audios.length} ${app.tr('music').toLowerCase()}',
                         leading: Container(
                           width: 44,
                           height: 44,
@@ -490,11 +488,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 bottom: pad.bottom + 84,
                 child: DynamicIslandPlayer(
                   onOpen: _openNowPlaying,
-                  onOpenRadio: () => setState(() => _tab = 3),
+                  onOpenRadio: () => setState(() => _tab = 2),
                   onOpenOnline: _openNowPlaying,
                 ),
               ),
-              // Bottom Nav
+              // Bottom Nav: 3 items (Videos, Music, Online Hub)
               Positioned(
                 left: 16,
                 right: 16,
@@ -511,8 +509,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   items: [
                     GlassNavItem(Icons.movie_filter_rounded, app.tr('videos')),
                     GlassNavItem(Icons.library_music_rounded, app.tr('music')),
-                    GlassNavItem(Icons.travel_explore_rounded, app.tr('online_music')),
-                    GlassNavItem(Icons.radio_rounded, app.tr('radio')),
+                    GlassNavItem(Icons.travel_explore_rounded, 'Online Hub'),
                   ],
                 ),
               ),
@@ -634,9 +631,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ? _buildVideosSection(topOffset, bottomOffset)
           : _tab == 1
               ? _buildMusicSection(topOffset, bottomOffset)
-              : _tab == 2
-                  ? OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset)
-                  : _buildRadioSection(topOffset, bottomOffset),
+              : OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset),
     );
   }
 

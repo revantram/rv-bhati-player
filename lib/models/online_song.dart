@@ -124,6 +124,14 @@ class OnlineSong {
     }
   }
 
+  String getStreamUrlForBitrate(int kbps) {
+    if (encryptedMediaUrl.isNotEmpty) {
+      final url = DesCipher.decryptMediaUrl(encryptedMediaUrl, bitrate: kbps);
+      if (url != null && url.isNotEmpty) return url;
+    }
+    return streamUrl;
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
