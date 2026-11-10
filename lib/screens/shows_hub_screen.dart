@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/online_song.dart';
-import '../models/radio_station.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/desifm_service.dart';
 import '../services/download_service.dart';
 import '../services/osho_service.dart';
-import '../services/radio_controller.dart';
 import '../widgets/ios_bounce_button.dart';
 import 'audio_player_screen.dart';
 
@@ -20,31 +19,38 @@ class ShowsHubScreen extends StatefulWidget {
 
 class _ShowsHubScreenState extends State<ShowsHubScreen> {
   int _selectedCategoryIndex = 0;
-  final TextEditingController _oshoSearchCtrl = TextEditingController();
+  final TextEditingController _searchCtrl = TextEditingController();
   AppState get app => AppState.instance;
 
+  // Osho state
   List<OshoSeries> _oshoSeries = [];
   bool _isLoadingOsho = false;
-  OshoSeries? _selectedSeries;
-  List<OshoTrack> _seriesTracks = [];
-  bool _isLoadingTracks = false;
+  OshoSeries? _selectedOshoSeries;
+  List<OshoTrack> _oshoTracks = [];
+  bool _isLoadingOshoTracks = false;
+
+  // Desi FM state
+  List<DesiFmSeries> _desiFmSeries = [];
+  bool _isLoadingDesiFm = false;
+  DesiFmSeries? _selectedDesiSeries;
+  List<DesiFmEpisode> _desiEpisodes = [];
+  bool _isLoadingDesiEpisodes = false;
 
   static const List<String> _categories = [
     '🧘 Osho World (ओशो अमृतवाणी)',
-    '🎙️ Top Podcasts',
-    '🔥 Pocket Stories',
-    '📻 Live FM Radio',
+    '📻 Desi FM Series (देसी एफएम सीरीज़)',
   ];
 
   @override
   void initState() {
     super.initState();
     _loadOshoSeries();
+    _loadDesiFmSeries();
   }
 
   @override
   void dispose() {
-    _oshoSearchCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -59,25 +65,52 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     }
   }
 
-  Future<void> _selectSeries(OshoSeries series) async {
+  Future<void> _loadDesiFmSeries({bool force = false}) async {
+    setState(() => _isLoadingDesiFm = true);
+    final list = await DesiFmService.instance.fetchSeriesList(forceRefresh: force);
+    if (mounted) {
+      setState(() {
+        _desiFmSeries = list;
+        _isLoadingDesiFm = false;
+      });
+    }
+  }
+
+  Future<void> _selectOshoSeries(OshoSeries series) async {
     setState(() {
-      _selectedSeries = series;
-      _isLoadingTracks = true;
-      _seriesTracks = [];
+      _selectedOshoSeries = series;
+      _isLoadingOshoTracks = true;
+      _oshoTracks = [];
     });
 
     final tracks = await OshoService.instance.fetchSeriesTracks(series);
     if (mounted) {
       setState(() {
-        _seriesTracks = tracks;
-        _isLoadingTracks = false;
+        _oshoTracks = tracks;
+        _isLoadingOshoTracks = false;
       });
     }
   }
 
-  void _playTrack(int index) {
-    if (_selectedSeries == null || _seriesTracks.isEmpty) return;
-    final onlineSongs = _seriesTracks.map((t) => t.toOnlineSong(_selectedSeries!)).toList();
+  Future<void> _selectDesiSeries(DesiFmSeries series) async {
+    setState(() {
+      _selectedDesiSeries = series;
+      _isLoadingDesiEpisodes = true;
+      _desiEpisodes = [];
+    });
+
+    final episodes = await DesiFmService.instance.fetchSeriesEpisodes(series);
+    if (mounted) {
+      setState(() {
+        _desiEpisodes = episodes;
+        _isLoadingDesiEpisodes = false;
+      });
+    }
+  }
+
+  void _playOshoTrack(int index) {
+    if (_selectedOshoSeries == null || _oshoTracks.isEmpty) return;
+    final onlineSongs = _oshoTracks.map((t) => t.toOnlineSong(_selectedOshoSeries!)).toList();
     AudioController.instance.playOnlineQueue(onlineSongs, index);
 
     Navigator.push(
@@ -88,10 +121,28 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  void _playAllTracks() {
-    if (_seriesTracks.isNotEmpty) {
-      _playTrack(0);
-    }
+  void _playDesiEpisode(int index) {
+    if (_selectedDesiSeries == null || _desiEpisodes.isEmpty) return;
+    final onlineSongs = _desiEpisodes.map((ep) => ep.toOnlineSong(_selectedDesiSeries!)).toList();
+    AudioController.instance.playOnlineQueue(onlineSongs, index);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AudioPlayerScreen(startPlayback: false),
+      ),
+    );
+  }
+
+  bool get _isInSubView => _selectedOshoSeries != null || _selectedDesiSeries != null;
+
+  void _closeSubView() {
+    setState(() {
+      _selectedOshoSeries = null;
+      _oshoTracks = [];
+      _selectedDesiSeries = null;
+      _desiEpisodes = [];
+    });
   }
 
   @override
@@ -102,14 +153,22 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     final accent = app.accentColor;
     final pad = MediaQuery.paddingOf(context);
 
+    String topTitle = 'Shows & Audio Series Hub';
+    String topSubtitle = 'Osho World & Desi FM Audio Series';
+
+    if (_selectedOshoSeries != null) {
+      topTitle = _selectedOshoSeries!.title;
+      topSubtitle = 'Osho World Hindi Discourses';
+    } else if (_selectedDesiSeries != null) {
+      topTitle = _selectedDesiSeries!.title;
+      topSubtitle = 'Desi FM • ${_selectedDesiSeries!.genre.toUpperCase()}';
+    }
+
     return PopScope(
-      canPop: _selectedSeries == null,
+      canPop: !_isInSubView,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _selectedSeries != null) {
-          setState(() {
-            _selectedSeries = null;
-            _seriesTracks = [];
-          });
+        if (!didPop && _isInSubView) {
+          _closeSubView();
         }
       },
       child: Scaffold(
@@ -126,7 +185,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
               ),
               decoration: BoxDecoration(
                 color: (isLight ? Colors.white : const Color(0xFF0F172A))
-                    .withValues(alpha: 0.92),
+                    .withValues(alpha: 0.95),
                 border: Border(
                   bottom: BorderSide(
                     color: isLight
@@ -141,11 +200,8 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                     children: [
                       iOSBounceButton(
                         onTap: () {
-                          if (_selectedSeries != null) {
-                            setState(() {
-                              _selectedSeries = null;
-                              _seriesTracks = [];
-                            });
+                          if (_isInSubView) {
+                            _closeSubView();
                           } else {
                             Navigator.pop(context);
                           }
@@ -172,9 +228,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _selectedSeries != null
-                                  ? _selectedSeries!.title
-                                  : 'Shows & Discourses Hub',
+                              topTitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -185,9 +239,9 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                               ),
                             ),
                             Text(
-                              _selectedSeries != null
-                                  ? 'Osho World Hindi Discourses'
-                                  : 'Osho World, Podcasts & Stories',
+                              topSubtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: secondaryTextColor,
                                 fontSize: 12,
@@ -196,77 +250,89 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                           ],
                         ),
                       ),
-                      if (_selectedCategoryIndex == 0 && _selectedSeries == null)
+                      if (!_isInSubView)
                         IconButton(
                           icon: Icon(Icons.refresh_rounded, color: accent),
-                          onPressed: () => _loadOshoSeries(force: true),
+                          onPressed: () {
+                            if (_selectedCategoryIndex == 0) {
+                              _loadOshoSeries(force: true);
+                            } else {
+                              _loadDesiFmSeries(force: true);
+                            }
+                          },
                         ),
                     ],
                   ),
-                  if (_selectedSeries == null) ...[
+                  if (!_isInSubView) ...[
                     const SizedBox(height: 12),
-                    // Category Selector
-                    SizedBox(
-                      height: 38,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _categories.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, i) {
-                          final isSel = _selectedCategoryIndex == i;
-                          return GestureDetector(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _selectedCategoryIndex = i);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 7),
-                              decoration: BoxDecoration(
-                                color: isSel
-                                    ? accent
-                                    : (isLight
-                                        ? Colors.black.withValues(alpha: 0.05)
-                                        : Colors.white.withValues(alpha: 0.06)),
-                                borderRadius: BorderRadius.circular(19),
-                                border: Border.all(
+                    // Two Category Chips (Osho World & Desi FM Series)
+                    Row(
+                      children: List.generate(_categories.length, (i) {
+                        final isSel = _selectedCategoryIndex == i;
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: i == 0 ? 0 : 4,
+                              right: i == _categories.length - 1 ? 0 : 4,
+                            ),
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _selectedCategoryIndex = i;
+                                  _searchCtrl.clear();
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                decoration: BoxDecoration(
                                   color: isSel
                                       ? accent
                                       : (isLight
-                                          ? Colors.black.withValues(alpha: 0.08)
-                                          : Colors.white.withValues(alpha: 0.1)),
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  _categories[i],
-                                  style: TextStyle(
+                                          ? Colors.black.withValues(alpha: 0.05)
+                                          : Colors.white.withValues(alpha: 0.06)),
+                                  borderRadius: BorderRadius.circular(19),
+                                  border: Border.all(
                                     color: isSel
-                                        ? Colors.white
-                                        : secondaryTextColor,
-                                    fontSize: 12.5,
-                                    fontWeight: isSel
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
+                                        ? accent
+                                        : (isLight
+                                            ? Colors.black.withValues(alpha: 0.08)
+                                            : Colors.white.withValues(alpha: 0.1)),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _categories[i],
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isSel ? Colors.white : secondaryTextColor,
+                                      fontSize: 12.5,
+                                      fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      }),
                     ),
                   ],
                 ],
               ),
             ),
 
-            // Content Area
+            // Main Content Area
             Expanded(
-              child: _selectedSeries != null
-                  ? _buildSeriesDetail(textColor, secondaryTextColor, accent, isLight)
-                  : _buildMainContent(textColor, secondaryTextColor, accent, isLight),
+              child: _selectedOshoSeries != null
+                  ? _buildOshoSeriesDetail(textColor, secondaryTextColor, accent, isLight)
+                  : (_selectedDesiSeries != null
+                      ? _buildDesiSeriesDetail(textColor, secondaryTextColor, accent, isLight)
+                      : (_selectedCategoryIndex == 0
+                          ? _buildOshoSection(textColor, secondaryTextColor, accent, isLight)
+                          : _buildDesiFmSection(textColor, secondaryTextColor, accent, isLight))),
             ),
           ],
         ),
@@ -274,23 +340,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  Widget _buildMainContent(
-    Color textColor,
-    Color secondaryTextColor,
-    Color accent,
-    bool isLight,
-  ) {
-    switch (_selectedCategoryIndex) {
-      case 0:
-        return _buildOshoSection(textColor, secondaryTextColor, accent, isLight);
-      case 1:
-      case 2:
-        return _buildStoriesAndPodcasts(textColor, secondaryTextColor, accent, isLight);
-      case 3:
-      default:
-        return _buildRadioSection(textColor, secondaryTextColor, accent, isLight);
-    }
-  }
+  // ==================== OSHO SECTION ====================
 
   Widget _buildOshoSection(
     Color textColor,
@@ -305,54 +355,46 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
           children: [
             CircularProgressIndicator(color: accent, strokeWidth: 2.5),
             const SizedBox(height: 14),
-            Text(
-              'Loading Osho World Catalog...',
-              style: TextStyle(color: secondaryTextColor, fontSize: 13),
-            ),
+            Text('Loading Osho World Catalog...', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
           ],
         ),
       );
     }
 
-    final query = _oshoSearchCtrl.text.trim().toLowerCase();
+    final query = _searchCtrl.text.trim().toLowerCase();
     final filtered = query.isEmpty
         ? _oshoSeries
         : _oshoSeries.where((s) {
-            return s.title.toLowerCase().contains(query) ||
-                s.slug.toLowerCase().contains(query);
+            return s.title.toLowerCase().contains(query) || s.slug.toLowerCase().contains(query);
           }).toList();
 
     return Column(
       children: [
-        // Search & Filter header
+        // Search Header
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Container(
             height: 44,
             decoration: BoxDecoration(
-              color: isLight
-                  ? Colors.black.withValues(alpha: 0.05)
-                  : Colors.white.withValues(alpha: 0.07),
+              color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isLight
-                    ? Colors.black.withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.08),
+                color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.08),
               ),
             ),
             child: TextField(
-              controller: _oshoSearchCtrl,
+              controller: _searchCtrl,
               onChanged: (_) => setState(() {}),
               style: TextStyle(color: textColor, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search 170+ Discourses (Geeta, Kabir, Dhyan...)',
                 hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
                 prefixIcon: Icon(Icons.search_rounded, color: secondaryTextColor, size: 20),
-                suffixIcon: _oshoSearchCtrl.text.isNotEmpty
+                suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
                         icon: Icon(Icons.clear_rounded, color: secondaryTextColor, size: 18),
                         onPressed: () {
-                          _oshoSearchCtrl.clear();
+                          _searchCtrl.clear();
                           setState(() {});
                         },
                       )
@@ -364,7 +406,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
           ),
         ),
 
-        // Total count badge
+        // Count row
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
           child: Row(
@@ -372,18 +414,11 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
             children: [
               Text(
                 'Available Series (${filtered.length})',
-                style: TextStyle(
-                  color: secondaryTextColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(color: secondaryTextColor, fontSize: 12, fontWeight: FontWeight.w600),
               ),
               Text(
-                'https://oshoworld.com',
-                style: TextStyle(
-                  color: accent.withValues(alpha: 0.8),
-                  fontSize: 11,
-                ),
+                'oshoworld.com',
+                style: TextStyle(color: accent.withValues(alpha: 0.8), fontSize: 11),
               ),
             ],
           ),
@@ -393,10 +428,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
         Expanded(
           child: filtered.isEmpty
               ? Center(
-                  child: Text(
-                    'No discourses found for "${_oshoSearchCtrl.text}"',
-                    style: TextStyle(color: secondaryTextColor),
-                  ),
+                  child: Text('No discourses found', style: TextStyle(color: secondaryTextColor)),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
@@ -405,16 +437,14 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                   itemBuilder: (context, index) {
                     final s = filtered[index];
                     return iOSBounceButton(
-                      onTap: () => _selectSeries(s),
+                      onTap: () => _selectOshoSeries(s),
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: isLight ? Colors.white : const Color(0xFF1E293B),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isLight
-                                ? Colors.black.withValues(alpha: 0.06)
-                                : Colors.white.withValues(alpha: 0.08),
+                            color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
                           ),
                           boxShadow: [
                             BoxShadow(
@@ -468,19 +498,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                                         ),
                                         child: Text(
                                           '${s.count} Discourses',
-                                          style: TextStyle(
-                                            color: accent,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Osho World',
-                                        style: TextStyle(
-                                          color: secondaryTextColor,
-                                          fontSize: 11.5,
+                                          style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700),
                                         ),
                                       ),
                                     ],
@@ -505,20 +523,19 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  Widget _buildSeriesDetail(
+  Widget _buildOshoSeriesDetail(
     Color textColor,
     Color secondaryTextColor,
     Color accent,
     bool isLight,
   ) {
-    final s = _selectedSeries!;
+    final s = _selectedOshoSeries!;
 
     return Column(
       children: [
-        // Series Banner
         Container(
           padding: const EdgeInsets.all(16),
-          color: (isLight ? Colors.white : const Color(0xFF131A2A)).withValues(alpha: 0.6),
+          color: (isLight ? Colors.white : const Color(0xFF131A2A)).withValues(alpha: 0.7),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -546,22 +563,14 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                       s.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        height: 1.25,
-                      ),
+                      style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w800, height: 1.25),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'Discourse Series • ${s.count} Episodes',
-                      style: TextStyle(color: secondaryTextColor, fontSize: 12),
-                    ),
+                    Text('${s.count} Discourse Episodes', style: TextStyle(color: secondaryTextColor, fontSize: 12)),
                     const SizedBox(height: 8),
-                    if (_seriesTracks.isNotEmpty)
+                    if (_oshoTracks.isNotEmpty)
                       ElevatedButton.icon(
-                        onPressed: _playAllTracks,
+                        onPressed: () => _playOshoTrack(0),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accent,
                           foregroundColor: Colors.white,
@@ -579,47 +588,33 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
           ),
         ),
 
-        // Tracks List
         Expanded(
-          child: _isLoadingTracks
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(color: accent, strokeWidth: 2.5),
-                      const SizedBox(height: 12),
-                      Text('Loading discourses from Osho World...', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
-                    ],
-                  ),
-                )
-              : _seriesTracks.isEmpty
-                  ? Center(
-                      child: Text('No tracks found for this series', style: TextStyle(color: secondaryTextColor)),
-                    )
+          child: _isLoadingOshoTracks
+              ? Center(child: CircularProgressIndicator(color: accent, strokeWidth: 2.5))
+              : _oshoTracks.isEmpty
+                  ? Center(child: Text('No tracks found', style: TextStyle(color: secondaryTextColor)))
                   : ListenableBuilder(
                       listenable: DownloadService.instance,
                       builder: (context, _) {
                         return ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
-                          itemCount: _seriesTracks.length,
+                          itemCount: _oshoTracks.length,
                           separatorBuilder: (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, idx) {
-                            final track = _seriesTracks[idx];
+                            final track = _oshoTracks[idx];
                             final onlineSong = track.toOnlineSong(s);
                             final isDl = DownloadService.instance.isDownloaded(onlineSong.id);
                             final isDownloading = DownloadService.instance.isDownloading(onlineSong.id);
 
                             return iOSBounceButton(
-                              onTap: () => _playTrack(idx),
+                              onTap: () => _playOshoTrack(idx),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 decoration: BoxDecoration(
                                   color: isLight ? Colors.white : const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: isLight
-                                        ? Colors.black.withValues(alpha: 0.05)
-                                        : Colors.white.withValues(alpha: 0.07),
+                                    color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.07),
                                   ),
                                 ),
                                 child: Row(
@@ -627,19 +622,9 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                                     Container(
                                       width: 32,
                                       height: 32,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: accent.withValues(alpha: 0.12),
-                                      ),
+                                      decoration: BoxDecoration(shape: BoxShape.circle, color: accent.withValues(alpha: 0.12)),
                                       child: Center(
-                                        child: Text(
-                                          '${idx + 1}',
-                                          style: TextStyle(
-                                            color: accent,
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
+                                        child: Text('${idx + 1}', style: TextStyle(color: accent, fontSize: 12.5, fontWeight: FontWeight.w800)),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -647,73 +632,30 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            track.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: textColor,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
+                                          Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w600)),
                                           const SizedBox(height: 2),
-                                          Text(
-                                            '${track.duration.inMinutes} mins • High Quality Audio',
-                                            style: TextStyle(
-                                              color: secondaryTextColor,
-                                              fontSize: 11.5,
-                                            ),
-                                          ),
+                                          Text('${track.duration.inMinutes} mins • High Quality Audio', style: TextStyle(color: secondaryTextColor, fontSize: 11.5)),
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-
-                                    // Direct Local Download Button
                                     IconButton(
                                       icon: isDownloading
-                                          ? SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: accent,
-                                              ),
-                                            )
-                                          : Icon(
-                                              isDl
-                                                  ? Icons.check_circle_rounded
-                                                  : Icons.download_rounded,
-                                              color: isDl ? Colors.green : secondaryTextColor,
-                                              size: 22,
-                                            ),
+                                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+                                          : Icon(isDl ? Icons.check_circle_rounded : Icons.download_rounded, color: isDl ? Colors.green : secondaryTextColor, size: 22),
                                       onPressed: () {
                                         if (!isDl && !isDownloading) {
                                           DownloadService.instance.downloadSong(onlineSong);
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Downloading to local storage: ${track.title}'),
-                                              backgroundColor: accent,
-                                            ),
+                                            SnackBar(content: Text('Downloading: ${track.title}'), backgroundColor: accent),
                                           );
                                         }
                                       },
                                     ),
-
-                                    // Play icon
                                     Container(
                                       width: 34,
                                       height: 34,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: accent,
-                                      ),
-                                      child: const Icon(
-                                        Icons.play_arrow_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
+                                      decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
+                                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
                                     ),
                                   ],
                                 ),
@@ -728,299 +670,383 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  Widget _buildStoriesAndPodcasts(
+  // ==================== DESI FM SECTION ====================
+
+  Widget _buildDesiFmSection(
     Color textColor,
     Color secondaryTextColor,
     Color accent,
     bool isLight,
   ) {
-    final catName = _categories[_selectedCategoryIndex]
-        .replaceAll('🎙️', '')
-        .replaceAll('🔥', '')
-        .trim();
+    if (_isLoadingDesiFm) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: accent, strokeWidth: 2.5),
+            const SizedBox(height: 14),
+            Text('Loading Desi FM Audio Series...', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
+          ],
+        ),
+      );
+    }
 
-    final stories = [
-      ShowItem(
-        id: 'story_1',
-        title: 'Kafan - Munshi Premchand',
-        creator: 'Classic Kahaniyaan',
-        category: 'Pocket Stories',
-        description: 'Masterpiece classic story narrating human nature with profound realism.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&q=80',
-        streamUrl: 'https://archive.org/download/kafan_premchand/kafan.mp3',
-        duration: const Duration(minutes: 24, seconds: 15),
-      ),
-      ShowItem(
-        id: 'story_2',
-        title: 'Bhoot Ka Bangla - Midnight Mystery',
-        creator: 'Fear Files Audio',
-        category: 'Pocket Stories',
-        description: 'Chilling midnight audio thriller of an abandoned mansion on NH8.',
-        coverUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&q=80',
-        streamUrl: 'https://archive.org/download/horror_hindi_story/ghost_story.mp3',
-        duration: const Duration(minutes: 32, seconds: 40),
-      ),
-      ShowItem(
-        id: 'podcast_1',
-        title: 'The Power of Mindset & Focus',
-        creator: 'The Ranveer Hindi Show',
-        category: 'Top Podcasts',
-        description: 'Actionable discussion on meditation, brain clarity, and supreme daily focus.',
-        coverUrl: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=500&q=80',
-        streamUrl: 'https://archive.org/download/ranveer_mindset_pod/ranveer_focus.mp3',
-        duration: const Duration(minutes: 42, seconds: 10),
-      ),
-      ShowItem(
-        id: 'podcast_2',
-        title: 'Gita Saar: Karma Yoga Simplified',
-        creator: 'Spiritual Audio',
-        category: 'Top Podcasts',
-        description: 'Daily life principles of Bhagavad Gita translated into contemporary mindset.',
-        coverUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&q=80',
-        streamUrl: 'https://archive.org/download/gita_hindi_audio/karma_yoga.mp3',
-        duration: const Duration(minutes: 28, seconds: 50),
-      ),
-    ];
+    final query = _searchCtrl.text.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? _desiFmSeries
+        : _desiFmSeries.where((s) {
+            return s.title.toLowerCase().contains(query) ||
+                s.genre.toLowerCase().contains(query) ||
+                s.description.toLowerCase().contains(query);
+          }).toList();
 
-    final items = stories
-        .where((s) => s.category.toLowerCase().contains(catName.toLowerCase()))
-        .toList();
+    return Column(
+      children: [
+        // Search Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (_) => setState(() {}),
+              style: TextStyle(color: textColor, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Search Audio Series (Horror, Crime, Drama...)',
+                hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
+                prefixIcon: Icon(Icons.search_rounded, color: secondaryTextColor, size: 20),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear_rounded, color: secondaryTextColor, size: 18),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ),
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final onlineSong = item.toOnlineSong();
+        // Count row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Desi FM Series (${filtered.length})',
+                style: TextStyle(color: secondaryTextColor, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                'desifm.app/series',
+                style: TextStyle(color: accent.withValues(alpha: 0.8), fontSize: 11),
+              ),
+            ],
+          ),
+        ),
 
-        return ListenableBuilder(
-          listenable: DownloadService.instance,
-          builder: (context, _) {
-            final isDl = DownloadService.instance.isDownloaded(onlineSong.id);
-            final isDownloading = DownloadService.instance.isDownloading(onlineSong.id);
-
-            return iOSBounceButton(
-              onTap: () {
-                AudioController.instance.playOnlineQueue([onlineSong], 0);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AudioPlayerScreen(startPlayback: false),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isLight ? Colors.white : const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isLight
-                        ? Colors.black.withValues(alpha: 0.06)
-                        : Colors.white.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        item.coverUrl,
-                        width: 64,
-                        height: 64,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 64,
-                          height: 64,
-                          color: accent.withValues(alpha: 0.2),
-                          child: Icon(Icons.podcasts_rounded, color: accent),
+        // Series List
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Text('No series found', style: TextStyle(color: secondaryTextColor)),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final s = filtered[index];
+                    return iOSBounceButton(
+                      onTap: () => _selectDesiSeries(s),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isLight ? Colors.white : const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isLight ? 0.03 : 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.network(
+                                s.coverUrl,
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 72,
+                                  height: 72,
+                                  color: accent.withValues(alpha: 0.15),
+                                  child: Icon(Icons.podcasts_rounded, color: accent, size: 30),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          s.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontSize: 15.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: accent.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          s.genre.toUpperCase(),
+                                          style: TextStyle(
+                                            color: accent,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    s.description,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: secondaryTextColor,
+                                      fontSize: 12,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.format_list_numbered_rounded, size: 14, color: accent),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${s.totalEpisodes} Episodes',
+                                        style: TextStyle(color: accent, fontSize: 11.5, fontWeight: FontWeight.w700),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        '• Desi FM Original',
+                                        style: TextStyle(color: secondaryTextColor, fontSize: 11.5),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16,
+                              color: secondaryTextColor.withValues(alpha: 0.6),
+                            ),
+                          ],
                         ),
                       ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesiSeriesDetail(
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+    bool isLight,
+  ) {
+    final s = _selectedDesiSeries!;
+
+    return Column(
+      children: [
+        // Series Banner
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: (isLight ? Colors.white : const Color(0xFF131A2A)).withValues(alpha: 0.7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  s.coverUrl,
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 90,
+                    height: 90,
+                    color: accent.withValues(alpha: 0.2),
+                    child: Icon(Icons.podcasts_rounded, color: accent, size: 36),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: textColor, fontSize: 16.5, fontWeight: FontWeight.w800, height: 1.25),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            item.creator,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: secondaryTextColor,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${item.duration.inMinutes} mins • ${item.category}',
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 4),
+                    Text(
+                      '${s.genre.toUpperCase()} • ${s.totalEpisodes} Full Episodes',
+                      style: TextStyle(color: secondaryTextColor, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_desiEpisodes.isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: () => _playDesiEpisode(0),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                        label: const Text('Play All Episodes', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
                       ),
-                    ),
-                    IconButton(
-                      icon: isDownloading
-                          ? SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2.2, color: accent),
-                            )
-                          : Icon(
-                              isDl ? Icons.check_circle_rounded : Icons.download_rounded,
-                              color: isDl ? Colors.green : secondaryTextColor,
-                              size: 22,
-                            ),
-                      onPressed: () {
-                        if (!isDl && !isDownloading) {
-                          DownloadService.instance.downloadSong(onlineSong);
-                        }
-                      },
-                    ),
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
-                    ),
                   ],
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildRadioSection(
-    Color textColor,
-    Color secondaryTextColor,
-    Color accent,
-    bool isLight,
-  ) {
-    final stations = RadioStation.stations;
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-      itemCount: stations.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final station = stations[index];
-        return iOSBounceButton(
-          onTap: () => RadioController.instance.playStation(station),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isLight ? Colors.white : const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isLight
-                    ? Colors.black.withValues(alpha: 0.06)
-                    : Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: [accent, accent.withValues(alpha: 0.6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.radio_rounded, color: Colors.white, size: 28),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        station.name,
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${station.category} • 24x7 Broadcast',
-                        style: TextStyle(color: secondaryTextColor, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: accent.withValues(alpha: 0.15),
-                  ),
-                  child: Icon(Icons.play_arrow_rounded, color: accent, size: 22),
-                ),
-              ],
-            ),
+            ],
           ),
-        );
-      },
-    );
-  }
-}
+        ),
 
-class ShowItem {
-  final String id;
-  final String title;
-  final String creator;
-  final String category;
-  final String description;
-  final String coverUrl;
-  final String streamUrl;
-  final Duration duration;
+        // Episodes List
+        Expanded(
+          child: _isLoadingDesiEpisodes
+              ? Center(child: CircularProgressIndicator(color: accent, strokeWidth: 2.5))
+              : _desiEpisodes.isEmpty
+                  ? Center(child: Text('No episodes found', style: TextStyle(color: secondaryTextColor)))
+                  : ListenableBuilder(
+                      listenable: DownloadService.instance,
+                      builder: (context, _) {
+                        return ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                          itemCount: _desiEpisodes.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, idx) {
+                            final ep = _desiEpisodes[idx];
+                            final onlineSong = ep.toOnlineSong(s);
+                            final isDl = DownloadService.instance.isDownloaded(onlineSong.id);
+                            final isDownloading = DownloadService.instance.isDownloading(onlineSong.id);
 
-  const ShowItem({
-    required this.id,
-    required this.title,
-    required this.creator,
-    required this.category,
-    required this.description,
-    required this.coverUrl,
-    required this.streamUrl,
-    required this.duration,
-  });
+                            final durMin = (ep.durationSeconds / 60).ceil();
 
-  OnlineSong toOnlineSong() {
-    return OnlineSong(
-      id: 'show_$id',
-      title: title,
-      artist: creator,
-      album: category,
-      duration: duration,
-      imageUrl: coverUrl,
-      streamUrl: streamUrl,
+                            return iOSBounceButton(
+                              onTap: () => _playDesiEpisode(idx),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: isLight ? Colors.white : const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.07),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(shape: BoxShape.circle, color: accent.withValues(alpha: 0.12)),
+                                      child: Center(
+                                        child: Text('${ep.episodeNumber}', style: TextStyle(color: accent, fontSize: 12.5, fontWeight: FontWeight.w800)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            ep.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '$durMin mins • Desi FM Audio',
+                                            style: TextStyle(color: secondaryTextColor, fontSize: 11.5),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: isDownloading
+                                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+                                          : Icon(isDl ? Icons.check_circle_rounded : Icons.download_rounded, color: isDl ? Colors.green : secondaryTextColor, size: 22),
+                                      onPressed: () {
+                                        if (!isDl && !isDownloading) {
+                                          DownloadService.instance.downloadSong(onlineSong);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Downloading: ${ep.title}'), backgroundColor: accent),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
+                                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+        ),
+      ],
     );
   }
 }
