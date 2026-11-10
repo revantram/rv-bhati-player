@@ -433,7 +433,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                         color: saavnColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text(
+                      child: Text(
                         'PRO',
                         style: TextStyle(
                           fontSize: 9.5,

@@ -399,9 +399,9 @@ class _LocalStorageMusicScreenState extends State<LocalStorageMusicScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: ArtBox(
-                          item: song,
-                          size: 48,
-                          shape: BoxShape.rectangle,
+                          seed: song.id,
+                          radius: 10,
+                          iconSize: 22,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -473,7 +473,7 @@ class _LocalStorageMusicScreenState extends State<LocalStorageMusicScreen> {
               title: Text('Add to Playlist', style: TextStyle(color: app.textColor)),
               onTap: () {
                 Navigator.pop(ctx);
-                AddToPlaylistDialog.show(context, song.id);
+                AddToPlaylistDialog.showForMedia(context, song);
               },
             ),
             ListTile(
@@ -492,7 +492,7 @@ class _LocalStorageMusicScreenState extends State<LocalStorageMusicScreen> {
               title: Text('Share Audio File', style: TextStyle(color: app.textColor)),
               onTap: () {
                 Navigator.pop(ctx);
-                MediaActionService.shareFile(song.path);
+                MediaActionService.shareVideo(song.path, title: 'Share Audio');
               },
             ),
             ListTile(
@@ -500,7 +500,7 @@ class _LocalStorageMusicScreenState extends State<LocalStorageMusicScreen> {
               title: const Text('Delete from Device', style: TextStyle(color: Colors.redAccent)),
               onTap: () async {
                 Navigator.pop(ctx);
-                final ok = await MediaActionService.deleteMedia(context, song);
+                final ok = await MediaActionService.deleteVideo(song);
                 if (ok && mounted) setState(() {});
               },
             ),
