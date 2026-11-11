@@ -31,6 +31,7 @@ class _RadioScreenState extends State<RadioScreen> {
     {'id': 'Artists', 'label': '🌸 Artists (लता, किशोर, रफ़ी...)'},
     {'id': 'Top FM', 'label': '📻 Live FM'},
     {'id': 'Retro & 90s', 'label': '📼 Retro & 90s'},
+    {'id': 'News', 'label': '📰 News (आज तक, BBC)'},
     {'id': 'Bhakti', 'label': '🙏 Bhakti'},
     {'id': 'Rajasthan', 'label': '🏜️ Rajasthan'},
   ];
