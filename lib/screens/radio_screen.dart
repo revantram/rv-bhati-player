@@ -27,13 +27,15 @@ class _RadioScreenState extends State<RadioScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   final _categories = const [
-    {'id': 'All', 'label': '🌟 All Stations'},
+    {'id': 'All', 'label': '🌟 All Stations (392)'},
     {'id': 'Artists', 'label': '🌸 Artists (लता, किशोर, रफ़ी...)'},
-    {'id': 'Top FM', 'label': '📻 Live FM'},
+    {'id': 'Top FM', 'label': '📻 Live FM (Mirchi, Big, Red...)'},
+    {'id': 'Akashvani AIR', 'label': '🎙️ आकाशवाणी AIR'},
     {'id': 'Retro & 90s', 'label': '📼 Retro & 90s'},
     {'id': 'News', 'label': '📰 News (आज तक, BBC)'},
-    {'id': 'Bhakti', 'label': '🙏 Bhakti'},
     {'id': 'Rajasthan', 'label': '🏜️ Rajasthan'},
+    {'id': 'Bhakti', 'label': '🙏 Bhakti'},
+    {'id': 'Bollywood & Hindi', 'label': '🎵 Bollywood & Hindi'},
   ];
 
   @override
@@ -320,7 +322,7 @@ class _RadioScreenState extends State<RadioScreen> {
   }
 }
 
-// 2. Radio Station Grid Card (Matching RadioIndia Glass Card Design)
+// 2. Radio Station Glass Card (Liquid Glass Design)
 class _RadioStationGridCard extends StatelessWidget {
   final RadioStation station;
   const _RadioStationGridCard({required this.station});
