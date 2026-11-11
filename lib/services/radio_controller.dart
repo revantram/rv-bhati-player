@@ -69,8 +69,9 @@ class RadioController extends ChangeNotifier {
         tag: MediaItem(
           id: station.id,
           title: station.name,
-          album: 'Live Radio (${station.frequency})',
-          artist: station.tagline,
+          album: '🔴 Live Radio Stream',
+          artist: '🔴 Live Radio Stream • ${station.frequency}',
+          artUri: station.imageUrl != null ? Uri.tryParse(station.imageUrl!) : null,
         ),
       );
       await p.setAudioSource(source);
@@ -86,8 +87,9 @@ class RadioController extends ChangeNotifier {
             tag: MediaItem(
               id: station.id,
               title: station.name,
-              album: 'Live Radio (${station.frequency})',
-              artist: station.tagline,
+              album: '🔴 Live Radio Stream',
+              artist: '🔴 Live Radio Stream • ${station.frequency}',
+              artUri: station.imageUrl != null ? Uri.tryParse(station.imageUrl!) : null,
             ),
           );
           await p.setAudioSource(fallbackSource);

@@ -7,7 +7,7 @@ import '../services/app_state.dart';
 import '../services/radio_controller.dart';
 import '../widgets/liquid_glass_container.dart';
 
-class RadioScreen extends StatelessWidget {
+class RadioScreen extends StatefulWidget {
   final double topOffset;
   final double bottomOffset;
 
@@ -18,17 +18,46 @@ class RadioScreen extends StatelessWidget {
   });
 
   @override
+  State<RadioScreen> createState() => _RadioScreenState();
+}
+
+class _RadioScreenState extends State<RadioScreen> {
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final app = AppState.instance;
     final radio = RadioController.instance;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isTabletOrTv = screenWidth > 600;
+    final crossAxisCount = isTabletOrTv ? 4 : 2;
+
+    final allStations = RadioStation.stations;
+    final filteredStations = _searchQuery.isEmpty
+        ? allStations
+        : allStations.where((s) {
+            final query = _searchQuery.toLowerCase();
+            return s.name.toLowerCase().contains(query) ||
+                s.tagline.toLowerCase().contains(query) ||
+                s.frequency.toLowerCase().contains(query) ||
+                s.category.toLowerCase().contains(query);
+          }).toList();
 
     return ListView(
-      // 1. Bottom Clearance Fix: Ensures last station card is never obscured by mini-player
-      padding: EdgeInsets.fromLTRB(16, topOffset, 16, math.max(140.0, bottomOffset)),
+      padding: EdgeInsets.fromLTRB(16, widget.topOffset, 16, math.max(140.0, widget.bottomOffset)),
+      physics: const BouncingScrollPhysics(),
       children: [
-        // 4. Top Header Optimization: Sleek compact frosted glass header & Quick Stations row
-        _buildQuickHeader(context, app, radio),
-        const SizedBox(height: 16),
+        // 1. Header: Live FM Radio India Title & Subtitle
+        _buildHeader(context, app, filteredStations.length),
+
+        const SizedBox(height: 14),
 
         // Radio Error banner if any
         ListenableBuilder(
@@ -61,227 +90,152 @@ class RadioScreen extends StatelessWidget {
           },
         ),
 
-        // Section 1: Rajasthan Regional Stations
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Row(
-            children: [
-              Icon(Icons.location_on_rounded, size: 19, color: app.accentColor),
-              const SizedBox(width: 6),
-              Text(
-                'Rajasthan & Regional Stations',
-                style: TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w700,
-                  color: app.textColor,
-                ),
+        // 2. Radio Stations 2-Column Grid
+        if (filteredStations.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.radio_rounded, size: 48, color: app.secondaryTextColor.withValues(alpha: 0.5)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'No stations found',
+                    style: TextStyle(color: app.textColor, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
-            ],
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: filteredStations.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.88,
+            ),
+            itemBuilder: (context, i) {
+              return _RadioStationGridCard(station: filteredStations[i]);
+            },
           ),
-        ),
-        const SizedBox(height: 8),
-        ...RadioStation.stations
-            .where((s) => s.category.contains('Rajasthan'))
-            .map((s) => _FrostedRadioStationCard(station: s)),
-
-        const SizedBox(height: 16),
-
-        // Section 2: National AIR & Live FM
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Row(
-            children: [
-              Icon(Icons.podcasts_rounded, size: 19, color: app.accentColor),
-              const SizedBox(width: 6),
-              Text(
-                'National AIR & Live FM',
-                style: TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w700,
-                  color: app.textColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...RadioStation.stations
-            .where((s) => !s.category.contains('Rajasthan'))
-            .map((s) => _FrostedRadioStationCard(station: s)),
       ],
     );
   }
 
-  // 4. Compact Sleek Glass Header & Quick Recent Stations Row
-  Widget _buildQuickHeader(BuildContext context, AppState app, RadioController radio) {
+  Widget _buildHeader(BuildContext context, AppState app, int stationCount) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LiquidGlassContainer(
-          borderRadius: BorderRadius.circular(22),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          blur: 16,
-          opacity: 0.12,
-          borderWidth: 1,
-          borderColor: Colors.white.withValues(alpha: 0.15),
-          tint: app.accentColor.withValues(alpha: 0.08),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [app.accentColor, const Color(0xFF00D2FF)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: app.accentColor.withValues(alpha: 0.4),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.podcasts_rounded, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          app.tr('radio'),
-                          style: TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w700,
-                            color: app.textColor,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF00E676).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'HD 24x7',
-                            style: TextStyle(fontSize: 9.5, color: Color(0xFF00E676), fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
                     Text(
-                      'Direct low-latency streams with background playback',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      '📻 Live FM Radio India',
                       style: TextStyle(
-                        fontSize: 11.5,
-                        color: app.secondaryTextColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: app.textColor,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'LIVE',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFEF4444),
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  'Desh bhar ke live stations sunein',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: app.secondaryTextColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: app.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
-          ),
+              child: Text(
+                '$stationCount Stations',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: app.secondaryTextColor,
+                ),
+              ),
+            ),
+          ],
         ),
+
         const SizedBox(height: 12),
 
-        // Quick Station Circles Horizontal Row
-        SizedBox(
-          height: 62,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: RadioStation.stations.length,
-            itemBuilder: (context, i) {
-              final station = RadioStation.stations[i];
-              return ListenableBuilder(
-                listenable: radio,
-                builder: (context, _) {
-                  final isPlaying = radio.isStationPlaying(station.id);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: PressableScale(
-                      pressedScale: 0.92,
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        radio.toggleStation(station);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isPlaying
-                              ? station.color.withValues(alpha: 0.22)
-                              : (app.isLight
-                                  ? Colors.black.withValues(alpha: 0.04)
-                                  : Colors.white.withValues(alpha: 0.06)),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: isPlaying
-                                ? station.color.withValues(alpha: 0.7)
-                                : Colors.white.withValues(alpha: 0.12),
-                            width: 1.2,
-                          ),
-                          boxShadow: isPlaying
-                              ? [
-                                  BoxShadow(
-                                    color: station.color.withValues(alpha: 0.35),
-                                    blurRadius: 10,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: station.color.withValues(alpha: 0.85),
-                              ),
-                              child: Center(
-                                child: isPlaying
-                                    ? const Icon(Icons.equalizer_rounded, color: Colors.white, size: 18)
-                                    : const Icon(Icons.radio_rounded, color: Colors.white, size: 16),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  station.name.split('(').first.trim(),
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w600,
-                                    color: isPlaying ? station.color : app.textColor,
-                                  ),
-                                ),
-                                Text(
-                                  station.frequency,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: app.secondaryTextColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+        // Search Bar for Radio Stations
+        LiquidGlassContainer(
+          borderRadius: BorderRadius.circular(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          blur: 10,
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded, size: 20, color: app.secondaryTextColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchCtrl,
+                  style: TextStyle(color: app.textColor, fontSize: 13.5),
+                  decoration: InputDecoration(
+                    hintText: 'Search station by name or city...',
+                    hintStyle: TextStyle(color: app.secondaryTextColor.withValues(alpha: 0.7), fontSize: 13),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val.trim();
+                    });
+                  },
+                ),
+              ),
+              if (_searchQuery.isNotEmpty)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _searchCtrl.clear();
+                      _searchQuery = '';
+                    });
+                  },
+                  child: Icon(Icons.close_rounded, size: 18, color: app.secondaryTextColor),
+                ),
+            ],
           ),
         ),
       ],
@@ -289,10 +243,10 @@ class RadioScreen extends StatelessWidget {
   }
 }
 
-// 2. Frosted Station Card with Liquid Glassmorphism & Animations
-class _FrostedRadioStationCard extends StatelessWidget {
-  const _FrostedRadioStationCard({required this.station});
+// 2. Radio Station Grid Card (Matching RadioIndia Glass Card Design)
+class _RadioStationGridCard extends StatelessWidget {
   final RadioStation station;
+  const _RadioStationGridCard({required this.station});
 
   @override
   Widget build(BuildContext context) {
@@ -306,189 +260,176 @@ class _FrostedRadioStationCard extends StatelessWidget {
         final isPlaying = radio.isStationPlaying(station.id);
         final isLoading = isActive && radio.isLoading;
 
-        // 5. Card Interaction: Smooth spring-scale haptic feedback
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: PressableScale(
-            pressedScale: 0.96,
-            onTap: () {
-              HapticFeedback.lightImpact();
-              radio.toggleStation(station);
-            },
-            child: LiquidGlassContainer(
-              borderRadius: BorderRadius.circular(22),
-              padding: const EdgeInsets.all(12),
-              blur: 16,
-              opacity: 0.10,
-              borderWidth: 1,
-              borderColor: isActive
-                  ? station.color.withValues(alpha: 0.6)
-                  : Colors.white.withValues(alpha: 0.15),
-              tint: isActive ? station.color.withValues(alpha: 0.12) : null,
-              glow: true,
-              child: Row(
-                children: [
-                  // 2. Frosted Icon Box: Semi-transparent frosted glass + ambient glow
-                  Container(
-                    width: 68,
-                    height: 68,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          station.color.withValues(alpha: 0.35),
-                          station.color.withValues(alpha: 0.12),
+        return PressableScale(
+          pressedScale: 0.94,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            radio.toggleStation(station);
+          },
+          child: LiquidGlassContainer(
+            borderRadius: BorderRadius.circular(18),
+            padding: const EdgeInsets.all(12),
+            blur: 12,
+            opacity: app.isLight ? 0.75 : 0.12,
+            borderWidth: isActive ? 1.5 : 1.0,
+            borderColor: isActive
+                ? station.color.withValues(alpha: 0.75)
+                : (app.isLight
+                    ? Colors.white.withValues(alpha: 0.6)
+                    : Colors.white.withValues(alpha: 0.12)),
+            tint: isActive ? station.color.withValues(alpha: 0.12) : null,
+            glow: isActive,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 52x52 Round Icon/Logo Container
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: station.color.withValues(alpha: 0.15),
+                    border: Border.all(
+                      color: station.color.withValues(alpha: isPlaying ? 0.6 : 0.25),
+                      width: 1.2,
+                    ),
+                    boxShadow: isPlaying
+                        ? [
+                            BoxShadow(
+                              color: station.color.withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: isPlaying
+                        ? _RadioEqualizerBars(color: station.color)
+                        : (station.imageUrl != null
+                            ? ClipOval(
+                                child: Image.network(
+                                  station.imageUrl!,
+                                  width: 38,
+                                  height: 38,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Text(
+                                    station.icon,
+                                    style: const TextStyle(fontSize: 24),
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                station.icon,
+                                style: const TextStyle(fontSize: 24),
+                              )),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Station Name
+                Text(
+                  station.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: isPlaying ? station.color : app.textColor,
+                  ),
+                ),
+
+                const SizedBox(height: 3),
+
+                // Station Tagline
+                Text(
+                  station.tagline,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: app.secondaryTextColor,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Live Badge & Status Pill
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: isPlaying
+                            ? const Color(0xFF00E676)
+                            : (isLoading ? const Color(0xFFFFB300) : const Color(0xFFEF4444)),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isPlaying
+                                    ? const Color(0xFF00E676)
+                                    : (isLoading
+                                        ? const Color(0xFFFFB300)
+                                        : const Color(0xFFEF4444)))
+                                .withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
                         ],
                       ),
-                      border: Border.all(
-                        color: station.color.withValues(alpha: 0.45),
-                        width: 1.2,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isLoading)
+                            const SizedBox(
+                              width: 8,
+                              height: 8,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          else if (isPlaying)
+                            const _PulsingDot(color: Colors.white)
+                          else
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                            ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isPlaying
+                                ? 'PLAYING'
+                                : (isLoading ? 'CONNECTING' : '🔴 LIVE'),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: station.color.withValues(alpha: isPlaying ? 0.40 : 0.15),
-                          blurRadius: isPlaying ? 16 : 10,
-                          spreadRadius: isPlaying ? 1 : 0,
-                        ),
-                      ],
                     ),
-                    child: Center(
-                      child: isPlaying
-                          ? _RadioEqualizerBars(color: station.color)
-                          : Icon(
-                              Icons.radio_rounded,
-                              size: 32,
-                              color: station.color,
-                            ),
+                    const SizedBox(width: 4),
+                    Text(
+                      station.frequency,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: app.secondaryTextColor.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-
-                  // Middle: Station Info & Status Badges
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            // 3. Live / Connecting State Pill with Pulsing Animation
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                              decoration: BoxDecoration(
-                                color: isPlaying
-                                    ? const Color(0xFF00E676).withValues(alpha: 0.20)
-                                    : (isLoading
-                                        ? const Color(0xFFFFD600).withValues(alpha: 0.20)
-                                        : (app.isLight
-                                            ? Colors.black.withValues(alpha: 0.05)
-                                            : Colors.white.withValues(alpha: 0.09))),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isPlaying
-                                      ? const Color(0xFF00E676).withValues(alpha: 0.55)
-                                      : (isLoading
-                                          ? const Color(0xFFFFD600).withValues(alpha: 0.55)
-                                          : (app.isLight
-                                              ? Colors.black.withValues(alpha: 0.08)
-                                              : Colors.white24)),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (isLoading)
-                                    const _PulsingDot(color: Color(0xFFFFD600))
-                                  else
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: isPlaying
-                                            ? const Color(0xFF00E676)
-                                            : app.secondaryTextColor,
-                                      ),
-                                    ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    isPlaying
-                                        ? 'LIVE'
-                                        : (isLoading ? 'CONNECTING...' : 'ONLINE'),
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: isPlaying
-                                          ? const Color(0xFF00E676)
-                                          : (isLoading
-                                              ? const Color(0xFFFFD600)
-                                              : app.secondaryTextColor),
-                                      letterSpacing: 0.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            // Frequency tag
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                              decoration: BoxDecoration(
-                                color: station.color.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                station.frequency,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: station.color,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          station.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: app.textColor,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          station.tagline,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: app.secondaryTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Right: Translucent Play / Pause / Loading button
-                  LiquidGlassButton(
-                    icon: isLoading
-                        ? null
-                        : (isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                    size: 44,
-                    iconSize: 24,
-                    tint: isActive ? station.color : app.accentColor,
-                    onTap: () => radio.toggleStation(station),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
           ),
         );
@@ -497,7 +438,7 @@ class _FrostedRadioStationCard extends StatelessWidget {
   }
 }
 
-// 3. Subtle Pulsing Circle Animation for Connecting state
+// 3. Subtle Pulsing Circle Animation for Connecting/Playing state
 class _PulsingDot extends StatefulWidget {
   const _PulsingDot({required this.color});
   final Color color;
@@ -534,8 +475,8 @@ class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderState
         return Transform.scale(
           scale: _scale.value,
           child: Container(
-            width: 6,
-            height: 6,
+            width: 5,
+            height: 5,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: widget.color,
@@ -553,7 +494,7 @@ class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderState
   }
 }
 
-// 3. Animated mini equalizer bars for Live playback state
+// 4. Animated mini equalizer bars for Live playback state
 class _RadioEqualizerBars extends StatefulWidget {
   const _RadioEqualizerBars({required this.color});
   final Color color;
