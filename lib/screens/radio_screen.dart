@@ -23,7 +23,17 @@ class RadioScreen extends StatefulWidget {
 
 class _RadioScreenState extends State<RadioScreen> {
   String _searchQuery = '';
+  String _selectedCategory = 'All';
   final TextEditingController _searchCtrl = TextEditingController();
+
+  final _categories = const [
+    {'id': 'All', 'label': '🌟 All Stations'},
+    {'id': 'Artists', 'label': '🌸 Artists (लता, किशोर, रफ़ी...)'},
+    {'id': 'Top FM', 'label': '📻 Live FM'},
+    {'id': 'Retro & 90s', 'label': '📼 Retro & 90s'},
+    {'id': 'Bhakti', 'label': '🙏 Bhakti'},
+    {'id': 'Rajasthan', 'label': '🏜️ Rajasthan'},
+  ];
 
   @override
   void dispose() {
@@ -40,21 +50,25 @@ class _RadioScreenState extends State<RadioScreen> {
     final crossAxisCount = isTabletOrTv ? 4 : 2;
 
     final allStations = RadioStation.stations;
-    final filteredStations = _searchQuery.isEmpty
-        ? allStations
-        : allStations.where((s) {
-            final query = _searchQuery.toLowerCase();
-            return s.name.toLowerCase().contains(query) ||
-                s.tagline.toLowerCase().contains(query) ||
-                s.frequency.toLowerCase().contains(query) ||
-                s.category.toLowerCase().contains(query);
-          }).toList();
+    final filteredStations = allStations.where((s) {
+      if (_selectedCategory != 'All' && s.category != _selectedCategory) {
+        return false;
+      }
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        return s.name.toLowerCase().contains(query) ||
+            s.tagline.toLowerCase().contains(query) ||
+            s.frequency.toLowerCase().contains(query) ||
+            s.category.toLowerCase().contains(query);
+      }
+      return true;
+    }).toList();
 
     return ListView(
       padding: EdgeInsets.fromLTRB(16, widget.topOffset, 16, math.max(140.0, widget.bottomOffset)),
       physics: const BouncingScrollPhysics(),
       children: [
-        // 1. Header: Live FM Radio India Title & Subtitle
+        // 1. Header: Live FM Radio India Title, Search & Category Filter
         _buildHeader(context, app, filteredStations.length),
 
         const SizedBox(height: 14),
@@ -212,7 +226,7 @@ class _RadioScreenState extends State<RadioScreen> {
                   controller: _searchCtrl,
                   style: TextStyle(color: app.textColor, fontSize: 13.5),
                   decoration: InputDecoration(
-                    hintText: 'Search station by name or city...',
+                    hintText: 'Search station, singer or city...',
                     hintStyle: TextStyle(color: app.secondaryTextColor.withValues(alpha: 0.7), fontSize: 13),
                     border: InputBorder.none,
                     isDense: true,
@@ -236,6 +250,68 @@ class _RadioScreenState extends State<RadioScreen> {
                   child: Icon(Icons.close_rounded, size: 18, color: app.secondaryTextColor),
                 ),
             ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Horizontal Category Filter Pills (All, Artists, Top FM, Retro, Bhakti, Rajasthan)
+        SizedBox(
+          height: 34,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _categories.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final cat = _categories[i];
+              final isSelected = _selectedCategory == cat['id'];
+              return PressableScale(
+                pressedScale: 0.94,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _selectedCategory = cat['id']!;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? app.accentColor
+                        : (app.isLight
+                            ? Colors.black.withValues(alpha: 0.05)
+                            : Colors.white.withValues(alpha: 0.08)),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isSelected
+                          ? app.accentColor
+                          : Colors.white.withValues(alpha: 0.12),
+                      width: 1.2,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: app.accentColor.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      cat['label']!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? Colors.white : app.textColor,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -310,8 +386,8 @@ class _RadioStationGridCard extends StatelessWidget {
                             ? ClipOval(
                                 child: Image.network(
                                   station.imageUrl!,
-                                  width: 38,
-                                  height: 38,
+                                  width: 44,
+                                  height: 44,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => Text(
                                     station.icon,
