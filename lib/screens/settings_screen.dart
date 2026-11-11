@@ -132,12 +132,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               // Grouped Settings List
               Expanded(
-                child: ListView(
+                child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(16, 6, 16, widget.bottomOffset ?? 120),
-                  children: [
-                    // My Library Hub
-                    _buildMyLibrarySection(context, textColor, secondaryTextColor, accent, isLight),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // My Library Hub
+                      _buildMyLibrarySection(context, textColor, secondaryTextColor, accent, isLight),
 
 
                     // Section 1: Streaming Quality
@@ -628,6 +630,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
+            ),
             ],
           ),
         ),
@@ -732,41 +735,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required Color secondaryTextColor,
     required Color accent,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Icon(icon, color: accent, size: 22),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+    return iOSBounceButton(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onChanged(!value);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, color: accent, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: secondaryTextColor,
-                    fontSize: 12,
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Switch.adaptive(
-            value: value,
-            activeColor: accent,
-            onChanged: onChanged,
-          ),
-        ],
+            ExcludeFocus(
+              excluding: true,
+              child: Switch.adaptive(
+                value: value,
+                activeColor: accent,
+                onChanged: onChanged,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -831,56 +843,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) {
     final secs = _settings.crossfadeSeconds;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.graphic_eq_rounded, color: accent, size: 22),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  AppState.translate('crossfade'),
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+    return iOSBounceButton(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        final next = (secs + 1) % 6; // 0s -> 1s -> 2s -> 3s -> 4s -> 5s -> 0s
+        _settings.setCrossfadeSeconds(next);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(Icons.graphic_eq_rounded, color: accent, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppState.translate('crossfade'),
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 2),
+                  Text(
+                    secs == 0
+                        ? 'Off (Direct Play • Click to change)'
+                        : '$secs seconds overlap between songs (Click to change)',
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
-              Text(
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accent.withValues(alpha: 0.35)),
+              ),
+              child: Text(
                 secs == 0 ? 'Off' : '${secs}s',
                 style: TextStyle(
                   color: accent,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
                 ),
               ),
-            ],
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: accent,
-              inactiveTrackColor: secondaryTextColor.withValues(alpha: 0.2),
-              thumbColor: accent,
-              overlayColor: accent.withValues(alpha: 0.15),
-              trackHeight: 3.5,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             ),
-            child: Slider(
-              value: secs.toDouble(),
-              min: 0,
-              max: 5,
-              divisions: 5,
-              onChanged: (v) {
-                HapticFeedback.selectionClick();
-                _settings.setCrossfadeSeconds(v.round());
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -894,8 +911,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required Color accent,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return iOSBounceButton(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -974,90 +990,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             children: [
               // User Profile Row
-              Row(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [accent, accent.withValues(alpha: 0.65)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accent.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        initials,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _app.userName,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.3,
+              iOSBounceButton(
+                onTap: () => _showEditNameDialog(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [accent, accent.withValues(alpha: 0.65)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accent.withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Personal Audio Space',
-                          style: TextStyle(
-                            color: secondaryTextColor,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  iOSBounceButton(
-                    onTap: () => _showEditNameDialog(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: accent.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.edit_rounded, size: 14, color: accent),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Edit',
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                        child: Center(
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _app.userName,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Personal Audio Space (Click to edit)',
+                              style: TextStyle(
+                                color: secondaryTextColor,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ExcludeFocus(
+                        excluding: true,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: accent.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.edit_rounded, size: 14, color: accent),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Edit',
+                                style: TextStyle(
+                                  color: accent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: 16),
               _buildDivider(isLight),
@@ -1156,12 +1178,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required Color accent,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(12),
+    return iOSBounceButton(
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         child: Row(
