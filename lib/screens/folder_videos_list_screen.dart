@@ -269,8 +269,7 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
                   ),
                       child: Row(
                         children: [
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
+                          PressableScale(
                             onTap: () {
                               HapticFeedback.lightImpact();
                               Navigator.pop(context);

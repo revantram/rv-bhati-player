@@ -1038,18 +1038,51 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       canPop: true,
       child: Scaffold(
         backgroundColor: Colors.black,
-      body: LayoutBuilder(
-        builder: (context, box) {
-          final w = box.maxWidth;
-          final h = box.maxHeight;
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              if (c != null) _buildVideo(c) else const ColoredBox(color: Colors.black),
-              // Gestures
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _toggleControls,
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            final key = event.logicalKey;
+            if (key == LogicalKeyboardKey.arrowLeft) {
+              _seekBy(-10);
+              _showHud(const _Hud(Icons.replay_10_rounded, '-10s', Alignment(-0.6, 0)));
+              return KeyEventResult.handled;
+            } else if (key == LogicalKeyboardKey.arrowRight) {
+              _seekBy(10);
+              _showHud(const _Hud(Icons.forward_10_rounded, '+10s', Alignment(0.6, 0)));
+              return KeyEventResult.handled;
+            } else if (key == LogicalKeyboardKey.select ||
+                       key == LogicalKeyboardKey.enter ||
+                       key == LogicalKeyboardKey.space ||
+                       key == LogicalKeyboardKey.gameButtonA ||
+                       key == LogicalKeyboardKey.mediaPlayPause) {
+              _togglePlay();
+              return KeyEventResult.handled;
+            } else if (key == LogicalKeyboardKey.mediaPlay) {
+              if (_controller != null && !_controller!.value.isPlaying) _togglePlay();
+              return KeyEventResult.handled;
+            } else if (key == LogicalKeyboardKey.mediaPause) {
+              if (_controller != null && _controller!.value.isPlaying) _togglePlay();
+              return KeyEventResult.handled;
+            } else if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown) {
+              _toggleControls();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final w = box.maxWidth;
+            final h = box.maxHeight;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                if (c != null) _buildVideo(c) else const ColoredBox(color: Colors.black),
+                // Gestures
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _toggleControls,
                 onDoubleTapDown: (d) => _doubleTapPos = d.localPosition,
                 onDoubleTap: () => _handleDoubleTap(w),
                 // YouTube style hold 2x speed
@@ -1109,6 +1142,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ],
           );
         },
+      ),
       ),
     ),
   );

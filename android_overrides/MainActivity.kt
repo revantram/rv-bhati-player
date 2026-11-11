@@ -36,6 +36,15 @@ class MainActivity : AudioServiceActivity() {
     private var currentBass: Short = 0
     private var currentVirtualizer: Short = 0
 
+    override fun onResume() {
+        super.onResume()
+        try {
+            window.decorView.isFocusable = true
+            window.decorView.isFocusableInTouchMode = true
+            window.decorView.requestFocus()
+        } catch (ignored: Exception) {}
+    }
+
     private fun releaseAudioEffects() {
         try {
             if (currentSessionId > 0) {

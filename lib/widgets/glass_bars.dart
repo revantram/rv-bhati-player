@@ -101,8 +101,8 @@ class GlassBottomNav extends StatelessWidget {
         children: [
           for (var i = 0; i < items.length; i++)
             Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+              child: PressableScale(
+                borderRadius: BorderRadius.circular(16),
                 onTap: () {
                   if (i != index) {
                     HapticFeedback.selectionClick();

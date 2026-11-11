@@ -45,21 +45,47 @@ class RvBhatiPlayerApp extends StatelessWidget {
       listenable: AppState.instance,
       builder: (context, _) {
         final accent = AppState.instance.accentColor;
-        return MaterialApp(
-          title: 'RV Bhati Player',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            brightness: Brightness.dark,
-            useMaterial3: true,
-            scaffoldBackgroundColor: const Color(0xFF0B0F1E),
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: accent,
-              brightness: Brightness.dark,
+        return Shortcuts(
+          shortcuts: <ShortcutActivator, Intent>{
+            ...WidgetsApp.defaultShortcuts,
+            // Fire TV Stick and Android TV remote Center / Select / OK key:
+            const SingleActivator(LogicalKeyboardKey.select): const ActivateIntent(),
+            const SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
+            const SingleActivator(LogicalKeyboardKey.numpadEnter): const ActivateIntent(),
+            const SingleActivator(LogicalKeyboardKey.gameButtonA): const ActivateIntent(),
+            const SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
+            // D-Pad directional navigation:
+            const SingleActivator(LogicalKeyboardKey.arrowUp):
+                const DirectionalFocusIntent(TraversalDirection.up),
+            const SingleActivator(LogicalKeyboardKey.arrowDown):
+                const DirectionalFocusIntent(TraversalDirection.down),
+            const SingleActivator(LogicalKeyboardKey.arrowLeft):
+                const DirectionalFocusIntent(TraversalDirection.left),
+            const SingleActivator(LogicalKeyboardKey.arrowRight):
+                const DirectionalFocusIntent(TraversalDirection.right),
+          },
+          child: Actions(
+            actions: <Type, Action<Intent>>{
+              ...WidgetsApp.defaultActions,
+            },
+            child: MaterialApp(
+              title: 'RV Bhati Player',
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData(
+                brightness: Brightness.dark,
+                useMaterial3: true,
+                scaffoldBackgroundColor: const Color(0xFF0B0F1E),
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: accent,
+                  brightness: Brightness.dark,
+                ),
+                focusColor: accent.withValues(alpha: 0.35),
+                splashFactory: NoSplash.splashFactory,
+                highlightColor: Colors.transparent,
+              ),
+              home: const HomeScreen(),
             ),
-            splashFactory: NoSplash.splashFactory,
-            highlightColor: Colors.transparent,
           ),
-          home: const HomeScreen(),
         );
       },
     );
