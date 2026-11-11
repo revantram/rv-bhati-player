@@ -1539,77 +1539,85 @@ class _MediaCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (!isVideo) ...[
-              IconButton(
-                icon: Icon(
-                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
-                  size: 22,
-                ),
-                onPressed: () => app.toggleFavorite(item.id, item: PlaylistItem.fromMediaFile(item)),
-              ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),
-                color: app.isLight ? Colors.white : const Color(0xFF14192B),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                onSelected: (val) {
-                  if (val == 'playlist') {
-                    AddToPlaylistDialog.showForMedia(context, item);
-                  } else if (val == 'view_artist' && item.artist != null) {
-                    ArtistSongsSheet.show(context, artistName: item.artist!);
-                  }
-                },
-                itemBuilder: (context) => [
-                  if (item.artist != null && item.artist!.isNotEmpty && item.artist != 'Unknown')
-                    PopupMenuItem(
-                      value: 'view_artist',
-                      child: Row(
-                        children: [
-                          Icon(Icons.person_rounded, color: app.secondaryTextColor, size: 20),
-                          const SizedBox(width: 10),
-                          Text('View Artist', style: TextStyle(color: app.textColor)),
-                        ],
+            ExcludeFocus(
+              excluding: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isVideo) ...[
+                    IconButton(
+                      icon: Icon(
+                        isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
+                        size: 22,
                       ),
+                      onPressed: () => app.toggleFavorite(item.id, item: PlaylistItem.fromMediaFile(item)),
                     ),
-                  PopupMenuItem(
-                    value: 'playlist',
-                    child: Row(
-                      children: [
-                        Icon(Icons.playlist_add_rounded, color: app.secondaryTextColor, size: 20),
-                        const SizedBox(width: 10),
-                        Text('Add to Playlist', style: TextStyle(color: app.textColor)),
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),
+                      color: app.isLight ? Colors.white : const Color(0xFF14192B),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      onSelected: (val) {
+                        if (val == 'playlist') {
+                          AddToPlaylistDialog.showForMedia(context, item);
+                        } else if (val == 'view_artist' && item.artist != null) {
+                          ArtistSongsSheet.show(context, artistName: item.artist!);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        if (item.artist != null && item.artist!.isNotEmpty && item.artist != 'Unknown')
+                          PopupMenuItem(
+                            value: 'view_artist',
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_rounded, color: app.secondaryTextColor, size: 20),
+                                const SizedBox(width: 10),
+                                Text('View Artist', style: TextStyle(color: app.textColor)),
+                              ],
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: 'playlist',
+                          child: Row(
+                            children: [
+                              Icon(Icons.playlist_add_rounded, color: app.secondaryTextColor, size: 20),
+                              const SizedBox(width: 10),
+                              Text('Add to Playlist', style: TextStyle(color: app.textColor)),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  ),
+                  ],
+                  if (isVideo && onVideoOptions != null) ...[
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onVideoOptions,
+                      child: Container(
+                        width: 32,
+                        height: 34,
+                        alignment: Alignment.center,
+                        child: Container(
+                          padding: const EdgeInsets.all(5.5),
+                          decoration: BoxDecoration(
+                            color: app.isLight
+                                ? Colors.black.withValues(alpha: 0.04)
+                                : Colors.white.withValues(alpha: 0.06),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.more_vert_rounded,
+                            color: app.secondaryTextColor,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                 ],
               ),
-            ],
-            if (isVideo && onVideoOptions != null) ...[
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onVideoOptions,
-                child: Container(
-                  width: 32,
-                  height: 34,
-                  alignment: Alignment.center,
-                  child: Container(
-                    padding: const EdgeInsets.all(5.5),
-                    decoration: BoxDecoration(
-                      color: app.isLight
-                          ? Colors.black.withValues(alpha: 0.04)
-                          : Colors.white.withValues(alpha: 0.06),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.more_vert_rounded,
-                      color: app.secondaryTextColor,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-            ],
+            ),
             Icon(
               Icons.play_circle_fill_rounded,
               color: app.isLight ? app.accentColor : Colors.white.withValues(alpha: 0.85),
@@ -1734,9 +1742,12 @@ class _PlaylistItemTile extends StatelessWidget {
               ),
             ),
             if (onDelete != null)
-              IconButton(
-                icon: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 18),
-                onPressed: onDelete,
+              ExcludeFocus(
+                excluding: true,
+                child: IconButton(
+                  icon: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 18),
+                  onPressed: onDelete,
+                ),
               ),
           ],
         ),

@@ -144,101 +144,104 @@ class _PressableScaleState extends State<PressableScale> {
     final enabled = widget.onTap != null || widget.onLongPress != null;
     final accent = AppState.instance.accentColor;
 
-    return FocusableActionDetector(
+    return Focus(
       focusNode: _node,
       autofocus: widget.autofocus,
-      enabled: enabled && widget.canRequestFocus,
-      onShowFocusHighlight: (v) {
-        if (_focused != v && mounted) {
-          setState(() => _focused = v);
-          if (v) {
+      canRequestFocus: enabled && widget.canRequestFocus,
+      onFocusChange: (focused) {
+        if (_focused != focused && mounted) {
+          setState(() => _focused = focused);
+          if (focused) {
             Scrollable.ensureVisible(
               context,
               alignment: 0.5,
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
             );
           }
         }
       },
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (intent) {
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent) {
+          final key = event.logicalKey;
+          if (key == LogicalKeyboardKey.select ||
+              key == LogicalKeyboardKey.enter ||
+              key == LogicalKeyboardKey.numpadEnter ||
+              key == LogicalKeyboardKey.gameButtonA ||
+              key == LogicalKeyboardKey.space) {
             if (widget.onTap != null) {
               HapticFeedback.lightImpact();
               widget.onTap!();
+              return KeyEventResult.handled;
             }
-            return null;
-          },
-        ),
+          }
+        }
+        return KeyEventResult.ignored;
       },
-      shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-      },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: enabled
-            ? (_) {
-                _set(true);
-                if (widget.hapticOnDown) HapticFeedback.lightImpact();
-              }
-            : null,
-        onTapUp: (_) => _set(false),
-        onTapCancel: () => _set(false),
-        onTap: widget.onTap != null
-            ? () {
-                if (!widget.hapticOnDown) HapticFeedback.selectionClick();
-                widget.onTap!();
-              }
-            : null,
-        onLongPress: widget.onLongPress != null
-            ? () {
-                HapticFeedback.mediumImpact();
-                widget.onLongPress!();
-              }
-            : null,
-        child: AnimatedScale(
-          scale: _down ? widget.pressedScale : (_focused ? 1.05 : 1.0),
-          duration: Duration(milliseconds: _down ? 110 : 220),
-          curve: Curves.easeOutCubic,
-          child: AnimatedOpacity(
-            opacity: _down ? widget.pressedOpacity : 1.0,
-            duration: const Duration(milliseconds: 120),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                widget.child,
-                if (_focused)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: widget.borderRadius ?? BorderRadius.circular(18),
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2.2,
+      // Prevent internal child widgets from stealing D-pad focus
+      child: ExcludeFocus(
+        excluding: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: enabled
+              ? (_) {
+                  _set(true);
+                  if (widget.hapticOnDown) HapticFeedback.lightImpact();
+                }
+              : null,
+          onTapUp: (_) => _set(false),
+          onTapCancel: () => _set(false),
+          onTap: widget.onTap != null
+              ? () {
+                  if (!widget.hapticOnDown) HapticFeedback.selectionClick();
+                  widget.onTap!();
+                }
+              : null,
+          onLongPress: widget.onLongPress != null
+              ? () {
+                  HapticFeedback.mediumImpact();
+                  widget.onLongPress!();
+                }
+              : null,
+          child: AnimatedScale(
+            scale: _down ? widget.pressedScale : (_focused ? 1.05 : 1.0),
+            duration: Duration(milliseconds: _down ? 110 : 220),
+            curve: Curves.easeOutCubic,
+            child: AnimatedOpacity(
+              opacity: _down ? widget.pressedOpacity : 1.0,
+              duration: const Duration(milliseconds: 120),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  widget.child,
+                  if (_focused)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: widget.borderRadius ?? BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 3.0,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: accent.withValues(alpha: 0.9),
+                                blurRadius: 18,
+                                spreadRadius: 3,
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: accent.withValues(alpha: 0.8),
-                              blurRadius: 16,
-                              spreadRadius: 2,
-                            ),
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            ),
-                          ],
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

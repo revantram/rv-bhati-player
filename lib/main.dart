@@ -33,6 +33,9 @@ Future<void> main() async {
     systemNavigationBarContrastEnforced: false,
   ));
 
+  // Ensure TV focus highlights are ALWAYS drawn on Fire TV / Android TV
+  FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
+
   runApp(const RvBhatiPlayerApp());
 }
 
@@ -79,7 +82,7 @@ class RvBhatiPlayerApp extends StatelessWidget {
                   seedColor: accent,
                   brightness: Brightness.dark,
                 ),
-                focusColor: accent.withValues(alpha: 0.35),
+                focusColor: accent.withValues(alpha: 0.45),
                 splashFactory: NoSplash.splashFactory,
                 highlightColor: Colors.transparent,
               ),

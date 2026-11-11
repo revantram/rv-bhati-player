@@ -1033,121 +1033,130 @@ class _OnlineSongTile extends StatelessWidget {
               ),
             ),
 
-            // Download Button
-            ListenableBuilder(
-              listenable: DownloadService.instance,
-              builder: (context, _) {
-                final isDl = DownloadService.instance.isDownloaded(song.id);
-                final isDownloading = DownloadService.instance.isDownloading(song.id);
+            // Trailing Action Buttons: Excluded from D-Pad focus traversal so remote OK button always plays the song!
+            ExcludeFocus(
+              excluding: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Download Button
+                  ListenableBuilder(
+                    listenable: DownloadService.instance,
+                    builder: (context, _) {
+                      final isDl = DownloadService.instance.isDownloaded(song.id);
+                      final isDownloading = DownloadService.instance.isDownloading(song.id);
 
-                return IconButton(
-                  icon: isDownloading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
-                        )
-                      : Icon(
-                          isDl ? Icons.download_done_rounded : Icons.download_rounded,
-                          color: isDl ? Colors.green : app.secondaryTextColor.withValues(alpha: 0.6),
-                          size: 20,
-                        ),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    if (!isDl && !isDownloading) {
-                      DownloadService.instance.downloadSong(song);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Downloading "${song.title}"...')),
+                      return IconButton(
+                        icon: isDownloading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
+                              )
+                            : Icon(
+                                isDl ? Icons.download_done_rounded : Icons.download_rounded,
+                                color: isDl ? Colors.green : app.secondaryTextColor.withValues(alpha: 0.6),
+                                size: 20,
+                              ),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          if (!isDl && !isDownloading) {
+                            DownloadService.instance.downloadSong(song);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Downloading "${song.title}"...')),
+                            );
+                          }
+                        },
                       );
-                    }
-                  },
-                );
-              },
-            ),
+                    },
+                  ),
 
-            // Favorite Button
-            IconButton(
-              icon: Icon(
-                isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
-                size: 21,
+                  // Favorite Button
+                  IconButton(
+                    icon: Icon(
+                      isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
+                      size: 21,
+                    ),
+                    onPressed: () => app.toggleFavorite(song.id, item: PlaylistItem.fromOnlineSong(song)),
+                  ),
+
+                  // Popup Actions Menu
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),
+                    color: isLight ? Colors.white : const Color(0xFF14192B),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    onSelected: (val) {
+                      if (val == 'play_now') {
+                        onTap();
+                      } else if (val == 'download') {
+                        DownloadService.instance.downloadSong(song);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Downloading "${song.title}"...')),
+                        );
+                      } else if (val == 'play_next') {
+                        AudioController.instance.playOnlineNext(song);
+                      } else if (val == 'add_queue') {
+                        AudioController.instance.addOnlineToQueue(song);
+                      } else if (val == 'add_playlist') {
+                        AddToPlaylistDialog.showForOnline(context, song);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'play_now',
+                        child: Row(
+                          children: [
+                            Icon(Icons.play_arrow_rounded, color: app.secondaryTextColor, size: 20),
+                            const SizedBox(width: 10),
+                            Text('Play Now', style: TextStyle(color: app.textColor)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'download',
+                        child: Row(
+                          children: [
+                            Icon(Icons.download_rounded, color: app.secondaryTextColor, size: 20),
+                            const SizedBox(width: 10),
+                            Text('Download Offline', style: TextStyle(color: app.textColor)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'play_next',
+                        child: Row(
+                          children: [
+                            Icon(Icons.playlist_play_rounded, color: app.secondaryTextColor, size: 20),
+                            const SizedBox(width: 10),
+                            Text('Play Next', style: TextStyle(color: app.textColor)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'add_queue',
+                        child: Row(
+                          children: [
+                            Icon(Icons.queue_music_rounded, color: app.secondaryTextColor, size: 20),
+                            const SizedBox(width: 10),
+                            Text('Add to Queue', style: TextStyle(color: app.textColor)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'add_playlist',
+                        child: Row(
+                          children: [
+                            Icon(Icons.playlist_add_rounded, color: app.secondaryTextColor, size: 20),
+                            const SizedBox(width: 10),
+                            Text('Add to Custom Playlist', style: TextStyle(color: app.textColor)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              onPressed: () => app.toggleFavorite(song.id, item: PlaylistItem.fromOnlineSong(song)),
-            ),
-
-            // Popup Actions Menu
-            PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),
-              color: isLight ? Colors.white : const Color(0xFF14192B),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              onSelected: (val) {
-                if (val == 'play_now') {
-                  onTap();
-                } else if (val == 'download') {
-                  DownloadService.instance.downloadSong(song);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Downloading "${song.title}"...')),
-                  );
-                } else if (val == 'play_next') {
-                  AudioController.instance.playOnlineNext(song);
-                } else if (val == 'add_queue') {
-                  AudioController.instance.addOnlineToQueue(song);
-                } else if (val == 'add_playlist') {
-                  AddToPlaylistDialog.showForOnline(context, song);
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'play_now',
-                  child: Row(
-                    children: [
-                      Icon(Icons.play_arrow_rounded, color: app.secondaryTextColor, size: 20),
-                      const SizedBox(width: 10),
-                      Text('Play Now', style: TextStyle(color: app.textColor)),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'download',
-                  child: Row(
-                    children: [
-                      Icon(Icons.download_rounded, color: app.secondaryTextColor, size: 20),
-                      const SizedBox(width: 10),
-                      Text('Download Offline', style: TextStyle(color: app.textColor)),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'play_next',
-                  child: Row(
-                    children: [
-                      Icon(Icons.playlist_play_rounded, color: app.secondaryTextColor, size: 20),
-                      const SizedBox(width: 10),
-                      Text('Play Next', style: TextStyle(color: app.textColor)),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'add_queue',
-                  child: Row(
-                    children: [
-                      Icon(Icons.queue_music_rounded, color: app.secondaryTextColor, size: 20),
-                      const SizedBox(width: 10),
-                      Text('Add to Queue', style: TextStyle(color: app.textColor)),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'add_playlist',
-                  child: Row(
-                    children: [
-                      Icon(Icons.playlist_add_rounded, color: app.secondaryTextColor, size: 20),
-                      const SizedBox(width: 10),
-                      Text('Add to Custom Playlist', style: TextStyle(color: app.textColor)),
-                    ],
-                  ),
-                ),
-              ],
             ),
           ],
         ),
