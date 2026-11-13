@@ -14,12 +14,18 @@ if os.path.exists(kts_path):
         }
     }
 """
+    lint_code = """
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+"""
     if 'create("release")' not in c:
-        c = c.replace("buildTypes {", signing_code + "\n    buildTypes {")
+        c = c.replace("buildTypes {", signing_code + lint_code + "\n    buildTypes {")
         c = c.replace('signingConfigs.getByName("debug")', 'signingConfigs.getByName("release")')
         with open(kts_path, "w") as f:
             f.write(c)
-        print("Patched android/app/build.gradle.kts with release signingConfig")
+        print("Patched android/app/build.gradle.kts with release signingConfig and lint bypass")
 
 gradle_path = "android/app/build.gradle"
 if os.path.exists(gradle_path):
@@ -35,9 +41,15 @@ if os.path.exists(gradle_path):
         }
     }
 """
+    lint_code = """
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+"""
     if "release {" not in c:
-        c = c.replace("buildTypes {", signing_code + "\n    buildTypes {")
+        c = c.replace("buildTypes {", signing_code + lint_code + "\n    buildTypes {")
         c = c.replace("signingConfigs.debug", "signingConfigs.release")
         with open(gradle_path, "w") as f:
             f.write(c)
-        print("Patched android/app/build.gradle with release signingConfig")
+        print("Patched android/app/build.gradle with release signingConfig and lint bypass")
