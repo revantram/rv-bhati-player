@@ -94,6 +94,7 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = app.isLight;
     final textColor = app.textColor;
     final secondaryTextColor = app.secondaryTextColor;
     final accent = app.accentColor;

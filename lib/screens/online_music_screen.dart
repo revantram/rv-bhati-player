@@ -510,7 +510,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           children: [
             Expanded(
               child: _buildActionCard(
-                icon: Icons.folder_music_rounded,
+                icon: Icons.library_music_rounded,
                 title: 'Local Audio',
                 subtitle: 'Device MP3 & FLAC',
                 accent: accent,
