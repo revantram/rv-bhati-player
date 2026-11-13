@@ -145,10 +145,17 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     }
   }
 
-  void _playOshoTrack(int index) {
+  Future<void> _playOshoTrack(int index) async {
     if (_selectedOshoSeries == null || _oshoTracks.isEmpty) return;
     final onlineSongs = _oshoTracks.map((t) => t.toOnlineSong(_selectedOshoSeries!)).toList();
-    AudioController.instance.playOnlineQueue(onlineSongs, index);
+    final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
+    if (!mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
 
     Navigator.push(
       context,
@@ -158,10 +165,17 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  void _playDesiEpisode(int index) {
+  Future<void> _playDesiEpisode(int index) async {
     if (_selectedDesiSeries == null || _desiEpisodes.isEmpty) return;
     final onlineSongs = _desiEpisodes.map((ep) => ep.toOnlineSong(_selectedDesiSeries!)).toList();
-    AudioController.instance.playOnlineQueue(onlineSongs, index);
+    final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
+    if (!mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
 
     Navigator.push(
       context,
@@ -171,10 +185,17 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  void _playAawazEpisode(int index) {
+  Future<void> _playAawazEpisode(int index) async {
     if (_selectedAawazShow == null || _aawazEpisodes.isEmpty) return;
     final onlineSongs = _aawazEpisodes.map((ep) => ep.toOnlineSong(_selectedAawazShow!)).toList();
-    AudioController.instance.playOnlineQueue(onlineSongs, index);
+    final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
+    if (!mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
 
     Navigator.push(
       context,

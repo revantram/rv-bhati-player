@@ -83,8 +83,8 @@ class LiquidGlassContainer extends StatelessWidget {
     if (useBlur) {
       inner = BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: blur.clamp(4, 24),
-          sigmaY: blur.clamp(4, 24),
+          sigmaX: blur.clamp(2, 8),
+          sigmaY: blur.clamp(2, 8),
         ),
         child: inner,
       );
@@ -100,16 +100,16 @@ class LiquidGlassContainer extends StatelessWidget {
             ? (isLight
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.05),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.48),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
+                      color: Colors.black.withValues(alpha: 0.36),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ])
             : null,

@@ -225,15 +225,15 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                     ),
                   );
                 },
-                // 5. Liquid Glass Card Styling: radius 20px, subtle frosted border
+                // 5. Liquid Glass Card Styling: radius 20px, crisp border without heavy scroll blur
                 child: LiquidGlassContainer(
                   borderRadius: BorderRadius.circular(20),
                   padding: const EdgeInsets.all(10),
-                  blur: 16,
+                  blur: 0,
                   opacity: 0.10,
                   borderWidth: 1,
                   borderColor: Colors.white.withValues(alpha: 0.15),
-                  glow: true,
+                  glow: false,
                   child: Row(
                     children: [
                       // 2. Thumbnail Fallback & Overlay Cleanup: Clean thumbnail preview without covering badge

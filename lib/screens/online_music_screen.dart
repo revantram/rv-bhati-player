@@ -164,14 +164,14 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     setState(() => _resolvingSongId = selected.id);
     HapticFeedback.lightImpact();
 
-    await AudioController.instance.playOnlineQueue(list, index);
+    final error = await AudioController.instance.playOnlineQueue(list, index);
     if (!mounted) return;
     setState(() => _resolvingSongId = null);
 
-    if (AudioController.instance.onlineQueue.isEmpty) {
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not stream "${selected.title}". Try another track.'),
+          content: Text(error),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -286,7 +286,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   Widget _buildSearchBar(Color accent) {
     return LiquidGlassContainer(
       borderRadius: BorderRadius.circular(18),
-      blur: 14,
+      blur: 0,
       glow: false,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: TextField(
@@ -598,7 +598,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       child: LiquidGlassContainer(
         borderRadius: BorderRadius.circular(18),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        blur: 10,
+        blur: 0,
         glow: false,
         child: Row(
           children: [

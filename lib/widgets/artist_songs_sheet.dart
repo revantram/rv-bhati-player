@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/online_song.dart';
 import '../models/playlist_item.dart';
+import '../screens/audio_player_screen.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
@@ -58,6 +59,7 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
   bool _loading = true;
   List<OnlineSong> _songs = [];
   String? _fallbackAvatarUrl;
+  String? _resolvingSongId;
 
   AppState get app => AppState.instance;
 
@@ -80,16 +82,52 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
     }
   }
 
-  void _playSong(int index) {
-    if (_songs.isEmpty) return;
-    AudioController.instance.playOnlineQueue(_songs, index);
+  Future<void> _playSong(int index) async {
+    if (_songs.isEmpty || index < 0 || index >= _songs.length) return;
+    final selected = _songs[index];
+    setState(() => _resolvingSongId = selected.id);
+    HapticFeedback.lightImpact();
+
+    final err = await AudioController.instance.playOnlineQueue(_songs, index);
+    if (!mounted) return;
+    setState(() => _resolvingSongId = null);
+
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+    );
   }
 
-  void _playAll({bool shuffle = false}) {
+  Future<void> _playAll({bool shuffle = false}) async {
     if (_songs.isEmpty) return;
     final list = List<OnlineSong>.from(_songs);
     if (shuffle) list.shuffle();
-    AudioController.instance.playOnlineQueue(list, 0);
+    final first = list.first;
+    setState(() => _resolvingSongId = first.id);
+    HapticFeedback.lightImpact();
+
+    final err = await AudioController.instance.playOnlineQueue(list, 0, shuffle: shuffle);
+    if (!mounted) return;
+    setState(() => _resolvingSongId = null);
+
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+    );
   }
 
   @override
@@ -392,6 +430,7 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _ArtistSongTile(
                               song: song,
+                              isResolving: _resolvingSongId == song.id,
                               onTap: () => _playSong(i),
                             ),
                           );
@@ -419,8 +458,13 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
 class _ArtistSongTile extends StatelessWidget {
   final OnlineSong song;
   final VoidCallback onTap;
+  final bool isResolving;
 
-  const _ArtistSongTile({required this.song, required this.onTap});
+  const _ArtistSongTile({
+    required this.song,
+    required this.onTap,
+    this.isResolving = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -460,7 +504,21 @@ class _ArtistSongTile extends StatelessWidget {
                             color: app.secondaryTextColor, size: 24),
                       ),
                     ),
-                    if (isCurrent)
+                    if (isResolving)
+                      Container(
+                        color: Colors.black54,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (isCurrent)
                       Container(
                         color: Colors.black45,
                         child: Center(

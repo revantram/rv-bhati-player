@@ -84,6 +84,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   String? _plainLyrics;
   bool _loadingLyrics = false;
   final ScrollController _lyricsScroll = ScrollController();
+  StreamSubscription<int?>? _indexSub;
 
   @override
   void initState() {
@@ -101,7 +102,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     final initialIdx = _ac.player.currentIndex ?? widget.startIndex;
     _handleTrackChange(initialIdx);
 
-    _ac.player.currentIndexStream.listen((idx) {
+    _indexSub = _ac.player.currentIndexStream.listen((idx) {
       if (idx != null && mounted) {
         _handleTrackChange(idx);
       }
@@ -110,6 +111,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
   @override
   void dispose() {
+    _indexSub?.cancel();
     _lyricsScroll.dispose();
     _userLyricsTimer?.cancel();
     super.dispose();
@@ -1209,8 +1211,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                     LiquidGlassContainer(
                                       borderRadius: BorderRadius.circular(36),
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                      blur: SettingsService.instance.playerThemeStyle == PlayerThemeStyle.frosted ? 26 : 0,
-                                      opacity: SettingsService.instance.playerThemeStyle == PlayerThemeStyle.frosted ? 0.14 : 0.85,
+                                      blur: 0,
+                                      opacity: SettingsService.instance.playerThemeStyle == PlayerThemeStyle.minimal ? 0.96 : 0.88,
                                       tint: SettingsService.instance.playerThemeStyle == PlayerThemeStyle.minimal
                                           ? app.backgroundColor
                                           : app.surfaceColor,
@@ -1291,13 +1293,18 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
                                           // Next
                                           PressableScale(
-                                            onTap: player.hasNext ? player.seekToNext : null,
+                                            onTap: _ac.next,
                                             child: Container(
                                               padding: const EdgeInsets.all(8),
                                               child: Icon(
                                                 Icons.skip_next_rounded,
                                                 size: 34,
-                                                color: player.hasNext ? app.textColor : app.secondaryTextColor.withValues(alpha: 0.35),
+                                                color: (player.hasNext ||
+                                                        _ac.onlineQueue.isNotEmpty ||
+                                                        _ac.queue.isNotEmpty ||
+                                                        _ac.hybridQueue.isNotEmpty)
+                                                    ? app.textColor
+                                                    : app.secondaryTextColor.withValues(alpha: 0.35),
                                               ),
                                             ),
                                           ),
@@ -1741,6 +1748,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
 }
 
 /// 1. Dynamic BitChord ambient mesh background supporting Frosted / Vibrant / Minimal OLED
+/// Uses crisp GPU-cheap gradients + optional soft tint instead of expensive 42px full-screen blur.
 class _BlurredArt extends StatelessWidget {
   const _BlurredArt({required this.track});
   final _AudioTrackInfo track;
@@ -1756,41 +1764,36 @@ class _BlurredArt extends StatelessWidget {
     final topAlpha = style == PlayerThemeStyle.minimal
         ? 0.04
         : (style == PlayerThemeStyle.vibrant
-            ? (isLight ? 0.22 : 0.42)
-            : (isLight ? 0.14 : 0.26));
+            ? (isLight ? 0.20 : 0.38)
+            : (isLight ? 0.12 : 0.24));
     final bottomAlpha = style == PlayerThemeStyle.minimal
         ? 0.02
         : (style == PlayerThemeStyle.vibrant
-            ? (isLight ? 0.16 : 0.28)
-            : (isLight ? 0.09 : 0.18));
+            ? (isLight ? 0.14 : 0.26)
+            : (isLight ? 0.08 : 0.16));
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        Container(color: app.backgroundColor),
         if (style == PlayerThemeStyle.frosted &&
-            settings.glassBlurEnabled &&
             track.imageUrl != null &&
             track.imageUrl!.isNotEmpty)
           Opacity(
-            opacity: isLight ? 0.14 : 0.20,
-            child: ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(sigmaX: 42, sigmaY: 42),
-              child: Image.network(
-                track.imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
+            opacity: isLight ? 0.08 : 0.11,
+            child: Image.network(
+              track.imageUrl!,
+              fit: BoxFit.cover,
+              cacheWidth: 96,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
           )
-        else if (style == PlayerThemeStyle.frosted &&
-            settings.glassBlurEnabled &&
-            track.embeddedArt != null)
+        else if (style == PlayerThemeStyle.frosted && track.embeddedArt != null)
           Opacity(
-            opacity: isLight ? 0.14 : 0.20,
-            child: ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(sigmaX: 42, sigmaY: 42),
-              child: Image.memory(track.embeddedArt!, fit: BoxFit.cover),
+            opacity: isLight ? 0.08 : 0.11,
+            child: Image.memory(
+              track.embeddedArt!,
+              fit: BoxFit.cover,
+              cacheWidth: 96,
             ),
           ),
         Positioned(
@@ -1798,7 +1801,7 @@ class _BlurredArt extends StatelessWidget {
           left: -50,
           right: -50,
           height: 380,
-          child: Container(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.topCenter,
@@ -1816,7 +1819,7 @@ class _BlurredArt extends StatelessWidget {
           right: -60,
           width: 320,
           height: 320,
-          child: Container(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(

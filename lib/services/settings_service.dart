@@ -70,7 +70,7 @@ class SettingsService extends ChangeNotifier {
   PlayerThemeStyle _playerThemeStyle = PlayerThemeStyle.frosted;
   PlayerThemeStyle get playerThemeStyle => _playerThemeStyle;
 
-  bool _glassBlurEnabled = true;
+  bool _glassBlurEnabled = false;
   bool get glassBlurEnabled => _glassBlurEnabled;
 
   bool _dynamicArtworkColors = true;

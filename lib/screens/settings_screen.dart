@@ -96,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: LiquidGlassContainer(
                           borderRadius: BorderRadius.circular(20),
                           padding: const EdgeInsets.all(10),
-                          blur: 16,
+                          blur: 0,
                           child: Icon(
                             Icons.arrow_back_ios_new_rounded,
                             color: textColor,
@@ -146,7 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(22),
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      blur: 14,
+                      blur: 0,
                       child: Column(
                         children: [
                           for (final q in AudioQuality.values) ...[
@@ -177,7 +177,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(22),
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      blur: 14,
+                      blur: 0,
                       child: Column(
                         children: [
                           _buildNavTile(
@@ -254,7 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(22),
                       padding: const EdgeInsets.all(16),
-                      blur: 14,
+                      blur: 0,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -503,7 +503,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(22),
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      blur: 14,
+                      blur: 0,
                       child: _buildNavTile(
                         icon: Icons.system_update_rounded,
                         title: 'Check for Updates / नया अपडेट देखें',
@@ -547,7 +547,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(24),
                       padding: const EdgeInsets.all(20),
-                      blur: 16,
+                      blur: 0,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1137,7 +1137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         LiquidGlassContainer(
           borderRadius: BorderRadius.circular(22),
           padding: const EdgeInsets.all(16),
-          blur: 14,
+          blur: 0,
           child: Column(
             children: [
               // User Profile Row

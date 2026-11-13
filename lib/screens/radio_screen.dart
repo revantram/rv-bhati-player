@@ -348,8 +348,8 @@ class _RadioStationGridCard extends StatelessWidget {
           child: LiquidGlassContainer(
             borderRadius: BorderRadius.circular(18),
             padding: const EdgeInsets.all(12),
-            blur: 12,
-            opacity: app.isLight ? 0.75 : 0.12,
+            blur: 0,
+            opacity: app.isLight ? 0.85 : 0.12,
             borderWidth: isActive ? 1.5 : 1.0,
             borderColor: isActive
                 ? station.color.withValues(alpha: 0.75)

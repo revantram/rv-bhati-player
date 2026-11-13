@@ -1,17 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/online_song.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
 import '../utils/format.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
+import 'audio_player_screen.dart';
 
 class DownloadsScreen extends StatelessWidget {
   const DownloadsScreen({super.key});
 
   AppState get app => AppState.instance;
+
+  Future<void> _playOfflineQueue(
+    BuildContext context,
+    List<OnlineSong> onlineSongs,
+    int index, {
+    bool shuffle = false,
+  }) async {
+    final err = await AudioController.instance.playOnlineQueue(
+      onlineSongs,
+      index,
+      shuffle: shuffle,
+    );
+    if (!context.mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,11 +201,12 @@ class DownloadsScreen extends StatelessWidget {
                                 label: const Text('Play All',
                                     style:
                                         TextStyle(fontWeight: FontWeight.w700)),
-                                onPressed: () {
-                                  AudioController.instance.playOnlineQueue(
-                                      onlineSongs, 0,
-                                      shuffle: false);
-                                },
+                                onPressed: () => _playOfflineQueue(
+                                  context,
+                                  onlineSongs,
+                                  0,
+                                  shuffle: false,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -203,11 +230,12 @@ class DownloadsScreen extends StatelessWidget {
                                 label: const Text('Shuffle',
                                     style:
                                         TextStyle(fontWeight: FontWeight.w700)),
-                                onPressed: () {
-                                  AudioController.instance.playOnlineQueue(
-                                      onlineSongs, 0,
-                                      shuffle: true);
-                                },
+                                onPressed: () => _playOfflineQueue(
+                                  context,
+                                  onlineSongs,
+                                  0,
+                                  shuffle: true,
+                                ),
                               ),
                             ),
                           ],
@@ -228,10 +256,11 @@ class DownloadsScreen extends StatelessWidget {
                                 DownloadService.instance.formatBytes(d.fileSizeBytes);
 
                             return iOSBounceButton(
-                              onTap: () {
-                                AudioController.instance.playOnlineQueue(
-                                    onlineSongs, index);
-                              },
+                              onTap: () => _playOfflineQueue(
+                                context,
+                                onlineSongs,
+                                index,
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(

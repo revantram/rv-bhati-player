@@ -32,8 +32,27 @@ Future<void> main() async {
   runApp(const RvBhatiPlayerApp());
 }
 
-class RvBhatiPlayerApp extends StatelessWidget {
+class RvBhatiPlayerApp extends StatefulWidget {
   const RvBhatiPlayerApp({super.key});
+
+  @override
+  State<RvBhatiPlayerApp> createState() => _RvBhatiPlayerAppState();
+}
+
+class _RvBhatiPlayerAppState extends State<RvBhatiPlayerApp> {
+  bool? _lastIsLight;
+
+  void _syncOverlay(bool isLight) {
+    if (_lastIsLight == isLight) return;
+    _lastIsLight = isLight;
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+      systemNavigationBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+      systemNavigationBarContrastEnforced: false,
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,14 +62,7 @@ class RvBhatiPlayerApp extends StatelessWidget {
         final app = AppState.instance;
         final accent = app.accentColor;
         final isLight = app.isLight;
-
-        SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          systemNavigationBarColor: Colors.transparent,
-          statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
-          systemNavigationBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
-          systemNavigationBarContrastEnforced: false,
-        ));
+        _syncOverlay(isLight);
 
         return Shortcuts(
           shortcuts: <ShortcutActivator, Intent>{

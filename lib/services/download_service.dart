@@ -186,17 +186,19 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Resolve direct stream URL if it's YouTube or missing
+      // 1. Resolve direct non-HLS stream URL + headers if it's YouTube or missing
       String streamUrl = song.streamUrl;
+      Map<String, String>? streamHeaders;
       if (streamUrl.isEmpty || song.id.startsWith('yt_')) {
         final ytId = song.id.startsWith('yt_') ? song.id.replaceFirst('yt_', '') : song.id;
-        final resolved = await YtAudioResolver.resolveAudioStream(
+        final resolved = await YtAudioResolver.resolveBestForDownload(
           ytId,
           fallbackTitle: song.title,
           fallbackArtist: song.artist,
         );
-        if (resolved != null && resolved.isNotEmpty) {
-          streamUrl = resolved;
+        if (resolved != null && resolved.url.isNotEmpty) {
+          streamUrl = resolved.url;
+          streamHeaders = resolved.headers;
         }
       }
 
@@ -207,11 +209,14 @@ class DownloadService extends ChangeNotifier {
       final dir = await _getDownloadDirectory();
       final cleanTitle = song.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
       final cleanArtist = song.artist.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-      final filename = '${cleanTitle}_$cleanArtist.mp3'.replaceAll(' ', '_');
+      final filename = '${cleanTitle}_$cleanArtist.m4a'.replaceAll(' ', '_');
       final targetFile = File('${dir.path}/$filename');
 
       final client = http.Client();
       final request = http.Request('GET', Uri.parse(streamUrl));
+      if (streamHeaders != null) {
+        request.headers.addAll(streamHeaders);
+      }
       final response = await client.send(request);
 
       if (response.statusCode >= 400) {
