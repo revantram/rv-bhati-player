@@ -136,7 +136,7 @@ class YtAudioResolver {
     final verifiedYt = <ResolvedAudioStream>[];
     final verifiedFallback = <ResolvedAudioStream>[];
     final seenUrls = <String>{};
-    final firstYtReady = Completer<void>();
+    final firstYtProgReady = Completer<void>();
     final firstFallbackReady = Completer<void>();
 
     Future<void> probeBatch(
@@ -155,23 +155,25 @@ class YtAudioResolver {
         unique.map((c) async => (await _probePlayable(c)) ? c : null),
       );
       final target = isFallback ? verifiedFallback : verifiedYt;
-      bool added = false;
+      bool addedProg = false;
+      bool addedAny = false;
       for (final ok in probeResults) {
         if (ok != null) {
           target.add(ok);
-          added = true;
+          addedAny = true;
+          if (!ok.isHls) addedProg = true;
         }
       }
-      if (added) {
-        if (!isFallback && !firstYtReady.isCompleted) {
-          firstYtReady.complete();
+      if (addedAny) {
+        if (!isFallback && addedProg && !firstYtProgReady.isCompleted) {
+          firstYtProgReady.complete();
         } else if (isFallback && !firstFallbackReady.isCompleted) {
           firstFallbackReady.complete();
         }
       }
     }
 
-    // Launch all fast YouTube direct extractors in parallel (AND Catalog CDN in parallel)
+    // Fast Round 1: Direct YouTube Innertube (VR 1.60/1.56 + IOS) + Unblocked Catalog CDN in parallel
     final ytTasks = <Future<void>>[
       _fetchInnertubePlayer(
         videoId: cleanId,
@@ -232,29 +234,9 @@ class YtAudioResolver {
           'gl': 'IN',
         },
       ).then((l) => probeBatch(l, isFallback: false)),
-      _fetchInnertubePlayer(
-        videoId: cleanId,
-        quality: quality,
-        clientName: 'ANDROID_TESTSUITE',
-        clientVersion: '1.9',
-        clientId: '30',
-        userAgent: _androidTestUa,
-        visitorData: visitorData,
-        clientBody: {
-          'clientName': 'ANDROID_TESTSUITE',
-          'clientVersion': '1.9',
-          'osName': 'Android',
-          'osVersion': '13',
-          'androidSdkVersion': 33,
-          'hl': 'en',
-          'gl': 'IN',
-        },
-      ).then((l) => probeBatch(l, isFallback: false)),
-      _resolveViaYoutubeExplode(cleanId, quality)
-          .then((l) => probeBatch(l, isFallback: false)),
     ];
 
-    final allYtDone = Future.wait(ytTasks);
+    final allFastYtDone = Future.wait(ytTasks);
 
     final Future<void> catalogTask;
     if (fallbackTitle != null && fallbackTitle.trim().isNotEmpty) {
@@ -267,55 +249,95 @@ class YtAudioResolver {
       catalogTask = Future.value();
     }
 
-    // Prefer fast YouTube stream immediately; otherwise accept Catalog CDN right away
+    // Race fast YouTube progressive vs Catalog CDN; wait at most ~1.8s when YT is slow
     await Future.any<void>([
-      firstYtReady.future,
-      allYtDone,
-      Future.delayed(const Duration(milliseconds: 2400)),
+      firstYtProgReady.future,
+      allFastYtDone,
+      Future.delayed(const Duration(milliseconds: 1600)),
     ]);
 
-    if (verifiedYt.isNotEmpty) {
-      // Brief grace so sibling YouTube progressive stream can land too
-      await Future.delayed(const Duration(milliseconds: 120));
+    if (verifiedYt.any((s) => !s.isHls)) {
+      // Give Catalog CDN a short window (up to 450ms) so ExoPlayer has an unblocked backup candidate too
+      if (!firstFallbackReady.isCompleted) {
+        await Future.any<void>([
+          catalogTask,
+          Future.delayed(const Duration(milliseconds: 450)),
+        ]);
+      }
     } else {
-      // Give catalogTask / any remaining fast YT task a moment to finish
+      // No progressive YouTube yet -> wait for Catalog CDN (which usually takes ~0.6-1.5s) or fast YT
       await Future.any<void>([
-        firstYtReady.future,
+        firstYtProgReady.future,
         firstFallbackReady.future,
-        Future.wait([allYtDone, catalogTask]),
-        Future.delayed(const Duration(milliseconds: 2200)),
+        Future.wait([allFastYtDone, catalogTask]),
+        Future.delayed(const Duration(milliseconds: 2600)),
       ]);
     }
 
-    // Round 2: Only if ALL fast extractors failed, race WebView + Piped/Invidious mirrors
-    if (verifiedYt.isEmpty && verifiedFallback.isEmpty) {
-      final mirrorReady = Completer<void>();
+    // Round 2: Only if NEITHER fast YouTube progressive NOR Catalog CDN yielded a verified stream
+    final hasAnyProgressive =
+        verifiedYt.any((s) => !s.isHls) || verifiedFallback.isNotEmpty;
+    if (!hasAnyProgressive) {
+      final round2Ready = Completer<void>();
       final round2Tasks = <Future<void>>[
-        YtWebViewExtractor.extractAudioStreams(cleanId).then((l) async {
+        _fetchInnertubePlayer(
+          videoId: cleanId,
+          quality: quality,
+          clientName: 'ANDROID_TESTSUITE',
+          clientVersion: '1.9',
+          clientId: '30',
+          userAgent: _androidTestUa,
+          visitorData: visitorData,
+          clientBody: {
+            'clientName': 'ANDROID_TESTSUITE',
+            'clientVersion': '1.9',
+            'osName': 'Android',
+            'osVersion': '13',
+            'androidSdkVersion': 33,
+            'hl': 'en',
+            'gl': 'IN',
+          },
+        ).then((l) async {
           await probeBatch(l, isFallback: false);
-          if (verifiedYt.isNotEmpty && !mirrorReady.isCompleted) mirrorReady.complete();
+          if (verifiedYt.any((s) => !s.isHls) && !round2Ready.isCompleted) {
+            round2Ready.complete();
+          }
+        }),
+        _resolveViaYoutubeExplode(cleanId, quality).then((l) async {
+          await probeBatch(l, isFallback: false);
+          if (verifiedYt.any((s) => !s.isHls) && !round2Ready.isCompleted) {
+            round2Ready.complete();
+          }
         }),
         _resolveViaMirrorsParallel(cleanId, quality).then((l) async {
           await probeBatch(l, isFallback: false);
-          if (verifiedYt.isNotEmpty && !mirrorReady.isCompleted) mirrorReady.complete();
+          if (verifiedYt.any((s) => !s.isHls) && !round2Ready.isCompleted) {
+            round2Ready.complete();
+          }
+        }),
+        YtWebViewExtractor.extractAudioStreams(cleanId).then((l) async {
+          await probeBatch(l, isFallback: false);
+          if (verifiedYt.any((s) => !s.isHls) && !round2Ready.isCompleted) {
+            round2Ready.complete();
+          }
         }),
       ];
       await Future.any<void>([
-        mirrorReady.future,
+        round2Ready.future,
+        firstFallbackReady.future,
         Future.wait(round2Tasks),
       ]);
     }
 
+    // Order: progressive YouTube -> verified Catalog CDN -> HLS fallback (since HLS manifests
+    // often return 200 #EXTM3U while segment downloads return 403 in ExoPlayer)
+    final progYt = verifiedYt.where((s) => !s.isHls).toList();
+    final hlsYt = verifiedYt.where((s) => s.isHls).toList();
     final verified = <ResolvedAudioStream>[
-      ...verifiedYt,
+      ...progYt,
       ...verifiedFallback,
+      ...hlsYt,
     ];
-
-    // Prefer non-HLS progressive streams first for reliable seeking & proxy support
-    verified.sort((a, b) {
-      if (a.isHls == b.isHls) return 0;
-      return a.isHls ? 1 : -1;
-    });
 
     if (verified.isNotEmpty) {
       _cache[cacheKey] = _CachedCandidates(
@@ -463,10 +485,16 @@ class YtAudioResolver {
         if (results.isEmpty) continue;
 
         Map? bestMatch;
+        Map? fallbackExactTitle;
+        final cleanTitleLower = cleanTitle.toLowerCase();
         for (final r in results.take(6)) {
           final enc = r['more_info']?['encrypted_media_url']?.toString() ?? '';
           if (enc.isEmpty) continue;
-          final rTitle = (r['title']?.toString() ?? '').toLowerCase();
+          final rTitle = (r['title']?.toString() ?? '')
+              .replaceAll('&quot;', '"')
+              .replaceAll('&amp;', '&')
+              .replaceAll('&#039;', "'")
+              .toLowerCase();
           final rSub = (r['subtitle']?.toString() ?? '').toLowerCase();
           final primaryArtists = (r['more_info']?['artistMap']?['primary_artists'] as List? ?? [])
               .whereType<Map>()
@@ -479,17 +507,15 @@ class YtAudioResolver {
           final artistMatches = artistTokens.isEmpty ||
               artistTokens.any((tok) => combinedArtistInfo.contains(tok));
 
-          if (isTitleOnlyQuery) {
-            // Avoid playing a completely different artist's song with the same title
-            if (titleMatches && artistMatches) {
-              bestMatch = r;
-              break;
-            }
-          } else if (titleMatches) {
+          if (titleMatches && artistMatches) {
             bestMatch = r;
             break;
           }
+          if (!isTitleOnlyQuery && rTitle.contains(cleanTitleLower)) {
+            fallbackExactTitle ??= r;
+          }
         }
+        bestMatch ??= fallbackExactTitle;
         if (bestMatch == null) continue;
 
         final encUrl = bestMatch['more_info']?['encrypted_media_url']?.toString() ?? '';
@@ -736,7 +762,8 @@ class YtAudioResolver {
         out.add(ResolvedAudioStream(url: chosen.url.toString(), source: 'yt_explode'));
       }
 
-      if (audioStreams.isNotEmpty && audioStreams.last.url.toString() != out.firstOrNull?.url) {
+      if (audioStreams.isNotEmpty &&
+          audioStreams.last.url.toString() != (out.isNotEmpty ? out.first.url : null)) {
         out.add(ResolvedAudioStream(
           url: audioStreams.last.url.toString(),
           source: 'yt_explode_alt',

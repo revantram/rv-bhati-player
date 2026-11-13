@@ -64,7 +64,6 @@ class LocalStreamProxy {
       return;
     }
 
-    StreamSubscription<List<int>>? sub;
     try {
       final rangeHeader = req.headers.value(HttpHeaders.rangeHeader);
       final upstreamResp = await _openFollowingRedirects(
@@ -111,30 +110,14 @@ class LocalStreamProxy {
         return;
       }
 
-      final completer = Completer<void>();
-      sub = upstreamResp.listen(
-        (chunk) {
-          try {
-            req.response.add(chunk);
-          } catch (_) {
-            sub?.cancel();
-            if (!completer.isCompleted) completer.complete();
-          }
-        },
-        onDone: () {
-          if (!completer.isCompleted) completer.complete();
-        },
-        onError: (_) {
-          if (!completer.isCompleted) completer.complete();
-        },
-        cancelOnError: true,
-      );
-
-      await completer.future;
-      await req.response.close();
+      try {
+        await req.response.addStream(upstreamResp);
+      } catch (_) {}
+      try {
+        await req.response.close();
+      } catch (_) {}
     } catch (e) {
       debugPrint('[LocalStreamProxy] upstream error: $e');
-      await sub?.cancel();
       try {
         req.response.statusCode = HttpStatus.badGateway;
         await req.response.close();

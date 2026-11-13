@@ -268,7 +268,7 @@ class AudioController {
           ? Uri.parse(rawUrl)
           : (rawUrl.startsWith('http://') ? Uri.parse(rawUrl) : Uri.file(rawUrl));
     } else {
-      final shouldProxy = !isHls && (useProxy ?? rawUrl.contains('googlevideo.com'));
+      final shouldProxy = !isHls && (useProxy ?? false);
       if (shouldProxy) {
         final proxiedUrl = await LocalStreamProxy.instance.register(rawUrl, headers: headers);
         playUri = Uri.parse(proxiedUrl);
@@ -340,7 +340,7 @@ class AudioController {
           !candidate.url.startsWith('file:') &&
           !candidate.url.startsWith('http://127.0.0.1');
       final proxyModes = (isRemote && !candidate.isHls)
-          ? (candidate.url.contains('googlevideo.com') ? const [true, false] : const [false, true])
+          ? const [false, true]
           : const [false];
 
       for (final proxyMode in proxyModes) {
@@ -363,7 +363,7 @@ class AudioController {
           await player.setVolume(1.0);
           await player
               .setAudioSource(concatSource, initialIndex: 0)
-              .timeout(const Duration(seconds: 10));
+              .timeout(const Duration(seconds: 7));
 
           if (gen != _queueSessionGen) return playbackCancelledToken;
 
@@ -486,14 +486,11 @@ class AudioController {
           }
         }
         if (streamUrl.isNotEmpty) {
-          final shouldProxy = !isHls && streamUrl.contains('googlevideo.com');
-          final playUri = shouldProxy
-              ? Uri.parse(await LocalStreamProxy.instance.register(streamUrl, headers: headers))
-              : Uri.parse(streamUrl);
+          final playUri = Uri.parse(streamUrl);
           children.add(
             AudioSource.uri(
               playUri,
-              headers: shouldProxy ? null : headers,
+              headers: headers,
               tag: MediaItem(
                 id: item.id,
                 title: item.title,
