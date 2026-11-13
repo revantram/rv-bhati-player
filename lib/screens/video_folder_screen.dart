@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -71,8 +70,8 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           blur: 20,
-          opacity: 0.14,
-          borderColor: Colors.white.withValues(alpha: 0.15),
+          opacity: 0.9,
+          borderColor: app.cardBorderColor,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -179,89 +178,100 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
 
     if (folders.isEmpty) {
       final deniedVideos = !MediaScanner.lastVideoGranted;
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-          child: LiquidGlassContainer(
-            borderRadius: BorderRadius.circular(28),
-            padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  deniedVideos ? Icons.lock_outline_rounded : Icons.video_library_outlined,
-                  size: 52,
-                  color: accent,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  deniedVideos
-                      ? 'Allow Video Access / वीडियो अनुमति दें'
-                      : 'No Video Folders Found / कोई वीडियो नहीं मिला',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  deniedVideos
-                      ? 'Please allow Videos permission to view your local .mp4 and .mkv files.'
-                      : 'Tap Rescan Storage or Grant All Files Access to detect videos in Downloads, Movies & WhatsApp.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: secondaryTextColor, fontSize: 13, height: 1.4),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  alignment: WrapAlignment.center,
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(24, 16, 24, widget.bottomOffset),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: (constraints.maxHeight - widget.bottomOffset - 16).clamp(0.0, double.infinity),
+            ),
+            child: Center(
+              child: LiquidGlassContainer(
+                borderRadius: BorderRadius.circular(28),
+                padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        HapticFeedback.lightImpact();
-                        if (deniedVideos) {
-                          await MediaScanner.requestPermissions();
-                        }
-                        widget.onRescan?.call();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      icon: Icon(deniedVideos ? Icons.lock_open_rounded : Icons.refresh_rounded, size: 19),
-                      label: Text(
-                        deniedVideos ? 'Allow & Scan' : 'Rescan Storage',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                    Icon(
+                      deniedVideos ? Icons.lock_outline_rounded : Icons.video_library_outlined,
+                      size: 52,
+                      color: accent,
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        HapticFeedback.lightImpact();
-                        try {
-                          await Permission.manageExternalStorage.request();
-                        } catch (_) {
-                          await openAppSettings();
-                        }
-                        widget.onRescan?.call();
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: textColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      icon: const Icon(Icons.folder_open_rounded, size: 18),
-                      label: const Text('All Files Access'),
+                    const SizedBox(height: 14),
+                    Text(
+                      deniedVideos
+                          ? 'Allow Video Access / वीडियो अनुमति दें'
+                          : 'No Video Folders Found / कोई वीडियो नहीं मिला',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
                     ),
-                    if (deniedVideos)
-                      TextButton.icon(
-                        onPressed: openAppSettings,
-                        icon: const Icon(Icons.settings_rounded, size: 17),
-                        label: const Text('App Settings'),
-                      ),
+                    const SizedBox(height: 6),
+                    Text(
+                      deniedVideos
+                          ? 'Please allow Videos permission to view your local .mp4 and .mkv files.'
+                          : 'Tap Rescan Storage or Grant All Files Access to detect videos in Downloads, Movies & WhatsApp.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: secondaryTextColor, fontSize: 13, height: 1.4),
+                    ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            HapticFeedback.lightImpact();
+                            if (deniedVideos) {
+                              final granted = await MediaScanner.requestVideoPermission();
+                              if (!granted && await MediaScanner.isVideoPermissionPermanentlyDenied()) {
+                                await openAppSettings();
+                              }
+                            }
+                            widget.onRescan?.call();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          icon: Icon(deniedVideos ? Icons.lock_open_rounded : Icons.refresh_rounded, size: 19),
+                          label: Text(
+                            deniedVideos ? 'Allow & Scan' : 'Rescan Storage',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            HapticFeedback.lightImpact();
+                            try {
+                              await Permission.manageExternalStorage.request();
+                            } catch (_) {
+                              await openAppSettings();
+                            }
+                            widget.onRescan?.call();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: textColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          icon: const Icon(Icons.folder_open_rounded, size: 18),
+                          label: const Text('All Files Access'),
+                        ),
+                        if (deniedVideos)
+                          TextButton.icon(
+                            onPressed: openAppSettings,
+                            icon: const Icon(Icons.settings_rounded, size: 17),
+                            label: const Text('App Settings'),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -291,7 +301,11 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                         folder: folder,
                         onVideoDeleted: (deleted) {
                           setState(() {
-                            widget.videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
+                            try {
+                              widget.videos.removeWhere(
+                                (v) => v.id == deleted.id || v.path == deleted.path,
+                              );
+                            } catch (_) {}
                           });
                           widget.onVideoDeleted?.call(deleted);
                         },
@@ -299,15 +313,13 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                     ),
                   );
                 },
-                // 5. Liquid Glass Card Styling: radius 20px, crisp border without heavy scroll blur
+                // 5. Liquid Glass Card Styling: crisp border & theme-aware surface
                 child: LiquidGlassContainer(
                   borderRadius: BorderRadius.circular(20),
                   padding: const EdgeInsets.all(10),
                   blur: 0,
-                  opacity: 0.10,
                   borderWidth: 1,
-                  borderColor: Colors.white.withValues(alpha: 0.15),
-                  glow: false,
+                  glow: true,
                   child: Row(
                     children: [
                       // 2. Thumbnail Fallback & Overlay Cleanup: Clean thumbnail preview without covering badge
@@ -316,11 +328,16 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                         child: SizedBox(
                           width: 84,
                           height: 72,
-                          child: VideoThumbnailWidget(
-                            video: folder.coverVideo,
-                            borderRadius: BorderRadius.circular(16),
-                            fit: BoxFit.cover,
-                          ),
+                          child: folder.coverVideo != null
+                              ? VideoThumbnailWidget(
+                                  video: folder.coverVideo!,
+                                  borderRadius: BorderRadius.circular(16),
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  color: accent.withValues(alpha: 0.14),
+                                  child: Icon(Icons.folder_rounded, color: accent, size: 30),
+                                ),
                         ),
                       ),
                       const SizedBox(width: 14),

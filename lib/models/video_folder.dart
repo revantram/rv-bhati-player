@@ -22,7 +22,7 @@ class VideoFolder {
 
   int get videoCount => videos.length;
   int get totalSizeBytes => videos.fold<int>(0, (sum, v) => sum + (v.fileSize ?? 0));
-  MediaFile get coverVideo => videos.isNotEmpty ? videos.first : (_initialCover!);
+  MediaFile? get coverVideo => videos.isNotEmpty ? videos.first : _initialCover;
 
   static List<VideoFolder> groupVideos(
     List<MediaFile> allVideos, {

@@ -168,25 +168,30 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
     final error = await AudioController.instance.playOnlineQueue(list, index);
     if (!mounted) return;
-    if (error == AudioController.playbackCancelledToken) return;
     if (_resolvingSongId == selected.id) {
       setState(() => _resolvingSongId = null);
     }
+    if (error == AudioController.playbackCancelledToken) return;
 
     if (error != null) {
-      if (selected.id.startsWith('yt_')) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => YouTubeMusicSheet(song: selected),
-        );
-        return;
-      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),
           behavior: SnackBarBehavior.floating,
+          action: selected.id.startsWith('yt_')
+              ? SnackBarAction(
+                  label: 'Play Web',
+                  onPressed: () {
+                    if (!mounted) return;
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => YouTubeMusicSheet(song: selected),
+                    );
+                  },
+                )
+              : null,
         ),
       );
       return;

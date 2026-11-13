@@ -47,8 +47,8 @@ class MediaScanner {
   static bool _isAllowedStatus(PermissionStatus? s) =>
       s != null && (s.isGranted || s.isLimited);
 
-  /// Android 13+ (API 33): READ_MEDIA_VIDEO + READ_MEDIA_AUDIO + POST_NOTIFICATIONS
-  /// Android 12 and older: READ_EXTERNAL_STORAGE + POST_NOTIFICATIONS
+  /// Android 13+ (API 33): READ_MEDIA_VIDEO + READ_MEDIA_AUDIO (+ optional POST_NOTIFICATIONS)
+  /// Android 12 and older: READ_EXTERNAL_STORAGE (+ optional POST_NOTIFICATIONS)
   static Future<bool> requestPermissions() async {
     int sdk = 33;
     try {
@@ -61,23 +61,117 @@ class MediaScanner {
     } catch (_) {}
 
     if (sdk >= 33) {
-      final res = await [
-        Permission.videos,
-        Permission.audio,
-        Permission.notification,
-      ].request();
-      lastVideoGranted = _isAllowedStatus(res[Permission.videos]) || manageGranted;
-      lastAudioGranted = _isAllowedStatus(res[Permission.audio]) || manageGranted;
+      PermissionStatus vidStatus = PermissionStatus.denied;
+      PermissionStatus audStatus = PermissionStatus.denied;
+      try {
+        final res = await [
+          Permission.videos,
+          Permission.audio,
+        ].request();
+        vidStatus = res[Permission.videos] ?? await Permission.videos.status;
+        audStatus = res[Permission.audio] ?? await Permission.audio.status;
+      } catch (e) {
+        debugPrint('[MediaScanner] SDK>=33 permission request error: $e');
+      }
+      lastVideoGranted = _isAllowedStatus(vidStatus) || manageGranted;
+      lastAudioGranted = _isAllowedStatus(audStatus) || manageGranted;
+
+      try {
+        final notif = await Permission.notification.status;
+        if (!notif.isGranted && !notif.isPermanentlyDenied) {
+          await Permission.notification.request();
+        }
+      } catch (_) {}
       return lastVideoGranted || lastAudioGranted;
     }
 
-    final status = await Permission.storage.request();
+    PermissionStatus status = PermissionStatus.denied;
+    try {
+      status = await Permission.storage.request();
+    } catch (e) {
+      debugPrint('[MediaScanner] legacy storage request error: $e');
+    }
     lastVideoGranted = _isAllowedStatus(status) || manageGranted;
     lastAudioGranted = _isAllowedStatus(status) || manageGranted;
     try {
-      await Permission.notification.request();
+      final notif = await Permission.notification.status;
+      if (!notif.isGranted && !notif.isPermanentlyDenied) {
+        await Permission.notification.request();
+      }
     } catch (_) {}
     return lastVideoGranted || lastAudioGranted;
+  }
+
+  /// Explicitly requests video read permission:
+  /// - Android 13+ (SDK >= 33): Permission.videos (READ_MEDIA_VIDEO)
+  /// - Android 12 and older: Permission.storage (READ_EXTERNAL_STORAGE)
+  static Future<bool> requestVideoPermission() async {
+    int sdk = 33;
+    try {
+      sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    } catch (_) {}
+
+    bool manageGranted = false;
+    try {
+      manageGranted = await Permission.manageExternalStorage.isGranted;
+    } catch (_) {}
+    if (manageGranted) {
+      lastVideoGranted = true;
+      return true;
+    }
+
+    final perm = sdk >= 33 ? Permission.videos : Permission.storage;
+    try {
+      var status = await perm.status;
+      if (!_isAllowedStatus(status) && !status.isPermanentlyDenied) {
+        status = await perm.request();
+      }
+      lastVideoGranted = _isAllowedStatus(status);
+      return lastVideoGranted;
+    } catch (e) {
+      debugPrint('[MediaScanner] requestVideoPermission error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> isVideoPermissionPermanentlyDenied() async {
+    int sdk = 33;
+    try {
+      sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    } catch (_) {}
+    final perm = sdk >= 33 ? Permission.videos : Permission.storage;
+    try {
+      return await perm.isPermanentlyDenied;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> hasVideoPermission() async {
+    int sdk = 33;
+    try {
+      sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    } catch (_) {}
+    try {
+      if (await Permission.manageExternalStorage.isGranted) return true;
+    } catch (_) {}
+    try {
+      final s = sdk >= 33
+          ? await Permission.videos.status
+          : await Permission.storage.status;
+      return _isAllowedStatus(s);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> hasAnyMediaPermission() async {
+    if (await hasVideoPermission()) return true;
+    try {
+      return _isAllowedStatus(await Permission.audio.status);
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<List<MediaFile>> scan(MediaKind kind) async {

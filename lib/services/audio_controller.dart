@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models/media_file.dart';
 import '../models/online_song.dart';
@@ -255,26 +256,40 @@ class AudioController {
     Map<String, String>? headers,
     bool isHls = false,
     bool? useProxy,
+    String? mimeHint,
+    StreamInfo? ytStreamInfo,
+    YoutubeExplode? ytClient,
   }) async {
     final rawUrl = s.streamUrl;
+    final cleanUrl = rawUrl.contains('#yt_stream_') ? rawUrl.split('#').first : rawUrl;
+    final isExplodeProxy = rawUrl.contains('#yt_stream_') && ytStreamInfo != null;
     final isLocalFile =
-        rawUrl.startsWith('/') || rawUrl.startsWith('file:') || rawUrl.startsWith('http://127.0.0.1');
+        cleanUrl.startsWith('/') ||
+        cleanUrl.startsWith('file:') ||
+        cleanUrl.startsWith('http://127.0.0.1');
 
     Uri playUri;
     Map<String, String>? effectiveHeaders = headers;
 
-    if (isLocalFile) {
-      playUri = rawUrl.startsWith('file:')
-          ? Uri.parse(rawUrl)
-          : (rawUrl.startsWith('http://') ? Uri.parse(rawUrl) : Uri.file(rawUrl));
+    if (isLocalFile && !isExplodeProxy) {
+      playUri = cleanUrl.startsWith('file:')
+          ? Uri.parse(cleanUrl)
+          : (cleanUrl.startsWith('http://') ? Uri.parse(cleanUrl) : Uri.file(cleanUrl));
     } else {
-      final shouldProxy = !isHls && (useProxy ?? false);
+      final shouldProxy = isExplodeProxy || (!isHls && (useProxy ?? false));
       if (shouldProxy) {
-        final proxiedUrl = await LocalStreamProxy.instance.register(rawUrl, headers: headers);
+        final proxiedUrl = await LocalStreamProxy.instance.register(
+          cleanUrl,
+          headers: headers,
+          mimeHint: mimeHint,
+          ytStreamInfo: ytStreamInfo,
+          ytClient: ytClient,
+          preferExplodeStream: isExplodeProxy,
+        );
         playUri = Uri.parse(proxiedUrl);
         effectiveHeaders = null;
       } else {
-        playUri = Uri.parse(rawUrl);
+        playUri = Uri.parse(cleanUrl);
       }
     }
 
@@ -327,84 +342,121 @@ class AudioController {
       );
     }
 
-    if (gen != _queueSessionGen) return playbackCancelledToken;
-    if (candidates.isEmpty) {
-      return 'Could not find playable audio stream for "${target.title}".';
+    // Try up to 10 resolved candidates in Round 1; if all fail on a YT track,
+    // invalidate stale cache and run deep Piped/Invidious/YoutubeExplode/WebView fallback.
+    final triedUrls = <String>{for (final c in candidates) c.url};
+    Object? lastErr;
+
+    Future<String?> tryCandidateList(List<ResolvedAudioStream> list) async {
+      for (final candidate in list.take(10)) {
+        if (gen != _queueSessionGen) return playbackCancelledToken;
+        final isRemote = !candidate.url.startsWith('/') &&
+            !candidate.url.startsWith('file:') &&
+            !candidate.url.startsWith('http://127.0.0.1');
+        final isYtStreamProxy = candidate.source == 'yt_explode_stream' ||
+            candidate.url.contains('#yt_stream_');
+        final isGoogleVideo = candidate.url.contains('googlevideo.com');
+
+        final List<bool> proxyModes;
+        if (isYtStreamProxy) {
+          proxyModes = const [true];
+        } else if (isRemote && !candidate.isHls) {
+          proxyModes = isGoogleVideo ? const [true, false] : const [false, true];
+        } else {
+          proxyModes = const [false];
+        }
+
+        for (final proxyMode in proxyModes) {
+          if (gen != _queueSessionGen) return playbackCancelledToken;
+          try {
+            final resolvedSong = target.copyWith(streamUrl: candidate.url);
+            final audioSource = await _buildAudioSource(
+              resolvedSong,
+              headers: candidate.headers,
+              isHls: candidate.isHls,
+              useProxy: proxyMode,
+              mimeHint: candidate.mimeHint,
+              ytStreamInfo: candidate.ytStreamInfo,
+              ytClient: candidate.ytClient,
+            );
+            if (gen != _queueSessionGen) return playbackCancelledToken;
+
+            final concatSource = ConcatenatingAudioSource(children: [audioSource]);
+
+            try {
+              await player.stop();
+            } catch (_) {}
+            await player.setVolume(1.0);
+            await player
+                .setAudioSource(concatSource, initialIndex: 0)
+                .timeout(const Duration(seconds: 7));
+
+            if (gen != _queueSessionGen) return playbackCancelledToken;
+
+            onlineQueue = [resolvedSong];
+            _activeOnlineConcat = concatSource;
+            _lastPlayedIndex = 0;
+
+            _pendingOnlineSongs = [
+              for (int i = safeStart + 1; i < items.length; i++) items[i],
+              for (int i = 0; i < safeStart; i++) items[i],
+            ];
+            if (shuffle && _pendingOnlineSongs.length > 1) {
+              _pendingOnlineSongs.shuffle();
+            }
+            _pendingNextRawIdx = 0;
+
+            await player.setShuffleModeEnabled(false);
+            await player.setLoopMode(LoopMode.all);
+            player.play();
+
+            final onlineSessId = player.androidAudioSessionId;
+            if (onlineSessId != null && onlineSessId > 0) {
+              EqualizerService.instance.attachAudioSession(onlineSessId);
+            }
+
+            Future.delayed(const Duration(milliseconds: 1600), () {
+              if (gen == _queueSessionGen) {
+                _appendNextPendingTrack(gen);
+              }
+            });
+
+            return null;
+          } catch (e) {
+            lastErr = e;
+            debugPrint('[AudioController] Candidate ${candidate.source} (proxy=$proxyMode) failed: $e');
+          }
+        }
+      }
+      return '__exhausted__';
     }
 
-    // Try up to 6 resolved stream candidates until ExoPlayer loads one cleanly
-    Object? lastErr;
-    for (final candidate in candidates.take(6)) {
+    if (candidates.isNotEmpty) {
+      final firstPass = await tryCandidateList(candidates);
+      if (firstPass != '__exhausted__') return firstPass;
+    }
+
+    // Deep fallback escalation for YouTube tracks when Round 1 streams fail
+    if (target.streamUrl.isEmpty) {
       if (gen != _queueSessionGen) return playbackCancelledToken;
-      final isRemote = !candidate.url.startsWith('/') &&
-          !candidate.url.startsWith('file:') &&
-          !candidate.url.startsWith('http://127.0.0.1');
-      final proxyModes = (isRemote && !candidate.isHls)
-          ? const [false, true]
-          : const [false];
-
-      for (final proxyMode in proxyModes) {
-        if (gen != _queueSessionGen) return playbackCancelledToken;
-        try {
-          final resolvedSong = target.copyWith(streamUrl: candidate.url);
-          final audioSource = await _buildAudioSource(
-            resolvedSong,
-            headers: candidate.headers,
-            isHls: candidate.isHls,
-            useProxy: proxyMode,
-          );
-          if (gen != _queueSessionGen) return playbackCancelledToken;
-
-          final concatSource = ConcatenatingAudioSource(children: [audioSource]);
-
-          try {
-            await player.stop();
-          } catch (_) {}
-          await player.setVolume(1.0);
-          await player
-              .setAudioSource(concatSource, initialIndex: 0)
-              .timeout(const Duration(seconds: 7));
-
-          if (gen != _queueSessionGen) return playbackCancelledToken;
-
-          onlineQueue = [resolvedSong];
-          _activeOnlineConcat = concatSource;
-          _lastPlayedIndex = 0;
-
-          // Store remaining tracks in order without hammering network for all 20 at once
-          _pendingOnlineSongs = [
-            for (int i = safeStart + 1; i < items.length; i++) items[i],
-            for (int i = 0; i < safeStart; i++) items[i],
-          ];
-          if (shuffle && _pendingOnlineSongs.length > 1) {
-            _pendingOnlineSongs.shuffle();
-          }
-          _pendingNextRawIdx = 0;
-
-          await player.setShuffleModeEnabled(false);
-          await player.setLoopMode(LoopMode.all);
-          player.play();
-
-          final onlineSessId = player.androidAudioSessionId;
-          if (onlineSessId != null && onlineSessId > 0) {
-            EqualizerService.instance.attachAudioSession(onlineSessId);
-          }
-
-          // Pre-resolve ONLY the very next track quietly after UI settles
-          Future.delayed(const Duration(milliseconds: 1600), () {
-            if (gen == _queueSessionGen) {
-              _appendNextPendingTrack(gen);
-            }
-          });
-
-          return null;
-        } catch (e) {
-          lastErr = e;
-          debugPrint('[AudioController] Candidate ${candidate.source} (proxy=$proxyMode) failed: $e');
-        }
+      final ytId = target.id.startsWith('yt_') ? target.id.replaceFirst('yt_', '') : target.id;
+      YtAudioResolver.invalidateCache(ytId);
+      final deepCandidates = await YtAudioResolver.resolveDeepFallbackCandidates(
+        ytId,
+        fallbackTitle: target.title,
+        fallbackArtist: target.artist,
+        alreadySeenUrls: triedUrls,
+      );
+      if (gen != _queueSessionGen) return playbackCancelledToken;
+      if (deepCandidates.isNotEmpty) {
+        final secondPass = await tryCandidateList(deepCandidates);
+        if (secondPass != '__exhausted__') return secondPass;
       }
     }
 
+    if (candidates.isEmpty && lastErr == null) {
+      return 'Could not find playable audio stream for "${target.title}".';
+    }
     return 'Playback failed (${lastErr ?? "stream blocked"}). Try another song.';
   }
 
@@ -441,6 +493,10 @@ class AudioController {
             resolved,
             headers: best.headers,
             isHls: best.isHls,
+            useProxy: best.url.contains('googlevideo.com') || best.source == 'yt_explode_stream',
+            mimeHint: best.mimeHint,
+            ytStreamInfo: best.ytStreamInfo,
+            ytClient: best.ytClient,
           );
           if (gen != _queueSessionGen) return;
           onlineQueue = [...onlineQueue, resolved];
@@ -472,6 +528,7 @@ class AudioController {
         var streamUrl = item.streamUrl ?? '';
         Map<String, String>? headers;
         bool isHls = false;
+        ResolvedAudioStream? picked;
         if (streamUrl.isEmpty) {
           final ytId = item.id.startsWith('yt_') ? item.id.replaceFirst('yt_', '') : item.id;
           final list = await YtAudioResolver.resolveAudioCandidates(
@@ -480,27 +537,32 @@ class AudioController {
             fallbackArtist: item.artist,
           );
           if (list.isNotEmpty) {
-            streamUrl = list.first.url;
-            headers = list.first.headers;
-            isHls = list.first.isHls;
+            picked = list.first;
+            streamUrl = picked.url;
+            headers = picked.headers;
+            isHls = picked.isHls;
           }
         }
         if (streamUrl.isNotEmpty) {
-          final playUri = Uri.parse(streamUrl);
+          final onlineStub = OnlineSong(
+            id: item.id,
+            title: item.title,
+            artist: item.artist,
+            album: item.album ?? 'BitMusic Playlist',
+            duration: item.duration,
+            streamUrl: streamUrl,
+            imageUrl: item.imageUrl ?? '',
+          );
           children.add(
-            AudioSource.uri(
-              playUri,
+            await _buildAudioSource(
+              onlineStub,
               headers: headers,
-              tag: MediaItem(
-                id: item.id,
-                title: item.title,
-                artist: item.artist,
-                album: item.album ?? 'BitMusic Playlist',
-                duration: item.duration,
-                artUri: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                    ? Uri.tryParse(item.imageUrl!)
-                    : null,
-              ),
+              isHls: isHls,
+              useProxy: !isHls &&
+                  (streamUrl.contains('googlevideo.com') || picked?.source == 'yt_explode_stream'),
+              mimeHint: picked?.mimeHint,
+              ytStreamInfo: picked?.ytStreamInfo,
+              ytClient: picked?.ytClient,
             ),
           );
         }
@@ -554,6 +616,10 @@ class AudioController {
       resolved,
       headers: best.headers,
       isHls: best.isHls,
+      useProxy: best.url.contains('googlevideo.com') || best.source == 'yt_explode_stream',
+      mimeHint: best.mimeHint,
+      ytStreamInfo: best.ytStreamInfo,
+      ytClient: best.ytClient,
     );
     onlineQueue = [...onlineQueue, resolved];
     final currentSource = player.audioSource;
@@ -575,6 +641,10 @@ class AudioController {
       resolved,
       headers: best.headers,
       isHls: best.isHls,
+      useProxy: best.url.contains('googlevideo.com') || best.source == 'yt_explode_stream',
+      mimeHint: best.mimeHint,
+      ytStreamInfo: best.ytStreamInfo,
+      ytClient: best.ytClient,
     );
     final currentIdx = player.currentIndex ?? 0;
     final list = List<OnlineSong>.from(onlineQueue);

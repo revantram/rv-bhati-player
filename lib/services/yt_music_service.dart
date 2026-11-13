@@ -65,9 +65,10 @@ class YtMusicService {
   List<OnlineSong>? _cachedTrending;
 
   static const List<String> _pipedSearchMirrors = [
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi.lunar.icu',
     'https://api.piped.private.coffee',
+    'https://pipedapi.adminforge.de',
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.ducks.party',
   ];
 
   // Curated Indian, Global & Folk Artists for BitMusic Artists Hub

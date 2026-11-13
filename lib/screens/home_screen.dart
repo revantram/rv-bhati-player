@@ -60,8 +60,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _denied = false;
   String? _error;
 
-  List<MediaFile> _videos = const [];
-  List<MediaFile> _audios = const [];
+  List<MediaFile> _videos = [];
+  List<MediaFile> _audios = [];
 
   String? _selectedFolder;
 
@@ -98,7 +98,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _denied) _init();
+    if (state != AppLifecycleState.resumed || _loading) return;
+    if (_denied) {
+      MediaScanner.hasAnyMediaPermission().then((ok) {
+        if (ok && mounted && _denied) _init();
+      });
+    } else if (_tab == 0 && !MediaScanner.lastVideoGranted) {
+      MediaScanner.hasVideoPermission().then((ok) {
+        if (ok && mounted) _init();
+      });
+    }
   }
 
   Future<void> _init() async {
@@ -124,11 +133,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ]);
       if (!mounted) return;
       setState(() {
-        _videos = results[0];
-        _audios = results[1];
+        _videos = List<MediaFile>.from(results[0]);
+        _audios = List<MediaFile>.from(results[1]);
         _loading = false;
       });
-      Permission.notification.request();
       // Auto-check for updates in background on app open
       UpdateService.instance.checkAndPromptUpdate(context);
     } catch (e) {
@@ -530,54 +538,69 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildContent(EdgeInsets pad) {
     if (_loading) {
-      return const Center(
-        child: _GlassMessage(
-          icon: Icons.hourglass_top_rounded,
-          title: 'Scanning storage',
-          body: 'Finding your .mp4, .mkv and .mp3 files...',
-          showSpinner: true,
+      return Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(0, pad.top + 16, 0, pad.bottom + 96),
+          child: const _GlassMessage(
+            icon: Icons.hourglass_top_rounded,
+            title: 'Scanning storage',
+            body: 'Finding your .mp4, .mkv and .mp3 files...',
+            showSpinner: true,
+          ),
         ),
       );
     }
     if (_denied) {
       return Center(
-        child: _GlassMessage(
-          icon: Icons.lock_outline_rounded,
-          title: 'Allow media access',
-          body: 'RV Bhati Player needs permission to read videos and audio on this device.',
-          actions: [
-            LiquidGlassButton(
-              icon: Icons.check_rounded,
-              label: 'Allow',
-              size: 48,
-              tint: AppState.instance.accentColor,
-              onTap: _init,
-            ),
-            const SizedBox(height: 10),
-            LiquidGlassButton(
-              icon: Icons.settings_rounded,
-              label: 'Open Settings',
-              size: 48,
-              onTap: openAppSettings,
-            ),
-          ],
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(0, pad.top + 16, 0, pad.bottom + 96),
+          child: _GlassMessage(
+            icon: Icons.lock_outline_rounded,
+            title: 'Allow media access',
+            body: 'RV Bhati Player needs permission to read videos and audio on this device.',
+            actions: [
+              LiquidGlassButton(
+                icon: Icons.check_rounded,
+                label: 'Allow & Retry',
+                size: 48,
+                tint: AppState.instance.accentColor,
+                onTap: () async {
+                  final ok = await MediaScanner.requestVideoPermission();
+                  if (!ok && await MediaScanner.isVideoPermissionPermanentlyDenied()) {
+                    await openAppSettings();
+                  }
+                  await _init();
+                },
+              ),
+              const SizedBox(height: 10),
+              LiquidGlassButton(
+                icon: Icons.settings_rounded,
+                label: 'Open Settings',
+                size: 48,
+                onTap: openAppSettings,
+              ),
+            ],
+          ),
         ),
       );
     }
     if (_error != null) {
       return Center(
-        child: _GlassMessage(
-          icon: Icons.error_outline_rounded,
-          title: 'Could not scan media',
-          body: _error!,
-          actions: [
-            LiquidGlassButton(
-              icon: Icons.refresh_rounded,
-              label: 'Retry',
-              size: 48,
-              onTap: _init,
-            ),
-          ],
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(0, pad.top + 16, 0, pad.bottom + 96),
+          child: _GlassMessage(
+            icon: Icons.error_outline_rounded,
+            title: 'Could not scan media',
+            body: _error!,
+            actions: [
+              LiquidGlassButton(
+                icon: Icons.refresh_rounded,
+                label: 'Retry',
+                size: 48,
+                onTap: _init,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -634,20 +657,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
-              itemCount: items.length,
-              itemBuilder: (_, i) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _MediaCard(
-                  item: items[i],
-                  onTap: () => _open(items, i),
-                  onVideoOptions: items[i].kind == MediaKind.video
-                      ? () => _showVideoOptions(items[i], items, i)
-                      : null,
-                ),
-              ),
-            ),
+            child: items.isEmpty
+                ? Center(
+                    child: _GlassMessage(
+                      icon: Icons.video_library_outlined,
+                      title: 'No Videos in Folder',
+                      body: 'This folder has no playable video files.',
+                      actions: [
+                        LiquidGlassButton(
+                          icon: Icons.refresh_rounded,
+                          label: 'Rescan',
+                          size: 46,
+                          onTap: _init,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
+                    itemCount: items.length,
+                    itemBuilder: (_, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _MediaCard(
+                        item: items[i],
+                        onTap: () => _open(items, i),
+                        onVideoOptions: items[i].kind == MediaKind.video
+                            ? () => _showVideoOptions(items[i], items, i)
+                            : null,
+                      ),
+                    ),
+                  ),
           ),
         ],
       );
@@ -655,8 +694,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final isLight = app.isLight;
     final accent = app.accentColor;
+    final recentVideos = _getRecentlyPlayed(MediaKind.video);
+    final recentVideo = recentVideos.isNotEmpty ? recentVideos.first : null;
 
-    // Video section: Direct Clean Folders list (YouTube tab removed)
+    // Video section: Direct Clean Folders list + direct Positioned resume pill
     return Stack(
       children: [
         Positioned.fill(
@@ -674,93 +715,87 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
-        // Quick Resume Button for user's most recent video
-                    Builder(builder: (context) {
-                      final recentVideos = _getRecentlyPlayed(MediaKind.video);
-                      final recentVideo = recentVideos.isNotEmpty ? recentVideos.first : null;
-                      if (recentVideo == null) return const SizedBox.shrink();
-
-                      return Positioned(
-                        left: 20,
-                        right: 20,
-                        bottom: bottomOffset - 78,
-                        child: Center(
-                          child: PressableScale(
-                            onTap: () {
-                              HapticFeedback.mediumImpact();
-                              _open([recentVideo], 0);
-                            },
-                            child: Container(
-                              height: 52,
-                              constraints: const BoxConstraints(maxWidth: 380),
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: isLight ? Colors.white : const Color(0xFF1E2438),
-                                borderRadius: BorderRadius.circular(26),
-                                border: Border.all(color: accent, width: 1.4),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: accent.withValues(alpha: 0.35),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.3),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [accent, const Color(0xFF00D2FF)],
-                                      ),
-                                    ),
-                                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Flexible(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Resume Recent Video / पिछला वीडियो',
-                                          style: TextStyle(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: accent,
-                                          ),
-                                        ),
-                                        Text(
-                                          VideoFolderScreen.cleanFolderName(recentVideo.displayTitle),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: app.textColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Icon(Icons.arrow_forward_ios_rounded, size: 12, color: accent),
-                                ],
-                              ),
-                            ),
+        if (recentVideo != null)
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: bottomOffset - 78,
+            child: Center(
+              child: PressableScale(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  _open([recentVideo], 0);
+                },
+                child: Container(
+                  height: 52,
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: isLight ? Colors.white : const Color(0xFF1E2438),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: accent, width: 1.4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [accent, const Color(0xFF00D2FF)],
                           ),
                         ),
-                      );
-                    }),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Resume Recent Video / पिछला वीडियो',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                            ),
+                            Text(
+                              VideoFolderScreen.cleanFolderName(recentVideo.displayTitle),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: app.textColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 12, color: accent),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
