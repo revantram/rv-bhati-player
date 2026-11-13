@@ -5,16 +5,19 @@ import 'package:flutter/services.dart';
 import '../models/media_file.dart';
 import '../models/video_folder.dart';
 import '../services/app_state.dart';
+import '../services/media_scanner.dart';
 import '../utils/format.dart';
 import '../widgets/liquid_glass_container.dart';
 import '../widgets/video_thumbnail_widget.dart';
 import 'folder_videos_list_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class VideoFolderScreen extends StatefulWidget {
   final List<MediaFile> videos;
   final double topOffset;
   final double bottomOffset;
   final ValueChanged<MediaFile>? onVideoDeleted;
+  final VoidCallback? onRescan;
 
   const VideoFolderScreen({
     super.key,
@@ -22,6 +25,7 @@ class VideoFolderScreen extends StatefulWidget {
     this.topOffset = 68,
     this.bottomOffset = 160,
     this.onVideoDeleted,
+    this.onRescan,
   });
 
   // 1. Smart Folder & Video Name Cleaner: Strips technical release tags
@@ -174,22 +178,69 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
     final folders = VideoFolder.groupVideos(widget.videos, sortType: _sortType);
 
     if (folders.isEmpty) {
+      final deniedVideos = !MediaScanner.lastVideoGranted;
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.folder_off_rounded, size: 52, color: secondaryTextColor.withValues(alpha: 0.5)),
-            const SizedBox(height: 12),
-            Text(
-              'No Video Folders Found',
-              style: TextStyle(color: textColor, fontSize: 16.5, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Videos will appear grouped by their storage directory.',
-              style: TextStyle(color: secondaryTextColor, fontSize: 13),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                deniedVideos ? Icons.lock_outline_rounded : Icons.folder_off_rounded,
+                size: 56,
+                color: accent.withValues(alpha: 0.75),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                deniedVideos
+                    ? 'Allow Video Access / वीडियो अनुमति दें'
+                    : 'No Video Folders Found',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                deniedVideos
+                    ? 'Please allow Videos permission to view your local .mp4 and .mkv files.'
+                    : 'Tap Rescan Storage to detect local video folders on your device.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: secondaryTextColor, fontSize: 13),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      widget.onRescan?.call();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    label: const Text('Rescan Storage', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  if (deniedVideos)
+                    OutlinedButton.icon(
+                      onPressed: openAppSettings,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: textColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.settings_rounded, size: 18),
+                      label: const Text('App Settings'),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -367,6 +418,18 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
                         ],
                       ),
                     ),
+                    if (widget.onRescan != null) ...[
+                      LiquidGlassButton(
+                        icon: Icons.refresh_rounded,
+                        size: 38,
+                        iconSize: 20,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          widget.onRescan?.call();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     // Refactored sleek frosted sort icon button
                     LiquidGlassButton(
                       icon: Icons.sort_rounded,

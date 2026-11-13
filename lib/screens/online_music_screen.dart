@@ -16,6 +16,7 @@ import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/artist_songs_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/youtube_music_sheet.dart';
 import 'artists_hub_screen.dart';
 import 'audio_player_screen.dart';
 import 'downloads_screen.dart';
@@ -173,6 +174,17 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         SnackBar(
           content: Text(error),
           behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Play Web',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => YouTubeMusicSheet(song: selected),
+              );
+            },
+          ),
         ),
       );
       return;

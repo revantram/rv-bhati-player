@@ -34,7 +34,11 @@ class YtAudioResolver {
   static final Map<String, _CachedCandidates> _cache = {};
   static final YoutubeExplode _sharedYt = YoutubeExplode();
   static final HttpClient _httpClient = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 5);
+    ..connectionTimeout = const Duration(seconds: 5)
+    ..autoUncompress = true;
+
+  static String? _cachedVisitorData;
+  static DateTime? _visitorExpiresAt;
 
   static const List<String> _pipedMirrors = [
     'https://pipedapi.kavin.rocks',
@@ -47,6 +51,7 @@ class YtAudioResolver {
     'https://inv.nadeko.net',
     'https://invidious.nerdvpn.de',
     'https://yewtu.be',
+    'https://invidious.privacyredirect.com',
   ];
 
   static const String _androidVrUa =
@@ -55,9 +60,56 @@ class YtAudioResolver {
       'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X; en_IN)';
   static const String _androidTestUa =
       'com.google.android.youtube/19.29.37 (Linux; U; Android 13; en_US) gzip';
+  static const String _tvEmbedUa =
+      'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version';
 
-  /// Resolves multiple playable direct audio stream candidates for ExoPlayer / just_audio
-  /// using fast direct InnerTube player clients first, then YoutubeExplode, then parallel mirrors.
+  static Future<String?> _getVisitorData() async {
+    if (_cachedVisitorData != null &&
+        _visitorExpiresAt != null &&
+        DateTime.now().isBefore(_visitorExpiresAt!)) {
+      return _cachedVisitorData;
+    }
+    try {
+      final req = await _httpClient.postUrl(
+        Uri.parse('https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false'),
+      );
+      req.headers.set('Content-Type', 'application/json');
+      req.headers.set('User-Agent', _androidVrUa);
+      req.headers.set('X-YouTube-Client-Name', '28');
+      req.headers.set('X-YouTube-Client-Version', '1.60.19');
+      req.add(utf8.encode(jsonEncode({
+        'context': {
+          'client': {
+            'clientName': 'ANDROID_VR',
+            'clientVersion': '1.60.19',
+            'osName': 'Android',
+            'osVersion': '12L',
+            'androidSdkVersion': 32,
+            'hl': 'en',
+            'gl': 'IN',
+          },
+        },
+      })));
+      final resp = await req.close().timeout(const Duration(milliseconds: 2200));
+      if (resp.statusCode == 200) {
+        final raw = await resp.transform(utf8.decoder).join();
+        final data = jsonDecode(raw) as Map<String, dynamic>;
+        final vd = data['responseContext']?['visitorData']?.toString();
+        if (vd != null && vd.isNotEmpty) {
+          _cachedVisitorData = vd;
+          _visitorExpiresAt = DateTime.now().add(const Duration(minutes: 45));
+          return vd;
+        }
+      } else {
+        await resp.drain<void>();
+      }
+    } catch (_) {}
+    return _cachedVisitorData;
+  }
+
+  /// Resolves verified playable audio stream candidates across multiple YouTube
+  /// engines and mirrors. Probes streams with a tiny HTTP Range check so 403/dead
+  /// URLs are filtered out immediately before ExoPlayer touches them.
   static Future<List<ResolvedAudioStream>> resolveAudioCandidates(
     String videoId, {
     String? fallbackTitle,
@@ -73,110 +125,186 @@ class YtAudioResolver {
       return cached.streams;
     }
 
-    final candidates = <ResolvedAudioStream>[];
+    final visitorData = await _getVisitorData();
+    final verified = <ResolvedAudioStream>[];
     final seenUrls = <String>{};
 
-    void addCandidate(ResolvedAudioStream s) {
-      if (s.url.isNotEmpty && seenUrls.add(s.url)) {
-        candidates.add(s);
+    Future<void> probeAndCollect(List<ResolvedAudioStream> rawList) async {
+      final unique = <ResolvedAudioStream>[];
+      for (final item in rawList) {
+        if (item.url.isNotEmpty && seenUrls.add(item.url)) {
+          unique.add(item);
+        }
+      }
+      if (unique.isEmpty) return;
+
+      final probeResults = await Future.wait(
+        unique.map((c) async => (await _probePlayable(c)) ? c : null),
+      );
+      for (final ok in probeResults) {
+        if (ok != null) verified.add(ok);
       }
     }
 
-    // 1. Direct InnerTube ANDROID_VR + IOS in parallel (fastest & PO-token free)
-    final vrFuture = _fetchInnertubePlayer(
-      videoId: cleanId,
-      quality: quality,
-      clientName: 'ANDROID_VR',
-      clientVersion: '1.60.19',
-      clientId: '28',
-      userAgent: _androidVrUa,
-      clientBody: {
-        'clientName': 'ANDROID_VR',
-        'clientVersion': '1.60.19',
-        'deviceMake': 'Oculus',
-        'deviceModel': 'Quest 3',
-        'osName': 'Android',
-        'osVersion': '12L',
-        'androidSdkVersion': 32,
-        'hl': 'en',
-        'gl': 'IN',
-      },
-    );
-
-    final iosFuture = _fetchInnertubePlayer(
-      videoId: cleanId,
-      quality: quality,
-      clientName: 'IOS',
-      clientVersion: '20.10.4',
-      clientId: '5',
-      userAgent: _iosUa,
-      clientBody: {
-        'clientName': 'IOS',
-        'clientVersion': '20.10.4',
-        'deviceMake': 'Apple',
-        'deviceModel': 'iPhone16,2',
-        'osName': 'iPhone',
-        'osVersion': '18.3.2.22D82',
-        'hl': 'en',
-        'gl': 'IN',
-      },
-    );
-
-    final innertubeBatch = await Future.wait([vrFuture, iosFuture]);
-    for (final list in innertubeBatch) {
-      for (final item in list) {
-        addCandidate(item);
-      }
-    }
-
-    // 2. ANDROID_TESTSUITE InnerTube fallback if needed
-    if (candidates.isEmpty) {
-      final testsuiteStreams = await _fetchInnertubePlayer(
+    // Round 1: Parallel ANDROID_VR + TVHTML5_SIMPLY_EMBEDDED + YoutubeExplode
+    final round1Lists = await Future.wait([
+      _fetchInnertubePlayer(
         videoId: cleanId,
         quality: quality,
-        clientName: 'ANDROID_TESTSUITE',
-        clientVersion: '1.9',
-        clientId: '30',
-        userAgent: _androidTestUa,
+        clientName: 'ANDROID_VR',
+        clientVersion: '1.60.19',
+        clientId: '28',
+        userAgent: _androidVrUa,
+        visitorData: visitorData,
         clientBody: {
-          'clientName': 'ANDROID_TESTSUITE',
-          'clientVersion': '1.9',
+          'clientName': 'ANDROID_VR',
+          'clientVersion': '1.60.19',
+          'deviceMake': 'Oculus',
+          'deviceModel': 'Quest 3',
           'osName': 'Android',
-          'osVersion': '13',
-          'androidSdkVersion': 33,
+          'osVersion': '12L',
+          'androidSdkVersion': 32,
           'hl': 'en',
           'gl': 'IN',
         },
-      );
-      for (final item in testsuiteStreams) {
-        addCandidate(item);
-      }
+      ),
+      _fetchInnertubePlayer(
+        videoId: cleanId,
+        quality: quality,
+        clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
+        clientVersion: '2.0',
+        clientId: '85',
+        userAgent: _tvEmbedUa,
+        visitorData: visitorData,
+        thirdPartyEmbedUrl: 'https://www.youtube.com/watch?v=$cleanId',
+        clientBody: {
+          'clientName': 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
+          'clientVersion': '2.0',
+          'hl': 'en',
+          'gl': 'IN',
+        },
+      ),
+      _resolveViaYoutubeExplode(cleanId, quality),
+    ]);
+
+    final round1Raw = <ResolvedAudioStream>[
+      for (final list in round1Lists) ...list,
+    ];
+    await probeAndCollect(round1Raw);
+
+    // Round 2: If Round 1 failed verification (e.g. 403/PO-token), try IOS + ANDROID_TESTSUITE + Mirrors
+    if (verified.isEmpty) {
+      final round2Lists = await Future.wait([
+        _fetchInnertubePlayer(
+          videoId: cleanId,
+          quality: quality,
+          clientName: 'IOS',
+          clientVersion: '20.10.4',
+          clientId: '5',
+          userAgent: _iosUa,
+          visitorData: visitorData,
+          clientBody: {
+            'clientName': 'IOS',
+            'clientVersion': '20.10.4',
+            'deviceMake': 'Apple',
+            'deviceModel': 'iPhone16,2',
+            'osName': 'iPhone',
+            'osVersion': '18.3.2.22D82',
+            'hl': 'en',
+            'gl': 'IN',
+          },
+        ),
+        _fetchInnertubePlayer(
+          videoId: cleanId,
+          quality: quality,
+          clientName: 'ANDROID_TESTSUITE',
+          clientVersion: '1.9',
+          clientId: '30',
+          userAgent: _androidTestUa,
+          visitorData: visitorData,
+          clientBody: {
+            'clientName': 'ANDROID_TESTSUITE',
+            'clientVersion': '1.9',
+            'osName': 'Android',
+            'osVersion': '13',
+            'androidSdkVersion': 33,
+            'hl': 'en',
+            'gl': 'IN',
+          },
+        ),
+        _resolveViaMirrorsParallel(cleanId, quality),
+      ]);
+
+      final round2Raw = <ResolvedAudioStream>[
+        for (final list in round2Lists) ...list,
+      ];
+      await probeAndCollect(round2Raw);
     }
 
-    // 3. YoutubeExplode fallback (audioOnly M4A -> audioOnly -> muxed MP4)
-    if (candidates.isEmpty) {
-      final ytStreams = await _resolveViaYoutubeExplode(cleanId, quality);
-      for (final item in ytStreams) {
-        addCandidate(item);
-      }
-    }
+    // Prefer non-HLS progressive streams first for reliable seeking & proxy support
+    verified.sort((a, b) {
+      if (a.isHls == b.isHls) return 0;
+      return a.isHls ? 1 : -1;
+    });
 
-    // 4. Parallel Piped + Invidious mirror fallback (3.5s max wait)
-    if (candidates.isEmpty) {
-      final mirrorStreams = await _resolveViaMirrorsParallel(cleanId, quality);
-      for (final item in mirrorStreams) {
-        addCandidate(item);
-      }
-    }
-
-    if (candidates.isNotEmpty) {
+    if (verified.isNotEmpty) {
       _cache[cacheKey] = _CachedCandidates(
-        List.unmodifiable(candidates),
-        DateTime.now().add(const Duration(hours: 2)),
+        List.unmodifiable(verified),
+        DateTime.now().add(const Duration(minutes: 90)),
       );
     }
 
-    return candidates;
+    return verified;
+  }
+
+  /// Verifies with a tiny Range/GET request that the stream actually returns HTTP 200/206
+  /// and is NOT an expired/403/PO-token blocked googlevideo URL.
+  static Future<bool> _probePlayable(ResolvedAudioStream candidate) async {
+    try {
+      var uri = Uri.parse(candidate.url);
+      for (int hop = 0; hop < 4; hop++) {
+        final req = await _httpClient.getUrl(uri);
+        req.followRedirects = false;
+        candidate.headers?.forEach((k, v) => req.headers.set(k, v));
+        req.headers.set(HttpHeaders.acceptHeader, '*/*');
+        if (!candidate.isHls) {
+          req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-63');
+        }
+
+        final resp = await req.close().timeout(const Duration(milliseconds: 2600));
+        if (resp.isRedirect ||
+            resp.statusCode == 301 ||
+            resp.statusCode == 302 ||
+            resp.statusCode == 303 ||
+            resp.statusCode == 307 ||
+            resp.statusCode == 308) {
+          final loc = resp.headers.value(HttpHeaders.locationHeader);
+          await resp.drain<void>();
+          if (loc == null || loc.isEmpty) return false;
+          uri = uri.resolve(loc);
+          continue;
+        }
+
+        final okStatus = resp.statusCode == 200 || resp.statusCode == 206;
+        if (!okStatus) {
+          await resp.drain<void>();
+          debugPrint('[YtAudioResolver] probe ${candidate.source} rejected (${resp.statusCode})');
+          return false;
+        }
+
+        if (candidate.isHls) {
+          final chunk = await resp.first.timeout(const Duration(milliseconds: 1500));
+          final text = utf8.decode(chunk, allowMalformed: true);
+          return text.contains('#EXTM3U');
+        }
+
+        await resp.drain<void>();
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Backward-compatible helper returning the best single URL (prefers non-HLS).
@@ -224,27 +352,37 @@ class YtAudioResolver {
     required String clientId,
     required String userAgent,
     required Map<String, dynamic> clientBody,
+    String? visitorData,
+    String? thirdPartyEmbedUrl,
   }) async {
     try {
       final uri = Uri.parse('https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
-      final payload = jsonEncode({
+      final bodyMap = <String, dynamic>{
         'videoId': videoId,
         'contentCheckOk': true,
         'racyCheckOk': true,
         'context': {
           'client': clientBody,
+          if (thirdPartyEmbedUrl != null)
+            'thirdParty': {'embedUrl': thirdPartyEmbedUrl},
         },
-      });
+      };
 
       final req = await _httpClient.postUrl(uri);
       req.headers.set('Content-Type', 'application/json');
       req.headers.set('User-Agent', userAgent);
       req.headers.set('X-YouTube-Client-Name', clientId);
       req.headers.set('X-YouTube-Client-Version', clientVersion);
-      req.add(utf8.encode(payload));
+      if (visitorData != null && visitorData.isNotEmpty) {
+        req.headers.set('X-Goog-Visitor-Id', visitorData);
+      }
+      req.add(utf8.encode(jsonEncode(bodyMap)));
 
       final resp = await req.close().timeout(const Duration(milliseconds: 4500));
-      if (resp.statusCode != 200) return const [];
+      if (resp.statusCode != 200) {
+        await resp.drain<void>();
+        return const [];
+      }
 
       final raw = await resp.transform(utf8.decoder).join();
       final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -312,7 +450,6 @@ class YtAudioResolver {
         ));
       }
 
-      // Muxed MP4 fallback
       for (final f in muxed) {
         final u = f['url']?.toString() ?? '';
         if (u.isNotEmpty) {
@@ -321,7 +458,6 @@ class YtAudioResolver {
         }
       }
 
-      // HLS manifest fallback (especially reliable on iOS client)
       final hls = streaming['hlsManifestUrl']?.toString() ?? '';
       if (hls.isNotEmpty) {
         out.add(ResolvedAudioStream(
@@ -351,7 +487,6 @@ class YtAudioResolver {
       final out = <ResolvedAudioStream>[];
       final audioStreams = manifest.audioOnly.sortByBitrate().toList();
 
-      // Prefer MP4/M4A for ExoPlayer compatibility
       final mp4Audio = audioStreams
           .where((s) => s.container.name.toLowerCase() == 'mp4')
           .toList();
@@ -397,6 +532,12 @@ class YtAudioResolver {
     final futures = <Future<ResolvedAudioStream?>>[
       for (final m in _pipedMirrors) _fetchPipedSingle(m, cleanId, quality),
       for (final m in _invidiousMirrors) _fetchInvidiousSingle(m, cleanId, quality),
+      // Invidious server-proxied M4A fallback (bypasses googlevideo IP locks)
+      for (final m in _invidiousMirrors)
+        Future.value(ResolvedAudioStream(
+          url: '$m/latest_version?id=$cleanId&itag=140&local=true',
+          source: 'invidious_proxy',
+        )),
     ];
 
     final results = await Future.wait(futures);

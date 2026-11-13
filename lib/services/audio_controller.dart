@@ -10,6 +10,7 @@ import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import 'app_state.dart';
 import 'equalizer_service.dart';
+import 'local_stream_proxy.dart';
 import 'radio_controller.dart';
 import 'settings_service.dart';
 import 'yt_audio_resolver.dart';
@@ -249,13 +250,37 @@ class AudioController {
     }
   }
 
-  AudioSource _toAudioSource(OnlineSong s, {Map<String, String>? headers}) {
-    final uri = s.streamUrl.startsWith('/') || s.streamUrl.startsWith('file:')
-        ? (s.streamUrl.startsWith('file:') ? Uri.parse(s.streamUrl) : Uri.file(s.streamUrl))
-        : Uri.parse(s.streamUrl);
+  Future<AudioSource> _buildAudioSource(
+    OnlineSong s, {
+    Map<String, String>? headers,
+    bool isHls = false,
+    bool? useProxy,
+  }) async {
+    final rawUrl = s.streamUrl;
+    final isLocalFile =
+        rawUrl.startsWith('/') || rawUrl.startsWith('file:') || rawUrl.startsWith('http://127.0.0.1');
+
+    Uri playUri;
+    Map<String, String>? effectiveHeaders = headers;
+
+    if (isLocalFile) {
+      playUri = rawUrl.startsWith('file:')
+          ? Uri.parse(rawUrl)
+          : (rawUrl.startsWith('http://') ? Uri.parse(rawUrl) : Uri.file(rawUrl));
+    } else {
+      final shouldProxy = !isHls && (useProxy ?? rawUrl.contains('googlevideo.com'));
+      if (shouldProxy) {
+        final proxiedUrl = await LocalStreamProxy.instance.register(rawUrl, headers: headers);
+        playUri = Uri.parse(proxiedUrl);
+        effectiveHeaders = null;
+      } else {
+        playUri = Uri.parse(rawUrl);
+      }
+    }
+
     return AudioSource.uri(
-      uri,
-      headers: headers,
+      playUri,
+      headers: effectiveHeaders,
       tag: MediaItem(
         id: s.id,
         title: s.title,
@@ -304,57 +329,73 @@ class AudioController {
       return 'Could not find playable audio stream for "${target.title}".';
     }
 
-    // Try up to 3 resolved stream candidates until ExoPlayer loads one cleanly
+    // Try up to 6 resolved stream candidates until ExoPlayer loads one cleanly
     Object? lastErr;
-    for (final candidate in candidates.take(3)) {
+    for (final candidate in candidates.take(6)) {
       if (gen != _queueSessionGen) return 'Cancelled';
-      try {
-        final resolvedSong = target.copyWith(streamUrl: candidate.url);
-        final concatSource = ConcatenatingAudioSource(
-          children: [_toAudioSource(resolvedSong, headers: candidate.headers)],
-        );
+      final isRemote = !candidate.url.startsWith('/') &&
+          !candidate.url.startsWith('file:') &&
+          !candidate.url.startsWith('http://127.0.0.1');
+      final proxyModes = (isRemote && !candidate.isHls)
+          ? (candidate.url.contains('googlevideo.com') ? const [true, false] : const [false, true])
+          : const [false];
 
-        await player.setVolume(1.0);
-        await player
-            .setAudioSource(concatSource, initialIndex: 0)
-            .timeout(const Duration(seconds: 10));
-
+      for (final proxyMode in proxyModes) {
         if (gen != _queueSessionGen) return 'Cancelled';
+        try {
+          final resolvedSong = target.copyWith(streamUrl: candidate.url);
+          final audioSource = await _buildAudioSource(
+            resolvedSong,
+            headers: candidate.headers,
+            isHls: candidate.isHls,
+            useProxy: proxyMode,
+          );
+          if (gen != _queueSessionGen) return 'Cancelled';
 
-        onlineQueue = [resolvedSong];
-        _activeOnlineConcat = concatSource;
-        _lastPlayedIndex = 0;
+          final concatSource = ConcatenatingAudioSource(children: [audioSource]);
 
-        // Store remaining tracks in order without hammering network for all 20 at once
-        _pendingOnlineSongs = [
-          for (int i = safeStart + 1; i < items.length; i++) items[i],
-          for (int i = 0; i < safeStart; i++) items[i],
-        ];
-        if (shuffle && _pendingOnlineSongs.length > 1) {
-          _pendingOnlineSongs.shuffle();
-        }
-        _pendingNextRawIdx = 0;
+          await player.setVolume(1.0);
+          await player
+              .setAudioSource(concatSource, initialIndex: 0)
+              .timeout(const Duration(seconds: 10));
 
-        await player.setShuffleModeEnabled(false);
-        await player.setLoopMode(LoopMode.all);
-        player.play();
+          if (gen != _queueSessionGen) return 'Cancelled';
 
-        final onlineSessId = player.androidAudioSessionId;
-        if (onlineSessId != null && onlineSessId > 0) {
-          EqualizerService.instance.attachAudioSession(onlineSessId);
-        }
+          onlineQueue = [resolvedSong];
+          _activeOnlineConcat = concatSource;
+          _lastPlayedIndex = 0;
 
-        // Pre-resolve ONLY the very next track quietly after UI settles
-        Future.delayed(const Duration(milliseconds: 1600), () {
-          if (gen == _queueSessionGen) {
-            _appendNextPendingTrack(gen);
+          // Store remaining tracks in order without hammering network for all 20 at once
+          _pendingOnlineSongs = [
+            for (int i = safeStart + 1; i < items.length; i++) items[i],
+            for (int i = 0; i < safeStart; i++) items[i],
+          ];
+          if (shuffle && _pendingOnlineSongs.length > 1) {
+            _pendingOnlineSongs.shuffle();
           }
-        });
+          _pendingNextRawIdx = 0;
 
-        return null;
-      } catch (e) {
-        lastErr = e;
-        debugPrint('[AudioController] Candidate ${candidate.source} failed: $e');
+          await player.setShuffleModeEnabled(false);
+          await player.setLoopMode(LoopMode.all);
+          player.play();
+
+          final onlineSessId = player.androidAudioSessionId;
+          if (onlineSessId != null && onlineSessId > 0) {
+            EqualizerService.instance.attachAudioSession(onlineSessId);
+          }
+
+          // Pre-resolve ONLY the very next track quietly after UI settles
+          Future.delayed(const Duration(milliseconds: 1600), () {
+            if (gen == _queueSessionGen) {
+              _appendNextPendingTrack(gen);
+            }
+          });
+
+          return null;
+        } catch (e) {
+          lastErr = e;
+          debugPrint('[AudioController] Candidate ${candidate.source} (proxy=$proxyMode) failed: $e');
+        }
       }
     }
 
@@ -390,8 +431,14 @@ class AudioController {
         if (candidates.isNotEmpty) {
           final best = candidates.first;
           final resolved = nextSong.copyWith(streamUrl: best.url);
+          final src = await _buildAudioSource(
+            resolved,
+            headers: best.headers,
+            isHls: best.isHls,
+          );
+          if (gen != _queueSessionGen) return;
           onlineQueue = [...onlineQueue, resolved];
-          await concat.add(_toAudioSource(resolved, headers: best.headers));
+          await concat.add(src);
           return;
         }
       }
@@ -418,6 +465,7 @@ class AudioController {
       if (item.isOnline) {
         var streamUrl = item.streamUrl ?? '';
         Map<String, String>? headers;
+        bool isHls = false;
         if (streamUrl.isEmpty) {
           final ytId = item.id.startsWith('yt_') ? item.id.replaceFirst('yt_', '') : item.id;
           final list = await YtAudioResolver.resolveAudioCandidates(
@@ -428,13 +476,18 @@ class AudioController {
           if (list.isNotEmpty) {
             streamUrl = list.first.url;
             headers = list.first.headers;
+            isHls = list.first.isHls;
           }
         }
         if (streamUrl.isNotEmpty) {
+          final shouldProxy = !isHls && streamUrl.contains('googlevideo.com');
+          final playUri = shouldProxy
+              ? Uri.parse(await LocalStreamProxy.instance.register(streamUrl, headers: headers))
+              : Uri.parse(streamUrl);
           children.add(
             AudioSource.uri(
-              Uri.parse(streamUrl),
-              headers: headers,
+              playUri,
+              headers: shouldProxy ? null : headers,
               tag: MediaItem(
                 id: item.id,
                 title: item.title,
@@ -492,11 +545,17 @@ class AudioController {
         : await YtAudioResolver.resolveAudioCandidates(ytId, fallbackTitle: song.title, fallbackArtist: song.artist);
     if (candidates.isEmpty) return;
 
-    final resolved = song.copyWith(streamUrl: candidates.first.url);
+    final best = candidates.first;
+    final resolved = song.copyWith(streamUrl: best.url);
+    final src = await _buildAudioSource(
+      resolved,
+      headers: best.headers,
+      isHls: best.isHls,
+    );
     onlineQueue = [...onlineQueue, resolved];
     final currentSource = player.audioSource;
     if (currentSource is ConcatenatingAudioSource) {
-      await currentSource.add(_toAudioSource(resolved, headers: candidates.first.headers));
+      await currentSource.add(src);
     }
   }
 
@@ -507,7 +566,13 @@ class AudioController {
         : await YtAudioResolver.resolveAudioCandidates(ytId, fallbackTitle: song.title, fallbackArtist: song.artist);
     if (candidates.isEmpty) return;
 
-    final resolved = song.copyWith(streamUrl: candidates.first.url);
+    final best = candidates.first;
+    final resolved = song.copyWith(streamUrl: best.url);
+    final src = await _buildAudioSource(
+      resolved,
+      headers: best.headers,
+      isHls: best.isHls,
+    );
     final currentIdx = player.currentIndex ?? 0;
     final list = List<OnlineSong>.from(onlineQueue);
     final insertIdx = list.isNotEmpty ? (currentIdx + 1).clamp(0, list.length) : 0;
@@ -516,7 +581,7 @@ class AudioController {
 
     final currentSource = player.audioSource;
     if (currentSource is ConcatenatingAudioSource) {
-      await currentSource.insert(insertIdx, _toAudioSource(resolved, headers: candidates.first.headers));
+      await currentSource.insert(insertIdx, src);
     }
   }
 

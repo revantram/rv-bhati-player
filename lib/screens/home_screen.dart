@@ -665,6 +665,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: VideoFolderScreen(
               videos: _videos,
               bottomOffset: bottomOffset + 68,
+              onRescan: _init,
               onVideoDeleted: (deleted) {
                 setState(() {
                   _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);

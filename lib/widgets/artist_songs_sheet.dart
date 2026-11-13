@@ -10,6 +10,7 @@ import '../services/yt_music_service.dart';
 import '../utils/format.dart';
 import 'add_to_playlist_dialog.dart';
 import 'liquid_glass_container.dart';
+import 'youtube_music_sheet.dart';
 
 class ArtistSongsSheet extends StatefulWidget {
   final String artistName;
@@ -94,7 +95,21 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
 
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(err),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Play Web',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => YouTubeMusicSheet(song: selected),
+              );
+            },
+          ),
+        ),
       );
       return;
     }
@@ -119,7 +134,21 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
 
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(err),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Play Web',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => YouTubeMusicSheet(song: first),
+              );
+            },
+          ),
+        ),
       );
       return;
     }

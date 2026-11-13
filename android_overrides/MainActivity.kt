@@ -468,6 +468,95 @@ class MainActivity : AudioServiceActivity() {
                         }
                     }.start()
                 }
+                "scanMedia" -> {
+                    val kind = call.argument<String>("kind") ?: "video"
+                    Thread {
+                        val items = ArrayList<Map<String, Any?>>()
+                        try {
+                            val isVideo = (kind == "video")
+                            val uri = if (isVideo) {
+                                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                            } else {
+                                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                            }
+                            val projection = if (isVideo) {
+                                arrayOf(
+                                    MediaStore.Video.Media._ID,
+                                    MediaStore.Video.Media.DATA,
+                                    MediaStore.Video.Media.DISPLAY_NAME,
+                                    MediaStore.Video.Media.TITLE,
+                                    MediaStore.Video.Media.DURATION,
+                                    MediaStore.Video.Media.SIZE,
+                                    MediaStore.Video.Media.DATE_MODIFIED,
+                                    MediaStore.Video.Media.MIME_TYPE
+                                )
+                            } else {
+                                arrayOf(
+                                    MediaStore.Audio.Media._ID,
+                                    MediaStore.Audio.Media.DATA,
+                                    MediaStore.Audio.Media.DISPLAY_NAME,
+                                    MediaStore.Audio.Media.TITLE,
+                                    MediaStore.Audio.Media.DURATION,
+                                    MediaStore.Audio.Media.SIZE,
+                                    MediaStore.Audio.Media.DATE_MODIFIED,
+                                    MediaStore.Audio.Media.MIME_TYPE,
+                                    MediaStore.Audio.Media.ARTIST,
+                                    MediaStore.Audio.Media.ALBUM
+                                )
+                            }
+                            val sortOrder = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
+                            contentResolver.query(uri, projection, null, null, sortOrder)?.use { cursor ->
+                                val idIdx = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
+                                val dataIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+                                val dispIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                                val titleIdx = cursor.getColumnIndex(MediaStore.MediaColumns.TITLE)
+                                val durIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION)
+                                val sizeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
+                                val dateIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
+                                val mimeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE)
+                                val artistIdx = if (!isVideo) cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST) else -1
+                                val albumIdx = if (!isVideo) cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM) else -1
+
+                                while (cursor.moveToNext()) {
+                                    val path = if (dataIdx >= 0) cursor.getString(dataIdx) ?: "" else ""
+                                    if (path.isEmpty()) continue
+                                    val file = File(path)
+                                    if (!file.exists() || !file.isFile) continue
+
+                                    val id = if (idIdx >= 0) cursor.getLong(idIdx).toString() else path
+                                    val dispName = if (dispIdx >= 0) cursor.getString(dispIdx) else null
+                                    val titleRaw = if (titleIdx >= 0) cursor.getString(titleIdx) else null
+                                    val title = when {
+                                        !dispName.isNullOrEmpty() -> dispName
+                                        !titleRaw.isNullOrEmpty() -> titleRaw
+                                        else -> file.name
+                                    }
+                                    val durMs = if (durIdx >= 0) cursor.getLong(durIdx) else 0L
+                                    val fileSize = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else file.length()
+                                    val dateSec = if (dateIdx >= 0) cursor.getLong(dateIdx) else (file.lastModified() / 1000L)
+                                    val mime = if (mimeIdx >= 0) cursor.getString(mimeIdx) ?: "" else ""
+                                    val artist = if (artistIdx >= 0) cursor.getString(artistIdx) else null
+                                    val album = if (albumIdx >= 0) cursor.getString(albumIdx) else null
+
+                                    items.add(
+                                        mapOf(
+                                            "id" to id,
+                                            "title" to title,
+                                            "path" to path,
+                                            "durationMs" to durMs,
+                                            "size" to fileSize,
+                                            "dateModifiedSec" to dateSec,
+                                            "mimeType" to mime,
+                                            "artist" to artist,
+                                            "album" to album
+                                        )
+                                    )
+                                }
+                            }
+                        } catch (ignored: Exception) {}
+                        runOnUiThread { result.success(items) }
+                    }.start()
+                }
                 else -> result.notImplemented()
             }
         }
