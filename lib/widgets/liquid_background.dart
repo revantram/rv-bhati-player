@@ -2,44 +2,63 @@ import 'package:flutter/material.dart';
 
 import '../services/app_state.dart';
 
-/// Modern Studio Fluid Background:
-/// High-performance, zero-lag background with deep AMOLED Black / Crisp Porcelain White.
+/// BitChord Apple Music-inspired Backdrop:
+/// Combines Pure OLED Black (#000000), Apple Dark (#0B0C10), or Crisp Light (#F5F7FA)
+/// with a smooth subtle radial ambient glow matching the active accent/artwork color.
 class LiquidBackground extends StatelessWidget {
   const LiquidBackground({
     super.key,
-    this.accent = const Color(0xFF7C6CFF),
+    this.accent,
     this.child,
   });
 
-  final Color accent;
+  final Color? accent;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) {
     final app = AppState.instance;
     final isLight = app.isLight;
+    final isOled = app.isOled;
+    final glowColor = accent ?? app.accentColor;
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: app.backgroundColor,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: isLight
-              ? const [
-                  Color(0xFFFFFFFF),
-                  Color(0xFFF8FAFC),
-                  Color(0xFFF1F5F9),
-                ]
-              : const [
-                  Color(0xFF0F1420),
-                  Color(0xFF090D16),
-                  Color(0xFF06090F),
+        gradient: isLight
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(const Color(0xFFFFFFFF), glowColor, 0.04)!,
+                  const Color(0xFFF5F7FA),
+                  const Color(0xFFEEF2F7),
                 ],
-          stops: const [0.0, 0.45, 1.0],
-        ),
+                stops: const [0.0, 0.5, 1.0],
+              )
+            : (isOled
+                ? RadialGradient(
+                    center: const Alignment(0.0, -0.85),
+                    radius: 1.25,
+                    colors: [
+                      glowColor.withValues(alpha: 0.14),
+                      const Color(0xFF060609),
+                      const Color(0xFF000000),
+                    ],
+                    stops: const [0.0, 0.45, 1.0],
+                  )
+                : RadialGradient(
+                    center: const Alignment(0.0, -0.85),
+                    radius: 1.25,
+                    colors: [
+                      glowColor.withValues(alpha: 0.16),
+                      const Color(0xFF0E1017),
+                      const Color(0xFF0B0C10),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  )),
       ),
-      child: child,
+      child: child ?? const SizedBox.expand(),
     );
   }
 }

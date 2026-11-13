@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Brightness;
 import 'package:flutter/material.dart';
 
 import '../models/media_file.dart';
-import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import 'audio_controller.dart';
 import 'equalizer_service.dart';
 import 'media_scanner.dart';
-import 'saavn_api_service.dart';
 import 'settings_service.dart';
 
 enum AppLanguage { en, hi }
@@ -28,9 +27,13 @@ class AppStrings {
       'en': 'Music',
       'hi': 'म्यूजिक',
     },
+    'bitmusic': {
+      'en': 'BitMusic',
+      'hi': 'बिटम्यूज़िक',
+    },
     'online_music': {
-      'en': 'Online Music',
-      'hi': 'ऑनलाइन म्यूजिक',
+      'en': 'BitMusic',
+      'hi': 'बिटम्यूज़िक',
     },
     'trending': {
       'en': 'Trending Hits',
@@ -41,8 +44,8 @@ class AppStrings {
       'hi': 'गायक',
     },
     'search_online': {
-      'en': 'Search songs, singers, movies...',
-      'hi': 'गाने, गायक, फ़िल्में खोजें...',
+      'en': 'Search songs, singers, albums...',
+      'hi': 'गाने, गायक, एल्बम खोजें...',
     },
     'radio': {
       'en': 'Radio',
@@ -241,12 +244,12 @@ class AppStrings {
       'hi': 'स्लीप टाइमर फेड-आउट',
     },
     'crossfade': {
-      'en': 'DJ Crossfade Duration',
-      'hi': 'डीजे क्रॉसफ़ेड अवधि',
+      'en': 'AutoMix Crossfade',
+      'hi': 'ऑटोमिक्स क्रॉसफ़ेड',
     },
     'theme_style': {
-      'en': 'Theme Style',
-      'hi': 'थीम शैली',
+      'en': 'Theme Mode',
+      'hi': 'थीम मोड',
     },
   };
 
@@ -275,48 +278,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  String? _jioNumber;
-  String? get jioNumber => _jioNumber;
-  bool get isJioLinked => _jioNumber != null && _jioNumber!.isNotEmpty;
-
-  void setJioNumber(String? number) {
-    _jioNumber = number?.trim();
-    _save();
-    notifyListeners();
-  }
-
-  String? _jioPlaylistUrl;
-  String? _jioPlaylistName;
-  List<OnlineSong> _jioPlaylistSongs = [];
-
-  String? get jioPlaylistUrl => _jioPlaylistUrl;
-  String? get jioPlaylistName => _jioPlaylistName;
-  List<OnlineSong> get jioPlaylistSongs => List.unmodifiable(_jioPlaylistSongs);
-  bool get hasJioPlaylist => _jioPlaylistSongs.isNotEmpty;
-
-  void setJioPlaylist({
-    required String url,
-    required String name,
-    required List<OnlineSong> songs,
-  }) {
-    _jioPlaylistUrl = url;
-    _jioPlaylistName = name;
-    _jioPlaylistSongs = List.from(songs);
-    _save();
-    notifyListeners();
-  }
-
-  void clearJioPlaylist() {
-    _jioPlaylistUrl = null;
-    _jioPlaylistName = null;
-    _jioPlaylistSongs = [];
-    _save();
-    notifyListeners();
-  }
-
-  Color _accentColor = const Color(0xFF7C6CFF);
+  // BitChord signature Apple Music Crimson default
+  Color _accentColor = const Color(0xFFFA2D48);
   Color? _dynamicAccentColor;
-  Color get accentColor => _dynamicAccentColor ?? _accentColor;
+  Color get accentColor =>
+      (SettingsService.instance.dynamicArtworkColors ? _dynamicAccentColor : null) ??
+      _accentColor;
   Color get staticAccentColor => _accentColor;
 
   void setDynamicAccentColor(Color? color) {
@@ -332,16 +299,49 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  bool get isLight => SettingsService.instance.isLight;
+  bool get isLight {
+    final mode = SettingsService.instance.themeMode;
+    if (mode == AppThemeMode.light) return true;
+    if (mode == AppThemeMode.system) {
+      return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+          Brightness.light;
+    }
+    return false;
+  }
+
   bool get isDark => !isLight;
-  Color get backgroundColor => isLight ? const Color(0xFFF8FAFC) : const Color(0xFF090D16);
-  Color get surfaceColor => isLight ? Colors.white : const Color(0xFF131722);
-  Color get surfaceColorSecondary => isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1C2230);
+
+  bool get isOled {
+    if (isLight) return false;
+    final mode = SettingsService.instance.themeMode;
+    return mode == AppThemeMode.oled || mode == AppThemeMode.system;
+  }
+
+  // BitChord Apple Music color palette tokens
+  Color get backgroundColor {
+    if (isLight) return const Color(0xFFF5F7FA);
+    return isOled ? const Color(0xFF000000) : const Color(0xFF0B0C10);
+  }
+
+  Color get surfaceColor {
+    if (isLight) return Colors.white;
+    return isOled ? const Color(0xFF101116) : const Color(0xFF151822);
+  }
+
+  Color get surfaceColorSecondary {
+    if (isLight) return const Color(0xFFEFF2F7);
+    return isOled ? const Color(0xFF181A22) : const Color(0xFF1E2230);
+  }
+
   Color get textColor => isLight ? const Color(0xFF0F172A) : const Color(0xFFFFFFFF);
-  Color get secondaryTextColor => isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+  Color get secondaryTextColor =>
+      isLight ? const Color(0xFF64748B) : const Color(0xFFA1A7B5);
   Color get cardColor => surfaceColor;
-  Color get cardBorderColor => isLight ? const Color(0xFFE2E8F0) : const Color(0x1FFFFFFF);
-  Color get dividerColor => isLight ? const Color(0xFFE2E8F0) : const Color(0x14FFFFFF);
+  Color get cardBorderColor => isLight
+      ? const Color(0xFFE2E8F0)
+      : Colors.white.withValues(alpha: isOled ? 0.10 : 0.13);
+  Color get dividerColor =>
+      isLight ? const Color(0xFFE2E8F0) : Colors.white.withValues(alpha: 0.08);
 
   final Set<String> _favorites = {};
   Set<String> get favorites => _favorites;
@@ -386,12 +386,12 @@ class AppState extends ChangeNotifier {
   File? _storageFile;
 
   static const List<Color> accentOptions = [
-    Color(0xFF7C6CFF), // Electric Purple (Default)
+    Color(0xFFFA2D48), // Apple Music Crimson (BitChord Default)
+    Color(0xFF7C6CFF), // Electric Violet
     Color(0xFF00D2FF), // Cyber Cyan
-    Color(0xFF00E676), // Emerald Green
-    Color(0xFFFF6B6B), // Sunset Orange
-    Color(0xFFFF2A85), // Neon Pink
-    Color(0xFFFFD166), // Gold Amber
+    Color(0xFFFF6B4A), // Coral Sunset
+    Color(0xFF00D084), // Mint Emerald
+    Color(0xFFFFB300), // Solar Amber
   ];
 
   Future<void> init() async {
@@ -409,15 +409,6 @@ class AppState extends ChangeNotifier {
         final map = jsonDecode(content) as Map<String, dynamic>;
         if (map['language'] == 'hi') _language = AppLanguage.hi;
         if (map['userName'] != null) _userName = map['userName'] as String;
-        if (map['jioNumber'] != null) _jioNumber = map['jioNumber'] as String;
-        if (map['jioPlaylistUrl'] != null) _jioPlaylistUrl = map['jioPlaylistUrl'] as String;
-        if (map['jioPlaylistName'] != null) _jioPlaylistName = map['jioPlaylistName'] as String;
-        if (map['jioPlaylistSongs'] is List) {
-          _jioPlaylistSongs = (map['jioPlaylistSongs'] as List)
-              .map((m) => m is Map ? OnlineSong.fromMap(Map<String, dynamic>.from(m)) : null)
-              .whereType<OnlineSong>()
-              .toList();
-        }
         if (map['accent'] != null) _accentColor = Color(map['accent'] as int);
         if (map['favorites'] is List) {
           _favorites.addAll((map['favorites'] as List).cast<String>());
@@ -491,10 +482,6 @@ class AppState extends ChangeNotifier {
       final data = {
         'language': _language == AppLanguage.hi ? 'hi' : 'en',
         'userName': _userName,
-        'jioNumber': _jioNumber,
-        'jioPlaylistUrl': _jioPlaylistUrl,
-        'jioPlaylistName': _jioPlaylistName,
-        'jioPlaylistSongs': _jioPlaylistSongs.map((s) => s.toJson()).toList(),
         'accent': _accentColor.toARGB32(),
         'favorites': _favorites.toList(),
         'favoriteItems': _favoriteItems.values.map((item) => item.toJson()).toList(),
@@ -581,26 +568,19 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> ensureFavoriteItemsResolved() async {
-    final missing = <String>[];
+    bool changed = false;
     for (final id in _favorites) {
       if (!_favoriteItems.containsKey(id)) {
         final local = MediaScanner.lastScannedAudios.where((a) => a.id == id).firstOrNull;
         if (local != null) {
           _favoriteItems[id] = PlaylistItem.fromMediaFile(local);
-        } else {
-          missing.add(id);
+          changed = true;
         }
       }
     }
-    if (missing.isNotEmpty) {
-      try {
-        final onlineSongs = await SaavnApiService.instance.fetchSongsByPids(missing);
-        for (final s in onlineSongs) {
-          _favoriteItems[s.id] = PlaylistItem.fromOnlineSong(s);
-        }
-        _save();
-        notifyListeners();
-      } catch (_) {}
+    if (changed) {
+      _save();
+      notifyListeners();
     }
   }
 

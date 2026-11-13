@@ -140,27 +140,28 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                             onTapAction?.call();
                           },
                         child: Container(
-                          height: 48,
+                          height: 50,
                           constraints: const BoxConstraints(maxWidth: 420),
-                          padding: const EdgeInsets.symmetric(horizontal: 7),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.90),
+                            color: app.isLight
+                                ? const Color(0xFF14161D).withValues(alpha: 0.94)
+                                : const Color(0xFF0A0B0F).withValues(alpha: 0.94),
                             borderRadius: BorderRadius.circular(26),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.16),
-                              width: 1.1,
+                              color: accent.withValues(alpha: 0.35),
+                              width: 1.15,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                blurRadius: 18,
+                                color: Colors.black.withValues(alpha: 0.5),
+                                blurRadius: 20,
                                 spreadRadius: 1,
-                                offset: const Offset(0, 5),
+                                offset: const Offset(0, 6),
                               ),
                               BoxShadow(
-                                color: accent.withValues(alpha: 0.22),
-                                blurRadius: 14,
-                                spreadRadius: 0,
+                                color: accent.withValues(alpha: 0.25),
+                                blurRadius: 16,
                                 offset: const Offset(0, 2),
                               ),
                             ],

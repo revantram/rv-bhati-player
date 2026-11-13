@@ -1,0 +1,8 @@
+{
+  "name": "RV Bhati Player",
+  "description": "All-in-one Android media player featuring BitChord-inspired BitMusic YouTube Music & local audio playback with synced lyrics and AutoMix, local folder video player with gestures & subtitles, and 392 live Indian FM radio stations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

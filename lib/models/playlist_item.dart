@@ -2,7 +2,7 @@ import 'media_file.dart';
 import 'online_song.dart';
 
 /// Represents a track inside a user custom playlist.
-/// Can be either an offline local MP3 file or an online JioSaavn stream.
+/// Can be either an offline local MP3 file or an online BitMusic stream.
 class PlaylistItem {
   final String id;
   final String title;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -8,6 +10,7 @@ import '../models/playlist_item.dart';
 import 'app_state.dart';
 import 'equalizer_service.dart';
 import 'radio_controller.dart';
+import 'settings_service.dart';
 import 'yt_audio_resolver.dart';
 
 /// Single app-wide audio player. just_audio_background supports exactly one
@@ -18,6 +21,9 @@ class AudioController {
     _initSleepListener();
     _initAudioSessionListener();
     _initAutoAdvanceListener();
+    _initAutoMixListener();
+    SettingsService.instance.addListener(_applyPlaybackSettings);
+    _applyPlaybackSettings();
   }
   static final AudioController instance = AudioController._();
 
@@ -25,6 +31,14 @@ class AudioController {
   List<MediaFile> queue = const [];
   List<OnlineSong> onlineQueue = const [];
   List<PlaylistItem> hybridQueue = const [];
+
+  int _queueSessionGen = 0;
+
+  Future<void> _applyPlaybackSettings() async {
+    try {
+      await player.setSkipSilenceEnabled(SettingsService.instance.skipSilence);
+    } catch (_) {}
+  }
 
   Future<void> ensureNotificationPermission() async {
     try {
@@ -35,10 +49,12 @@ class AudioController {
     } catch (_) {}
   }
 
-  bool get isPlayingOnline => onlineQueue.isNotEmpty || (isPlayingHybrid && currentPlaylistItem?.isOnline == true);
+  bool get isPlayingOnline =>
+      onlineQueue.isNotEmpty || (isPlayingHybrid && currentPlaylistItem?.isOnline == true);
   bool get isPlayingHybrid => hybridQueue.isNotEmpty;
 
   int? _lastPlayedIndex;
+  bool _isAutoMixing = false;
 
   void _initSleepListener() {
     player.currentIndexStream.listen((idx) {
@@ -69,13 +85,43 @@ class AudioController {
     });
   }
 
+  /// BitChord-style AutoMix fade transition when crossfadeSeconds > 0
+  void _initAutoMixListener() {
+    player.positionStream.listen((pos) async {
+      final cfSec = SettingsService.instance.crossfadeSeconds;
+      if (cfSec <= 0 || _isAutoMixing || !player.playing) return;
+      final dur = player.duration;
+      if (dur == null || dur.inSeconds <= cfSec + 4) return;
+      final remainingMs = (dur - pos).inMilliseconds;
+      if (remainingMs > 0 && remainingMs <= cfSec * 1000) {
+        // Gentle fade-out envelope toward the end of track before transition
+        final ratio = (remainingMs / (cfSec * 1000)).clamp(0.15, 1.0);
+        try {
+          await player.setVolume(ratio);
+        } catch (_) {}
+        if (remainingMs <= 650 && player.hasNext) {
+          _isAutoMixing = true;
+          try {
+            await player.seekToNext();
+            await player.setVolume(1.0);
+          } catch (_) {}
+          Future.delayed(const Duration(milliseconds: 900), () {
+            _isAutoMixing = false;
+          });
+        }
+      } else if (!_isAutoMixing && player.volume < 0.99 && !AppState.instance.isSleepTimerActive) {
+        try {
+          await player.setVolume(1.0);
+        } catch (_) {}
+      }
+    });
+  }
+
   void _initAutoAdvanceListener() {
-    // Default loop mode to LoopMode.all so queue never stops at the end
     try {
       player.setLoopMode(LoopMode.all);
     } catch (_) {}
 
-    // Auto-advance on completion
     player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         if (AppState.instance.isSleepEndOfSong) {
@@ -93,7 +139,6 @@ class AudioController {
       }
     });
 
-    // Guard against background stream stalls/errors by auto-advancing to next song
     player.playbackEventStream.listen(
       (_) {},
       onError: (Object e, StackTrace st) {
@@ -117,7 +162,7 @@ class AudioController {
           id: item.id,
           title: item.title,
           artist: item.artist,
-          album: item.album ?? '',
+          album: item.album ?? 'BitMusic',
           duration: item.duration,
           streamUrl: item.streamUrl!,
           imageUrl: item.imageUrl ?? '',
@@ -136,6 +181,7 @@ class AudioController {
   }
 
   Future<void> playQueue(List<MediaFile> items, int startIndex, {bool shuffle = false}) async {
+    _queueSessionGen++;
     ensureNotificationPermission();
     RadioController.instance.clear();
     onlineQueue = const [];
@@ -157,90 +203,8 @@ class AudioController {
           ),
       ],
     );
+    await player.setVolume(1.0);
     await player.setAudioSource(source, initialIndex: startIndex);
-    if (shuffle) {
-      await player.setShuffleModeEnabled(true);
-      await player.shuffle();
-    } else {
-      await player.setShuffleModeEnabled(false);
-    }
-    await player.setLoopMode(LoopMode.all);
-    player.play(); // not awaited: completes only when playback ends
-    final sessId = player.androidAudioSessionId;
-    if (sessId != null && sessId > 0) {
-      EqualizerService.instance.attachAudioSession(sessId);
-    }
-  }
-
-  Future<void> playOnlineQueue(List<OnlineSong> items, int startIndex, {bool shuffle = false}) async {
-    ensureNotificationPermission();
-    RadioController.instance.clear();
-    queue = const [];
-    hybridQueue = const [];
-
-    final resolvedItems = List<OnlineSong>.from(items);
-    if (resolvedItems.isNotEmpty && startIndex >= 0 && startIndex < resolvedItems.length) {
-      final cur = resolvedItems[startIndex];
-      if (cur.streamUrl.isEmpty || cur.id.startsWith('yt_')) {
-        final ytId = cur.id.startsWith('yt_') ? cur.id.replaceFirst('yt_', '') : cur.id;
-        final directUrl = await YtAudioResolver.resolveAudioStream(
-          ytId,
-          fallbackTitle: cur.title,
-          fallbackArtist: cur.artist,
-        );
-        if (directUrl != null && directUrl.isNotEmpty) {
-          resolvedItems[startIndex] = OnlineSong(
-            id: cur.id,
-            title: cur.title,
-            artist: cur.artist,
-            album: cur.album,
-            duration: cur.duration,
-            imageUrl: cur.imageUrl,
-            streamUrl: directUrl,
-          );
-        }
-      }
-    }
-
-    final audioSources = <AudioSource>[];
-    final playableQueue = <OnlineSong>[];
-    int targetIndex = 0;
-
-    for (var i = 0; i < resolvedItems.length; i++) {
-      final s = resolvedItems[i];
-      if (s.streamUrl.isEmpty) continue;
-
-      final uri = s.streamUrl.startsWith('/') || s.streamUrl.startsWith('file:')
-          ? (s.streamUrl.startsWith('file:') ? Uri.parse(s.streamUrl) : Uri.file(s.streamUrl))
-          : Uri.parse(s.streamUrl);
-
-      if (i == startIndex) {
-        targetIndex = audioSources.length;
-      }
-
-      playableQueue.add(s);
-      audioSources.add(
-        AudioSource.uri(
-          uri,
-          tag: MediaItem(
-            id: s.id,
-            title: s.title,
-            artist: s.artist,
-            album: s.album.isNotEmpty ? s.album : 'RV Player',
-            duration: s.duration,
-            artUri: Uri.tryParse(s.imageUrl),
-          ),
-        ),
-      );
-    }
-
-    if (audioSources.isEmpty) return;
-
-    onlineQueue = playableQueue;
-    _lastPlayedIndex = targetIndex;
-
-    final source = ConcatenatingAudioSource(children: audioSources);
-    await player.setAudioSource(source, initialIndex: targetIndex);
     if (shuffle) {
       await player.setShuffleModeEnabled(true);
       await player.shuffle();
@@ -249,13 +213,113 @@ class AudioController {
     }
     await player.setLoopMode(LoopMode.all);
     player.play();
+    final sessId = player.androidAudioSessionId;
+    if (sessId != null && sessId > 0) {
+      EqualizerService.instance.attachAudioSession(sessId);
+    }
+  }
+
+  Future<OnlineSong> _resolveSongIfNeeded(OnlineSong s) async {
+    if (s.streamUrl.isNotEmpty && !s.id.startsWith('yt_')) return s;
+    if (s.streamUrl.isNotEmpty) return s;
+    final ytId = s.id.startsWith('yt_') ? s.id.replaceFirst('yt_', '') : s.id;
+    final directUrl = await YtAudioResolver.resolveAudioStream(
+      ytId,
+      fallbackTitle: s.title,
+      fallbackArtist: s.artist,
+    );
+    if (directUrl != null && directUrl.isNotEmpty) {
+      return s.copyWith(streamUrl: directUrl);
+    }
+    return s;
+  }
+
+  AudioSource _toAudioSource(OnlineSong s) {
+    final uri = s.streamUrl.startsWith('/') || s.streamUrl.startsWith('file:')
+        ? (s.streamUrl.startsWith('file:') ? Uri.parse(s.streamUrl) : Uri.file(s.streamUrl))
+        : Uri.parse(s.streamUrl);
+    return AudioSource.uri(
+      uri,
+      tag: MediaItem(
+        id: s.id,
+        title: s.title,
+        artist: s.artist,
+        album: s.album.isNotEmpty ? s.album : 'BitMusic',
+        duration: s.duration,
+        artUri: Uri.tryParse(s.imageUrl),
+      ),
+    );
+  }
+
+  Future<void> playOnlineQueue(List<OnlineSong> items, int startIndex, {bool shuffle = false}) async {
+    if (items.isEmpty) return;
+    final gen = ++_queueSessionGen;
+    ensureNotificationPermission();
+    RadioController.instance.clear();
+    queue = const [];
+    hybridQueue = const [];
+
+    final safeStart = startIndex.clamp(0, items.length - 1);
+    final resolvedStart = await _resolveSongIfNeeded(items[safeStart]);
+    if (gen != _queueSessionGen || resolvedStart.streamUrl.isEmpty) return;
+
+    final mutableItems = List<OnlineSong>.from(items);
+    mutableItems[safeStart] = resolvedStart;
+
+    // Build initial source with the selected song so playback starts instantaneously
+    final concatSource = ConcatenatingAudioSource(
+      children: [_toAudioSource(resolvedStart)],
+    );
+    onlineQueue = [resolvedStart];
+    _lastPlayedIndex = 0;
+
+    await player.setVolume(1.0);
+    await player.setAudioSource(concatSource, initialIndex: 0);
+    await player.setShuffleModeEnabled(shuffle);
+    await player.setLoopMode(LoopMode.all);
+    player.play();
+
     final onlineSessId = player.androidAudioSessionId;
     if (onlineSessId != null && onlineSessId > 0) {
       EqualizerService.instance.attachAudioSession(onlineSessId);
     }
+
+    // Lazily resolve upcoming songs in the background so Next / Previous & Queue work seamlessly
+    unawaited(_resolveRemainingInBackground(
+      gen: gen,
+      allItems: mutableItems,
+      startIndex: safeStart,
+      concatSource: concatSource,
+    ));
+  }
+
+  Future<void> _resolveRemainingInBackground({
+    required int gen,
+    required List<OnlineSong> allItems,
+    required int startIndex,
+    required ConcatenatingAudioSource concatSource,
+  }) async {
+    // Order: songs after startIndex first (up to 15), then wrap around before startIndex
+    final indices = <int>[
+      for (int i = startIndex + 1; i < allItems.length && i <= startIndex + 15; i++) i,
+      for (int i = 0; i < startIndex && i < 6; i++) i,
+    ];
+
+    for (final idx in indices) {
+      if (gen != _queueSessionGen) return;
+      final resolved = await _resolveSongIfNeeded(allItems[idx]);
+      if (gen != _queueSessionGen) return;
+      if (resolved.streamUrl.isNotEmpty) {
+        try {
+          onlineQueue = [...onlineQueue, resolved];
+          await concatSource.add(_toAudioSource(resolved));
+        } catch (_) {}
+      }
+    }
   }
 
   Future<void> playHybridQueue(List<PlaylistItem> items, int startIndex, {bool shuffle = false}) async {
+    _queueSessionGen++;
     ensureNotificationPermission();
     RadioController.instance.clear();
     queue = const [];
@@ -263,35 +327,56 @@ class AudioController {
     hybridQueue = items;
     _lastPlayedIndex = startIndex;
 
-    final source = ConcatenatingAudioSource(
-      children: [
-        for (final item in items)
-          if (item.isOnline && item.streamUrl != null)
+    final children = <AudioSource>[];
+    for (final item in items) {
+      if (item.isOnline) {
+        var streamUrl = item.streamUrl ?? '';
+        if (streamUrl.isEmpty && item.id.startsWith('yt_')) {
+          streamUrl = await YtAudioResolver.resolveAudioStream(
+                item.id,
+                fallbackTitle: item.title,
+                fallbackArtist: item.artist,
+              ) ??
+              '';
+        }
+        if (streamUrl.isNotEmpty) {
+          children.add(
             AudioSource.uri(
-              Uri.parse(item.streamUrl!),
+              Uri.parse(streamUrl),
               tag: MediaItem(
                 id: item.id,
                 title: item.title,
                 artist: item.artist,
-                album: item.album ?? 'Custom Playlist',
+                album: item.album ?? 'BitMusic Playlist',
                 duration: item.duration,
                 artUri: item.imageUrl != null ? Uri.tryParse(item.imageUrl!) : null,
               ),
-            )
-          else if (item.localPath != null)
-            AudioSource.uri(
-              Uri.file(item.localPath!),
-              tag: MediaItem(
-                id: item.id,
-                title: item.title,
-                artist: item.artist,
-                album: item.album ?? 'RV Bhati Player',
-                duration: item.duration,
-              ),
             ),
-      ],
+          );
+        }
+      } else if (item.localPath != null) {
+        children.add(
+          AudioSource.uri(
+            Uri.file(item.localPath!),
+            tag: MediaItem(
+              id: item.id,
+              title: item.title,
+              artist: item.artist,
+              album: item.album ?? 'RV Bhati Player',
+              duration: item.duration,
+            ),
+          ),
+        );
+      }
+    }
+    if (children.isEmpty) return;
+
+    final source = ConcatenatingAudioSource(children: children);
+    await player.setVolume(1.0);
+    await player.setAudioSource(
+      source,
+      initialIndex: startIndex.clamp(0, children.length - 1),
     );
-    await player.setAudioSource(source, initialIndex: startIndex);
     if (shuffle) {
       await player.setShuffleModeEnabled(true);
       await player.shuffle();
@@ -306,49 +391,28 @@ class AudioController {
     }
   }
 
-  void addOnlineToQueue(OnlineSong song) {
-    onlineQueue = [...onlineQueue, song];
+  Future<void> addOnlineToQueue(OnlineSong song) async {
+    final resolved = await _resolveSongIfNeeded(song);
+    if (resolved.streamUrl.isEmpty) return;
+    onlineQueue = [...onlineQueue, resolved];
     final currentSource = player.audioSource;
     if (currentSource is ConcatenatingAudioSource) {
-      currentSource.add(
-        AudioSource.uri(
-          Uri.parse(song.streamUrl),
-          tag: MediaItem(
-            id: song.id,
-            title: song.title,
-            artist: song.artist,
-            album: song.album.isNotEmpty ? song.album : 'JioSaavn Online',
-            duration: song.duration,
-            artUri: Uri.tryParse(song.imageUrl),
-          ),
-        ),
-      );
+      await currentSource.add(_toAudioSource(resolved));
     }
   }
 
-  void playOnlineNext(OnlineSong song) {
+  Future<void> playOnlineNext(OnlineSong song) async {
+    final resolved = await _resolveSongIfNeeded(song);
+    if (resolved.streamUrl.isEmpty) return;
     final currentIdx = player.currentIndex ?? 0;
     final list = List<OnlineSong>.from(onlineQueue);
     final insertIdx = list.isNotEmpty ? (currentIdx + 1).clamp(0, list.length) : 0;
-    list.insert(insertIdx, song);
+    list.insert(insertIdx, resolved);
     onlineQueue = list;
 
     final currentSource = player.audioSource;
     if (currentSource is ConcatenatingAudioSource) {
-      currentSource.insert(
-        insertIdx,
-        AudioSource.uri(
-          Uri.parse(song.streamUrl),
-          tag: MediaItem(
-            id: song.id,
-            title: song.title,
-            artist: song.artist,
-            album: song.album.isNotEmpty ? song.album : 'JioSaavn Online',
-            duration: song.duration,
-            artUri: Uri.tryParse(song.imageUrl),
-          ),
-        ),
-      );
+      await currentSource.insert(insertIdx, _toAudioSource(resolved));
     }
   }
 
@@ -368,4 +432,3 @@ class AudioController {
     }
   }
 }
-

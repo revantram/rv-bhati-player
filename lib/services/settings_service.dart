@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 enum AudioQuality {
-  hd320('320 kbps', 'High Definition (Wi-Fi recommended)', 320),
-  standard160('160 kbps', 'Standard (Balanced sound & data)', 160),
-  saver96('96 kbps', 'Data Saver (Fast buffering)', 96);
+  hd320('320 kbps Hi-Res', 'Studio high bitrate audio (Wi-Fi recommended)', 320),
+  standard160('160 kbps Balanced', 'Balanced clarity & mobile data', 160),
+  saver96('96 kbps Saver', 'Fast instant buffering on slow networks', 96);
 
   const AudioQuality(this.label, this.description, this.kbps);
   final String label;
@@ -14,8 +14,7 @@ enum AudioQuality {
 }
 
 enum MusicEngine {
-  youtube('YouTube Music', 'Universal Search (Songs, Covers, Mashups, Live)'),
-  jiosaavn('JioSaavn HD', 'Lossless 320kbps High Fidelity Audio');
+  bitmusic('BitMusic YT', 'YouTube Music + LRCLIB Synced Lyrics');
 
   const MusicEngine(this.label, this.description);
   final String label;
@@ -23,11 +22,22 @@ enum MusicEngine {
 }
 
 enum AppThemeMode {
-  light('Apple iOS Light', 'Clean white frosted liquid glass'),
-  dark('Liquid Dark', 'Deep OLED dark glass'),
-  system('System Default', 'Follow device settings');
+  oled('Pure OLED', 'True #000000 BitChord Apple Music Dark'),
+  dark('Apple Dark', 'Deep elevated slate glass'),
+  light('Apple Light', 'Crisp frosted porcelain white'),
+  system('System', 'Follow device theme');
 
   const AppThemeMode(this.label, this.description);
+  final String label;
+  final String description;
+}
+
+enum PlayerThemeStyle {
+  frosted('Frosted Glass', 'Translucent Apple Music blur & depth'),
+  vibrant('Vibrant Glow', 'Dynamic crimson & artwork radial wash'),
+  minimal('Minimal OLED', 'Pure black zero-distraction studio');
+
+  const PlayerThemeStyle(this.label, this.description);
   final String label;
   final String description;
 }
@@ -36,10 +46,10 @@ class SettingsService extends ChangeNotifier {
   SettingsService._();
   static final SettingsService instance = SettingsService._();
 
-  AudioQuality _audioQuality = AudioQuality.standard160;
+  AudioQuality _audioQuality = AudioQuality.hd320;
   AudioQuality get audioQuality => _audioQuality;
 
-  MusicEngine _musicEngine = MusicEngine.jiosaavn;
+  MusicEngine _musicEngine = MusicEngine.bitmusic;
   MusicEngine get musicEngine => _musicEngine;
 
   bool _autoQuality = true;
@@ -48,13 +58,26 @@ class SettingsService extends ChangeNotifier {
   bool _sleepFadeOut = true;
   bool get sleepFadeOut => _sleepFadeOut;
 
-  int _crossfadeSeconds = 2; // 0..5 seconds
+  int _crossfadeSeconds = 3; // 0..12 seconds (AutoMix Crossfade)
   int get crossfadeSeconds => _crossfadeSeconds;
 
-  AppThemeMode _themeMode = AppThemeMode.light; // Defaulting to clean Apple iOS Light
+  bool _skipSilence = false;
+  bool get skipSilence => _skipSilence;
+
+  AppThemeMode _themeMode = AppThemeMode.oled; // BitChord default OLED dark
   AppThemeMode get themeMode => _themeMode;
 
+  PlayerThemeStyle _playerThemeStyle = PlayerThemeStyle.frosted;
+  PlayerThemeStyle get playerThemeStyle => _playerThemeStyle;
+
+  bool _glassBlurEnabled = true;
+  bool get glassBlurEnabled => _glassBlurEnabled;
+
+  bool _dynamicArtworkColors = true;
+  bool get dynamicArtworkColors => _dynamicArtworkColors;
+
   bool get isLight => _themeMode == AppThemeMode.light;
+  bool get isOled => _themeMode == AppThemeMode.oled;
 
   File? _settingsFile;
 
@@ -70,13 +93,7 @@ class SettingsService extends ChangeNotifier {
         if (map['audioQuality'] != null) {
           _audioQuality = AudioQuality.values.firstWhere(
             (q) => q.name == map['audioQuality'],
-            orElse: () => AudioQuality.standard160,
-          );
-        }
-        if (map['musicEngine'] != null) {
-          _musicEngine = MusicEngine.values.firstWhere(
-            (e) => e.name == map['musicEngine'],
-            orElse: () => MusicEngine.youtube,
+            orElse: () => AudioQuality.hd320,
           );
         }
         if (map['autoQuality'] != null) {
@@ -86,13 +103,28 @@ class SettingsService extends ChangeNotifier {
           _sleepFadeOut = map['sleepFadeOut'] as bool;
         }
         if (map['crossfadeSeconds'] != null) {
-          _crossfadeSeconds = (map['crossfadeSeconds'] as num).toInt();
+          _crossfadeSeconds = (map['crossfadeSeconds'] as num).toInt().clamp(0, 12);
+        }
+        if (map['skipSilence'] != null) {
+          _skipSilence = map['skipSilence'] as bool;
         }
         if (map['themeMode'] != null) {
           _themeMode = AppThemeMode.values.firstWhere(
             (t) => t.name == map['themeMode'],
-            orElse: () => AppThemeMode.light,
+            orElse: () => AppThemeMode.oled,
           );
+        }
+        if (map['playerThemeStyle'] != null) {
+          _playerThemeStyle = PlayerThemeStyle.values.firstWhere(
+            (p) => p.name == map['playerThemeStyle'],
+            orElse: () => PlayerThemeStyle.frosted,
+          );
+        }
+        if (map['glassBlurEnabled'] != null) {
+          _glassBlurEnabled = map['glassBlurEnabled'] as bool;
+        }
+        if (map['dynamicArtworkColors'] != null) {
+          _dynamicArtworkColors = map['dynamicArtworkColors'] as bool;
         }
       }
     } catch (_) {}
@@ -108,7 +140,11 @@ class SettingsService extends ChangeNotifier {
         'autoQuality': _autoQuality,
         'sleepFadeOut': _sleepFadeOut,
         'crossfadeSeconds': _crossfadeSeconds,
+        'skipSilence': _skipSilence,
         'themeMode': _themeMode.name,
+        'playerThemeStyle': _playerThemeStyle.name,
+        'glassBlurEnabled': _glassBlurEnabled,
+        'dynamicArtworkColors': _dynamicArtworkColors,
       };
       _settingsFile!.writeAsStringSync(jsonEncode(data));
     } catch (_) {}
@@ -143,7 +179,16 @@ class SettingsService extends ChangeNotifier {
   }
 
   void setCrossfadeSeconds(int seconds) {
-    _crossfadeSeconds = seconds.clamp(0, 5);
+    final clamped = seconds.clamp(0, 12);
+    if (_crossfadeSeconds == clamped) return;
+    _crossfadeSeconds = clamped;
+    _save();
+    notifyListeners();
+  }
+
+  void setSkipSilence(bool enabled) {
+    if (_skipSilence == enabled) return;
+    _skipSilence = enabled;
     _save();
     notifyListeners();
   }
@@ -151,6 +196,27 @@ class SettingsService extends ChangeNotifier {
   void setThemeMode(AppThemeMode mode) {
     if (_themeMode == mode) return;
     _themeMode = mode;
+    _save();
+    notifyListeners();
+  }
+
+  void setPlayerThemeStyle(PlayerThemeStyle style) {
+    if (_playerThemeStyle == style) return;
+    _playerThemeStyle = style;
+    _save();
+    notifyListeners();
+  }
+
+  void setGlassBlurEnabled(bool enabled) {
+    if (_glassBlurEnabled == enabled) return;
+    _glassBlurEnabled = enabled;
+    _save();
+    notifyListeners();
+  }
+
+  void setDynamicArtworkColors(bool enabled) {
+    if (_dynamicArtworkColors == enabled) return;
+    _dynamicArtworkColors = enabled;
     _save();
     notifyListeners();
   }

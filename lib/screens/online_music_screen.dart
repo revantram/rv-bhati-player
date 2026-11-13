@@ -9,17 +9,25 @@ import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
-import '../services/saavn_api_service.dart';
 import '../services/settings_service.dart';
+import '../services/yt_music_service.dart';
 import '../utils/format.dart';
 import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/artist_songs_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
-import 'audio_player_screen.dart';
+import '../widgets/liquid_glass_container.dart';
 import 'artists_hub_screen.dart';
+import 'audio_player_screen.dart';
+import 'downloads_screen.dart';
+import 'liked_songs_screen.dart';
+import 'local_storage_music_screen.dart';
+import 'playlists_manager_screen.dart';
 import 'settings_screen.dart';
 import 'shows_hub_screen.dart';
 
+/// BitMusic Tab:
+/// Powered by YouTube Music InnerTube + Piped/Invidious fallback + LRCLIB Synced Lyrics,
+/// styled with BitChord's Apple Music aesthetic.
 class OnlineMusicScreen extends StatefulWidget {
   const OnlineMusicScreen({
     super.key,
@@ -38,23 +46,33 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
 
-  // JioSaavn state
   bool _isSearching = false;
   bool _isLoadingResults = false;
   List<OnlineSong> _searchResults = [];
+  List<String> _suggestions = [];
 
   bool _isLoadingTrending = true;
   List<OnlineSong> _trendingSongs = [];
 
-  String? _selectedCategory;
-  bool _isLoadingCategory = false;
-  List<OnlineSong> _categorySongs = [];
-
   String? _customDisplayTitle;
   bool _isLoadingCustomSongs = false;
   List<OnlineSong>? _customSongs;
+  String? _resolvingSongId;
 
   AppState get app => AppState.instance;
+
+  static const List<Map<String, String>> _bitMoods = [
+    {'title': '🔥 Trending', 'query': 'Trending YouTube India'},
+    {'title': '📼 90s Gold', 'query': '90s Bollywood Evergreen Hits'},
+    {'title': '❤️ Romantic', 'query': 'Romantic Hindi Songs 2025'},
+    {'title': '🏜️ Rajasthani DJ', 'query': 'Rajasthani & Marwadi DJ'},
+    {'title': '🙏 Desi Bhajan', 'query': 'Desi Bhajan & Aarti'},
+    {'title': '⚡ Punjabi 101', 'query': 'Punjabi Top Hits 2025'},
+    {'title': '🎧 Lo-Fi Chill', 'query': 'Lo-Fi Hindi Chill Beats'},
+    {'title': '🌍 Global Hits', 'query': 'Top Global Pop Hits 2025'},
+    {'title': '💪 Workout', 'query': 'Hindi Gym Workout Pump Songs'},
+    {'title': '💔 Sad Vibes', 'query': 'Sad Hindi Songs Heartbreak'},
+  ];
 
   @override
   void initState() {
@@ -75,9 +93,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _loadTrending() async {
+  Future<void> _loadTrending({bool force = false}) async {
     setState(() => _isLoadingTrending = true);
-    final songs = await SaavnApiService.instance.getTrendingSongs();
+    final songs = await YtMusicService.instance.getTrendingSongs(forceRefresh: force);
     if (mounted) {
       setState(() {
         _trendingSongs = songs;
@@ -94,6 +112,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         _isSearching = false;
         _isLoadingResults = false;
         _searchResults = [];
+        _suggestions = [];
       });
       return;
     }
@@ -101,30 +120,19 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _isSearching = true;
       _isLoadingResults = true;
     });
-    _debounce = Timer(const Duration(milliseconds: 400), () async {
-      final songs = await SaavnApiService.instance.searchSongs(clean);
-      if (mounted) {
+    _debounce = Timer(const Duration(milliseconds: 380), () async {
+      final results = await Future.wait([
+        YtMusicService.instance.search(clean),
+        YtMusicService.instance.getSuggestions(clean),
+      ]);
+      if (mounted && _searchCtrl.text.trim() == clean) {
         setState(() {
-          _searchResults = songs;
+          _searchResults = results[0] as List<OnlineSong>;
+          _suggestions = results[1] as List<String>;
           _isLoadingResults = false;
         });
       }
     });
-  }
-
-  Future<void> _openCategory(String title) async {
-    setState(() {
-      _selectedCategory = title;
-      _isLoadingCategory = true;
-      _categorySongs = [];
-    });
-    final songs = await SaavnApiService.instance.searchSongs(title);
-    if (mounted) {
-      setState(() {
-        _categorySongs = songs;
-        _isLoadingCategory = false;
-      });
-    }
   }
 
   Future<void> _loadSongsByQuery(String query, String displayTitle) async {
@@ -133,7 +141,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _isLoadingCustomSongs = true;
       _customSongs = [];
     });
-    final songs = await SaavnApiService.instance.searchSongs(query, limit: 300);
+    final songs = await YtMusicService.instance.search(query);
     if (mounted) {
       setState(() {
         _customSongs = songs;
@@ -150,366 +158,120 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     });
   }
 
-  void _playSong(List<OnlineSong> list, int index) {
-    AudioController.instance.playOnlineQueue(list, index);
+  Future<void> _playSong(List<OnlineSong> list, int index) async {
+    if (index < 0 || index >= list.length) return;
+    final selected = list[index];
+    setState(() => _resolvingSongId = selected.id);
+    HapticFeedback.lightImpact();
+
+    await AudioController.instance.playOnlineQueue(list, index);
+    if (!mounted) return;
+    setState(() => _resolvingSongId = null);
+
+    if (AudioController.instance.onlineQueue.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not stream "${selected.title}". Try another track.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AudioPlayerScreen(startPlayback: false)),
     );
   }
 
-
-  void _openMoodModal() {
-    final isLight = app.isLight;
-    final moods = [
-      {'title': '❤️ Romantic', 'query': 'Romantic Hindi Songs'},
-      {'title': '💔 Sad Songs', 'query': 'Sad Hindi Songs Heartbroken'},
-      {'title': '🔥 Party / Dance', 'query': 'Hindi Party Dance Hits'},
-      {'title': '🙏 Bhakti', 'query': 'Bhakti Bhajan Hindi'},
-      {'title': '🎧 Lo-Fi Chill', 'query': 'Lo-Fi Hindi Chill Beats'},
-      {'title': '🏜️ Marwadi', 'query': 'Rajasthani Marwadi Songs'},
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          decoration: BoxDecoration(
-            color: isLight ? Colors.white : const Color(0xFF14192B),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Apna Mood Chuniye',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: app.textColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 2.8,
-                children: moods.map((m) {
-                  return OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _loadSongsByQuery(m['query']!, m['title']!);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: app.textColor,
-                      side: BorderSide(
-                        color: isLight ? const Color(0xFFCBD5E1) : Colors.white24,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      m['title']!,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _openArtistModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return _ArtistDirectorySheet(
-          onSelectArtist: (artist) {
-            Navigator.pop(ctx);
-            _loadSongsByQuery(artist.name, '🎙️ ${artist.name} ke Gane');
-          },
-        );
-      },
-    );
-  }
-
-  void _openPlaylistSyncModal() {
-    final urlCtrl = TextEditingController(text: app.jioPlaylistUrl ?? '');
-    bool syncing = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final isLight = app.isLight;
-        return StatefulBuilder(
-          builder: (bottomSheetCtx, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(bottomSheetCtx).viewInsets.bottom,
-              ),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                decoration: BoxDecoration(
-                  color: isLight ? Colors.white : const Color(0xFF14192B),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF10B981), Color(0xFF047857)],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'JioSaavn Playlist Sync',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: app.textColor,
-                                ),
-                              ),
-                              Text(
-                                'Ad-Free JioSaavn Playlist',
-                                style: TextStyle(fontSize: 11.5, color: app.secondaryTextColor),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'अपने JioSaavn प्लेलिस्ट का लिंक या नाम दर्ज करें:',
-                      style: TextStyle(fontSize: 13, color: app.secondaryTextColor),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: urlCtrl,
-                      style: TextStyle(color: app.textColor, fontSize: 13.5),
-                      decoration: InputDecoration(
-                        hintText: 'https://www.jiosaavn.com/featured/...',
-                        hintStyle: TextStyle(color: app.secondaryTextColor.withValues(alpha: 0.6)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.content_paste_rounded, size: 20),
-                          tooltip: 'Paste Link',
-                          onPressed: () async {
-                            final data = await Clipboard.getData(Clipboard.kTextPlain);
-                            if (data?.text != null && data!.text!.isNotEmpty) {
-                              urlCtrl.text = data.text!.trim();
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final data = await Clipboard.getData(Clipboard.kTextPlain);
-                              if (data?.text != null && data!.text!.isNotEmpty) {
-                                urlCtrl.text = data.text!.trim();
-                              }
-                            },
-                            icon: const Icon(Icons.paste_rounded, size: 18),
-                            label: const Text('📋 Paste Link'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: app.textColor,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              side: BorderSide(
-                                color: isLight ? const Color(0xFFCBD5E1) : Colors.white24,
-                              ),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: syncing
-                                ? null
-                                : () async {
-                                    final input = urlCtrl.text.trim();
-                                    if (input.isEmpty) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('कृपया प्लेलिस्ट लिंक या नाम दर्ज करें')),
-                                      );
-                                      return;
-                                    }
-                                    setSheetState(() => syncing = true);
-                                    final res = await SaavnApiService.instance.fetchPlaylist(input);
-                                    if (!mounted) return;
-                                    if (res.songs.isNotEmpty) {
-                                      app.setJioPlaylist(
-                                        url: input,
-                                        name: res.title,
-                                        songs: res.songs,
-                                      );
-                                      Navigator.pop(ctx);
-                                      setState(() {
-                                        _customDisplayTitle = '🎵 ${res.title} (${res.songs.length})';
-                                        _customSongs = res.songs;
-                                      });
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          backgroundColor: const Color(0xFF10B981),
-                                          content: Text('✅ "${res.title}" के ${res.songs.length} गाने सिंक हो गए!'),
-                                        ),
-                                      );
-                                    } else {
-                                      setSheetState(() => syncing = false);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('प्लेलिस्ट लोड नहीं हो सकी, लिंक जांचें')),
-                                      );
-                                    }
-                                  },
-                            icon: syncing
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.sync_rounded, size: 18),
-                            label: Text(syncing ? 'Syncing...' : '🔄 Sync Now'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    const saavnColor = Color(0xFF10B981);
+    final accent = app.accentColor;
 
     return Column(
       children: [
         SizedBox(height: widget.topOffset),
-        _buildJioSaavnHeader(saavnColor),
-        // Search Bar
+        _buildBitMusicHeader(accent),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: _buildSearchBar(saavnColor),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: _buildSearchBar(accent),
         ),
-        // Content Area
+        if (_isSearching && _suggestions.isNotEmpty) _buildSuggestionChips(accent),
         Expanded(
           child: _isSearching
-              ? _buildSongList(_searchResults, _isLoadingResults, 'No JioSaavn tracks found')
-              : _selectedCategory != null
-                  ? _buildCategoryView()
-                  : _buildHomeView(saavnColor),
+              ? _buildSongList(
+                  _searchResults,
+                  _isLoadingResults,
+                  'No songs found on BitMusic',
+                  accent,
+                )
+              : _buildHomeView(accent),
         ),
       ],
     );
   }
 
-  Widget _buildJioSaavnHeader(Color saavnColor) {
+  Widget _buildBitMusicHeader(Color accent) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00E676), Color(0xFF10B981)],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accent,
+                  accent.withValues(alpha: 0.72),
+                ],
               ),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(11),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: const Center(
-              child: Icon(Icons.music_note_rounded, color: Colors.white, size: 18),
+              child: Icon(Icons.graphic_eq_rounded, color: Colors.white, size: 20),
             ),
           ),
           const SizedBox(width: 10),
-          Text(
-            'JioSaavn HD',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: app.textColor,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-            decoration: BoxDecoration(
-              color: saavnColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              '320 kbps HD',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: saavnColor,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'BitMusic',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: app.textColor,
+                  letterSpacing: -0.4,
+                ),
               ),
-            ),
+              Text(
+                'BitChord Studio • Synced Lyrics',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: app.secondaryTextColor,
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           IconButton(
+            icon: Icon(Icons.refresh_rounded, color: app.secondaryTextColor, size: 21),
+            tooltip: 'Refresh Feed',
+            onPressed: () => _loadTrending(force: true),
+          ),
+          IconButton(
             icon: Icon(Icons.settings_outlined, color: app.secondaryTextColor, size: 21),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
             tooltip: 'Settings',
             onPressed: () => Navigator.push(
               context,
@@ -521,28 +283,24 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
-  Widget _buildSearchBar(Color accentColor) {
-    final isLight = app.isLight;
-    return Container(
-      height: 46,
-      decoration: BoxDecoration(
-        color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
+  Widget _buildSearchBar(Color accent) {
+    return LiquidGlassContainer(
+      borderRadius: BorderRadius.circular(18),
+      blur: 14,
+      glow: false,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: TextField(
         controller: _searchCtrl,
         onChanged: _onSearch,
-        style: TextStyle(color: app.textColor, fontSize: 14),
+        onSubmitted: _onSearch,
+        style: TextStyle(color: app.textColor, fontSize: 14.5),
         decoration: InputDecoration(
-          hintText: 'JioSaavn 320kbps HD गाने या गायक खोजें...',
-          hintStyle: TextStyle(color: app.secondaryTextColor, fontSize: 13),
-          prefixIcon: Icon(Icons.search_rounded, color: accentColor, size: 21),
+          hintText: app.tr('search_online'),
+          hintStyle: TextStyle(color: app.secondaryTextColor, fontSize: 13.5),
+          prefixIcon: Icon(Icons.search_rounded, color: accent, size: 21),
           suffixIcon: _searchCtrl.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear_rounded, color: app.secondaryTextColor, size: 18),
+                  icon: Icon(Icons.close_rounded, color: app.secondaryTextColor, size: 18),
                   onPressed: () {
                     _searchCtrl.clear();
                     _onSearch('');
@@ -556,196 +314,302 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
-  Widget _buildHomeView(Color saavnColor) {
-    return ListView(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, math.max(160.0, widget.bottomOffset)),
-      children: [
-        // 1. Quick Category Cards: 90s Special & Moods
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                emoji: '📼',
-                title: '90s Special',
-                subtitle: 'Evergreen Hits',
-                bgColor: const Color(0xFFE0F2FE),
-                onTap: () => _loadSongsByQuery('90s Bollywood Evergreen Hits', '📼 90s Evergreen Hits'),
+  Widget _buildSuggestionChips(Color accent) {
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        scrollDirection: Axis.horizontal,
+        itemCount: _suggestions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final s = _suggestions[i];
+          return GestureDetector(
+            onTap: () {
+              _searchCtrl.text = s;
+              _searchCtrl.selection = TextSelection.fromPosition(TextPosition(offset: s.length));
+              _onSearch(s);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: app.surfaceColorSecondary,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: app.cardBorderColor),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.north_west_rounded, size: 13, color: accent),
+                  const SizedBox(width: 5),
+                  Text(
+                    s,
+                    style: TextStyle(
+                      color: app.textColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                emoji: '🎭',
-                title: 'Moods',
-                subtitle: 'Choose Your Vibe',
-                bgColor: const Color(0xFFFEF3C7),
-                onTap: _openMoodModal,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+          );
+        },
+      ),
+    );
+  }
 
-        // 2. Shows & Series & My Playlist Row
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                emoji: '📻',
-                title: 'शोज़ एवं सीरीज़',
-                subtitle: 'Osho, Desi FM, Aawaz',
-                bgColor: const Color(0xFFFFEDD5),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                emoji: '🎵',
-                title: 'My Playlist',
-                subtitle: app.hasJioPlaylist
-                    ? '${app.jioPlaylistSongs.length} gane uplabdh'
-                    : 'Apne Gane',
-                bgColor: const Color(0xFFDCFCE7),
-                trailing: IconButton(
-                  icon: const Icon(Icons.sync_rounded, size: 20),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  color: const Color(0xFF10B981),
-                  tooltip: 'Sync Jio Playlist',
-                  onPressed: _openPlaylistSyncModal,
-                ),
-                onTap: () {
-                  if (app.hasJioPlaylist) {
-                    setState(() {
-                      _customDisplayTitle = '🎵 ${app.jioPlaylistName ?? "My Playlist"} (${app.jioPlaylistSongs.length})';
-                      _customSongs = app.jioPlaylistSongs;
-                    });
-                  } else {
-                    _openPlaylistSyncModal();
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
+  Widget _buildHomeView(Color accent) {
+    return RefreshIndicator(
+      color: accent,
+      onRefresh: () => _loadTrending(force: true),
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, math.max(165.0, widget.bottomOffset)),
+        physics: const BouncingScrollPhysics(),
+        children: [
+          // 1. BitChord Library Quick Hub (6 Tiles in 2 rows of horizontal cards or 3-column chips)
+          _buildQuickHubGrid(accent),
+          const SizedBox(height: 16),
 
-        // 3. Indian Artists Avatars Row
-        _buildIndianArtistsSection(saavnColor),
-        const SizedBox(height: 16),
+          // 2. Mood & Genre Explorer Strip
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _bitMoods.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final m = _bitMoods[i];
+                final active = _customDisplayTitle == m['title'];
+                return iOSBounceButton(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    if (active) {
+                      _resetToPopular();
+                    } else {
+                      _loadSongsByQuery(m['query']!, m['title']!);
+                    }
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: active ? accent : app.surfaceColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: active ? accent : app.cardBorderColor,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        m['title']!,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                          color: active ? Colors.white : app.textColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 18),
 
-        // 4. Popular Right Now or Active Query / Mood / Playlist Section
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Row(
+          // 3. Curated Indian & Rajasthani Artists Row
+          _buildArtistsSection(accent),
+          const SizedBox(height: 18),
+
+          // 4. Discover / Selected Mix Header
+          Row(
             children: [
               Icon(
-                _customSongs != null ? Icons.music_note_rounded : Icons.whatshot_rounded,
+                _customSongs != null ? Icons.album_rounded : Icons.whatshot_rounded,
                 size: 20,
-                color: const Color(0xFF10B981),
+                color: accent,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _customDisplayTitle ?? 'Popular Right Now (JioSaavn HD)',
+                  _customDisplayTitle ?? 'Discover on BitMusic',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700, color: app.textColor),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: app.textColor,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
               if (_customSongs != null)
                 TextButton.icon(
                   onPressed: _resetToPopular,
                   icon: const Icon(Icons.close_rounded, size: 16),
-                  label: const Text('Popular', style: TextStyle(fontSize: 12)),
+                  label: const Text('Trending', style: TextStyle(fontSize: 12)),
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF10B981),
+                    foregroundColor: accent,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
                 ),
             ],
           ),
-        ),
-        const SizedBox(height: 8),
-        if (_isLoadingCustomSongs || (_customSongs == null && _isLoadingTrending))
-          const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator(color: Color(0xFF10B981))))
-        else if (_customSongs != null)
-          if (_customSongs!.isEmpty)
+          const SizedBox(height: 10),
+
+          // 5. Songs List
+          if (_isLoadingCustomSongs || (_customSongs == null && _isLoadingTrending))
             Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Text(
-                  'कोई गाने नहीं मिले (No songs found)',
-                  style: TextStyle(color: app.secondaryTextColor, fontSize: 13.5),
+              padding: const EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator(color: accent)),
+            )
+          else if (_customSongs != null)
+            _customSongs!.isEmpty
+                ? _buildEmptyState('No tracks found for $_customDisplayTitle', accent)
+                : Column(
+                    children: [
+                      for (int i = 0; i < _customSongs!.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _BitMusicSongTile(
+                            song: _customSongs![i],
+                            accent: accent,
+                            isResolving: _resolvingSongId == _customSongs![i].id,
+                            onTap: () => _playSong(_customSongs!, i),
+                          ),
+                        ),
+                    ],
+                  )
+          else if (_trendingSongs.isEmpty)
+            _buildEmptyState('Check internet connection or pull to refresh', accent)
+          else
+            Column(
+              children: [
+                for (int i = 0; i < _trendingSongs.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _BitMusicSongTile(
+                      song: _trendingSongs[i],
+                      accent: accent,
+                      isResolving: _resolvingSongId == _trendingSongs[i].id,
+                      onTap: () => _playSong(_trendingSongs, i),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickHubGrid(Color accent) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.folder_music_rounded,
+                title: 'Local Audio',
+                subtitle: 'Device MP3 & FLAC',
+                accent: accent,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LocalStorageMusicScreen()),
                 ),
               ),
-            )
-          else
-            ..._customSongs!.map((song) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _OnlineSongTile(
-                    song: song,
-                    onTap: () => _playSong(_customSongs!, _customSongs!.indexOf(song)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ListenableBuilder(
+                listenable: app,
+                builder: (_, __) => _buildActionCard(
+                  icon: Icons.favorite_rounded,
+                  title: 'Liked Songs',
+                  subtitle: '${app.favorites.length} Favorites',
+                  accent: const Color(0xFFFA2D48),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LikedSongsScreen()),
                   ),
-                ))
-        else
-          ..._trendingSongs.map((song) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _OnlineSongTile(
-                  song: song,
-                  onTap: () => _playSong(_trendingSongs, _trendingSongs.indexOf(song)),
                 ),
-              )),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.podcasts_rounded,
+                title: 'Shows & Osho',
+                subtitle: 'Desi FM & Aawaz',
+                accent: const Color(0xFFFF9F0A),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.queue_music_rounded,
+                title: 'Playlists & Offline',
+                subtitle: '${DownloadService.instance.downloadedSongs.length} Saved',
+                accent: const Color(0xFF00D2FF),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+                ),
+                trailing: IconButton(
+                  icon: Icon(Icons.playlist_play_rounded, color: accent, size: 22),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'My Playlists',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PlaylistsManagerScreen()),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
   Widget _buildActionCard({
-    required String emoji,
+    required IconData icon,
     required String title,
     required String subtitle,
-    required Color bgColor,
+    required Color accent,
     required VoidCallback onTap,
     Widget? trailing,
   }) {
-    final isLight = app.isLight;
     return iOSBounceButton(
       onTap: () {
         HapticFeedback.lightImpact();
         onTap();
       },
-      child: Container(
+      child: LiquidGlassContainer(
+        borderRadius: BorderRadius.circular(18),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: isLight ? Colors.white.withValues(alpha: 0.85) : const Color(0xFF181E2E),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isLight ? const Color(0xFFE2E8F0) : Colors.white10,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+        blur: 10,
+        glow: false,
         child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: bgColor,
-                shape: BoxShape.circle,
+                color: accent.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(11),
               ),
-              child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 19)),
-              ),
+              child: Icon(icon, color: accent, size: 19),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -758,19 +622,17 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: app.textColor,
                     ),
                   ),
-                  const SizedBox(height: 1),
                   Text(
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
                       color: app.secondaryTextColor,
                     ),
                   ),
@@ -783,8 +645,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       ),
     );
   }
-  Widget _buildIndianArtistsSection(Color saavnColor) {
-    final artists = SaavnApiService.curatedArtists;
+
+  Widget _buildArtistsSection(Color accent) {
+    final artists = YtMusicService.curatedArtists;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -792,8 +655,13 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'भारतीय कलाकार (Indian Artists)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: app.textColor),
+              'Featured Singers & Artists',
+              style: TextStyle(
+                fontSize: 16.5,
+                fontWeight: FontWeight.w800,
+                color: app.textColor,
+                letterSpacing: -0.3,
+              ),
             ),
             GestureDetector(
               onTap: () => Navigator.push(
@@ -801,15 +669,19 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                 MaterialPageRoute(builder: (_) => const ArtistsHubScreen()),
               ),
               child: Text(
-                'सभी देखें →',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: saavnColor),
+                'See All →',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 98,
+          height: 96,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -829,17 +701,23 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   child: Column(
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 62,
+                        height: 62,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: saavnColor.withValues(alpha: 0.5), width: 1.5),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.55),
+                            width: 1.8,
+                          ),
                         ),
                         child: ClipOval(
                           child: Image.network(
                             a.avatarUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 30),
+                            errorBuilder: (_, __, ___) => Container(
+                              color: accent.withValues(alpha: 0.14),
+                              child: Icon(Icons.person_rounded, size: 30, color: accent),
+                            ),
                           ),
                         ),
                       ),
@@ -851,7 +729,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: app.textColor),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: app.textColor,
+                          ),
                         ),
                       ),
                     ],
@@ -865,116 +747,121 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
-  Widget _buildCategoryView() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => setState(() => _selectedCategory = null),
-              ),
-              Expanded(
-                child: Text(
-                  _selectedCategory!,
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: app.textColor),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _buildSongList(_categorySongs, _isLoadingCategory, 'No songs found in this category'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSongList(List<OnlineSong> songs, bool loading, String emptyMsg) {
+  Widget _buildSongList(
+    List<OnlineSong> songs,
+    bool loading,
+    String emptyMsg,
+    Color accent,
+  ) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)));
+      return Center(child: CircularProgressIndicator(color: accent));
     }
     if (songs.isEmpty) {
-      return Center(
-        child: Text(emptyMsg, style: TextStyle(color: app.secondaryTextColor, fontSize: 14)),
-      );
+      return _buildEmptyState(emptyMsg, accent);
     }
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(16, 6, 16, math.max(160.0, widget.bottomOffset)),
+      padding: EdgeInsets.fromLTRB(16, 6, 16, math.max(165.0, widget.bottomOffset)),
       itemCount: songs.length,
       itemBuilder: (context, idx) {
         final song = songs[idx];
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: _OnlineSongTile(
+          child: _BitMusicSongTile(
             song: song,
+            accent: accent,
+            isResolving: _resolvingSongId == song.id,
             onTap: () => _playSong(songs, idx),
           ),
         );
       },
     );
   }
+
+  Widget _buildEmptyState(String msg, Color accent) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.music_off_rounded, size: 44, color: accent.withValues(alpha: 0.5)),
+            const SizedBox(height: 10),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: app.secondaryTextColor, fontSize: 13.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _OnlineSongTile extends StatelessWidget {
-  const _OnlineSongTile({
+class _BitMusicSongTile extends StatelessWidget {
+  const _BitMusicSongTile({
     required this.song,
+    required this.accent,
     required this.onTap,
+    this.isResolving = false,
   });
 
   final OnlineSong song;
+  final Color accent;
   final VoidCallback onTap;
+  final bool isResolving;
 
   @override
   Widget build(BuildContext context) {
     final app = AppState.instance;
-    final isLight = app.isLight;
     final isFav = app.isFavorite(song.id);
 
     return iOSBounceButton(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: isLight ? Colors.white : const Color(0xFF181E2E),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isLight ? const Color(0xFFE2E8F0) : Colors.white.withValues(alpha: 0.08),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isLight ? 0.03 : 0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+      onTap: onTap,
+      child: LiquidGlassContainer(
+        borderRadius: BorderRadius.circular(18),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        blur: 0,
+        glow: false,
         child: Row(
           children: [
-            // Artwork
+            // Rounded Apple Music Artwork
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                song.imageUrl,
-                width: 52,
-                height: 52,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 52,
-                  height: 52,
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  child: const Icon(Icons.music_note_rounded, color: Color(0xFF10B981), size: 24),
-                ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Image.network(
+                    song.imageUrl,
+                    width: 54,
+                    height: 54,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 54,
+                      height: 54,
+                      color: accent.withValues(alpha: 0.16),
+                      child: Icon(Icons.music_note_rounded, color: accent, size: 24),
+                    ),
+                  ),
+                  if (isResolving)
+                    Container(
+                      width: 54,
+                      height: 54,
+                      color: Colors.black.withValues(alpha: 0.55),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 12),
 
-            // Metadata
+            // Title & Artist Metadata
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1006,15 +893,15 @@ class _OnlineSongTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(4),
+                          color: accent.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(5),
                         ),
-                        child: const Text(
-                          '320 kbps HD',
+                        child: Text(
+                          SettingsService.instance.audioQuality.label.split(' ').first,
                           style: TextStyle(
                             fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w800,
+                            color: accent,
                           ),
                         ),
                       ),
@@ -1033,13 +920,12 @@ class _OnlineSongTile extends StatelessWidget {
               ),
             ),
 
-            // Trailing Action Buttons: Excluded from D-Pad focus traversal so remote OK button always plays the song!
             ExcludeFocus(
               excluding: true,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Download Button
+                  // Download action
                   ListenableBuilder(
                     listenable: DownloadService.instance,
                     builder: (context, _) {
@@ -1048,14 +934,16 @@ class _OnlineSongTile extends StatelessWidget {
 
                       return IconButton(
                         icon: isDownloading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: accent),
                               )
                             : Icon(
                                 isDl ? Icons.download_done_rounded : Icons.download_rounded,
-                                color: isDl ? Colors.green : app.secondaryTextColor.withValues(alpha: 0.6),
+                                color: isDl
+                                    ? const Color(0xFF00D084)
+                                    : app.secondaryTextColor.withValues(alpha: 0.6),
                                 size: 20,
                               ),
                         onPressed: () {
@@ -1071,20 +959,23 @@ class _OnlineSongTile extends StatelessWidget {
                     },
                   ),
 
-                  // Favorite Button
+                  // Favorite toggle
                   IconButton(
                     icon: Icon(
                       isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      color: isFav ? const Color(0xFFFF2A85) : app.secondaryTextColor.withValues(alpha: 0.5),
+                      color: isFav
+                          ? const Color(0xFFFA2D48)
+                          : app.secondaryTextColor.withValues(alpha: 0.5),
                       size: 21,
                     ),
-                    onPressed: () => app.toggleFavorite(song.id, item: PlaylistItem.fromOnlineSong(song)),
+                    onPressed: () =>
+                        app.toggleFavorite(song.id, item: PlaylistItem.fromOnlineSong(song)),
                   ),
 
-                  // Popup Actions Menu
+                  // More Menu
                   PopupMenuButton<String>(
                     icon: Icon(Icons.more_vert_rounded, color: app.secondaryTextColor, size: 20),
-                    color: isLight ? Colors.white : const Color(0xFF14192B),
+                    color: app.surfaceColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     onSelected: (val) {
                       if (val == 'play_now') {
@@ -1100,6 +991,8 @@ class _OnlineSongTile extends StatelessWidget {
                         AudioController.instance.addOnlineToQueue(song);
                       } else if (val == 'add_playlist') {
                         AddToPlaylistDialog.showForOnline(context, song);
+                      } else if (val == 'view_artist') {
+                        ArtistSongsSheet.show(context, artistName: song.artist);
                       }
                     },
                     itemBuilder: (context) => [
@@ -1107,7 +1000,7 @@ class _OnlineSongTile extends StatelessWidget {
                         value: 'play_now',
                         child: Row(
                           children: [
-                            Icon(Icons.play_arrow_rounded, color: app.secondaryTextColor, size: 20),
+                            Icon(Icons.play_arrow_rounded, color: accent, size: 20),
                             const SizedBox(width: 10),
                             Text('Play Now', style: TextStyle(color: app.textColor)),
                           ],
@@ -1149,7 +1042,17 @@ class _OnlineSongTile extends StatelessWidget {
                           children: [
                             Icon(Icons.playlist_add_rounded, color: app.secondaryTextColor, size: 20),
                             const SizedBox(width: 10),
-                            Text('Add to Custom Playlist', style: TextStyle(color: app.textColor)),
+                            Text('Add to Playlist', style: TextStyle(color: app.textColor)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'view_artist',
+                        child: Row(
+                          children: [
+                            Icon(Icons.person_rounded, color: app.secondaryTextColor, size: 20),
+                            const SizedBox(width: 10),
+                            Text('Songs by Artist', style: TextStyle(color: app.textColor)),
                           ],
                         ),
                       ),
@@ -1164,273 +1067,3 @@ class _OnlineSongTile extends StatelessWidget {
     );
   }
 }
-
-class _ArtistDirectorySheet extends StatefulWidget {
-  const _ArtistDirectorySheet({required this.onSelectArtist});
-
-  final void Function(SaavnArtist artist) onSelectArtist;
-
-  @override
-  State<_ArtistDirectorySheet> createState() => _ArtistDirectorySheetState();
-}
-
-class _ArtistDirectorySheetState extends State<_ArtistDirectorySheet> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  int _selectedFilter = 0; // 0: Sabhi, 1: Rajasthani, 2: Bollywood
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final app = AppState.instance;
-    final isLight = app.isLight;
-    final allArtists = SaavnApiService.curatedArtists;
-
-    final filtered = allArtists.where((a) {
-      if (_selectedFilter == 1 && !a.isRajasthani) return false;
-      if (_selectedFilter == 2 && !a.isBollywood) return false;
-      if (_query.isNotEmpty) {
-        final q = _query.toLowerCase();
-        final matchName = a.name.toLowerCase().contains(q);
-        final matchSub = a.subtitle.toLowerCase().contains(q);
-        if (!matchName && !matchSub) return false;
-      }
-      return true;
-    }).toList();
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
-        color: isLight ? Colors.white : const Color(0xFF14192B),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        children: [
-          // Drag handle
-          const SizedBox(height: 10),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: isLight ? Colors.black12 : Colors.white24,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text('🎙️', style: TextStyle(fontSize: 18)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'सभी कलाकार (All Artists)',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: app.textColor,
-                        ),
-                      ),
-                      Text(
-                        '${allArtists.length}+ Indian & Rajasthani Singers',
-                        style: TextStyle(fontSize: 11, color: app.secondaryTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white10,
-                ),
-              ),
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: (v) => setState(() => _query = v.trim()),
-                style: TextStyle(color: app.textColor, fontSize: 13.5),
-                decoration: InputDecoration(
-                  hintText: 'कलाकार खोजें (Search artist)...',
-                  hintStyle: TextStyle(color: app.secondaryTextColor, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                  suffixIcon: _searchCtrl.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(() => _query = '');
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Filter tabs
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildTab(0, 'Sabhi (${allArtists.length})'),
-                  const SizedBox(width: 8),
-                  _buildTab(1, '🏜️ Rajasthani (${allArtists.where((a) => a.isRajasthani).length})'),
-                  const SizedBox(width: 8),
-                  _buildTab(2, '🎬 Bollywood (${allArtists.where((a) => a.isBollywood).length})'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Artists Grid
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Text(
-                      'कोई कलाकार नहीं मिला',
-                      style: TextStyle(color: app.secondaryTextColor, fontSize: 13.5),
-                    ),
-                  )
-                : GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                    physics: const BouncingScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.78,
-                    ),
-                    itemCount: filtered.length,
-                    itemBuilder: (ctx, i) {
-                      final artist = filtered[i];
-                      return GestureDetector(
-                        onTap: () => widget.onSelectArtist(artist),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 68,
-                              height: 68,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: artist.isRajasthani
-                                      ? const Color(0xFFFF8C00)
-                                      : const Color(0xFF10B981),
-                                  width: 1.8,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                              child: ClipOval(
-                                child: Image.network(
-                                  artist.avatarUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 36),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              artist.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: app.textColor,
-                              ),
-                            ),
-                            Text(
-                              artist.subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                color: app.secondaryTextColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTab(int idx, String label) {
-    final active = _selectedFilter == idx;
-    final app = AppState.instance;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = idx),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFF10B981)
-              : (app.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? Colors.white : app.secondaryTextColor,
-          ),
-        ),
-      ),
-    );
-  }
-}
-

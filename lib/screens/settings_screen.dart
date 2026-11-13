@@ -5,7 +5,6 @@ import 'car_mode_screen.dart';
 import '../models/radio_station.dart';
 import '../services/app_state.dart';
 import '../services/media_scanner.dart';
-import '../services/saavn_api_service.dart';
 import '../services/download_service.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
@@ -219,6 +218,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             accent: accent,
                           ),
                           _buildDivider(isLight),
+                          _buildSwitchTile(
+                            title: 'Skip Silence',
+                            subtitle: 'Automatically trim silent gaps between audio',
+                            value: _settings.skipSilence,
+                            onChanged: _settings.setSkipSilence,
+                            icon: Icons.fast_forward_rounded,
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
                           _buildCrossfadeTile(textColor, secondaryTextColor, accent),
                           _buildDivider(isLight),
                           _buildNavTile(
@@ -239,8 +249,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 22),
 
-                    // Section 3: Appearance & Language
-                    _buildSectionHeader('APPEARANCE & LANGUAGE', textColor),
+                    // Section 3: BitChord Appearance & Language
+                    _buildSectionHeader('BITCHORD APPEARANCE & THEME', textColor),
                     LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(22),
                       padding: const EdgeInsets.all(16),
@@ -248,7 +258,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Theme Switcher Pills
+                          // Theme Mode Switcher Pills
                           Text(
                             AppState.translate('theme_style'),
                             style: TextStyle(
@@ -257,15 +267,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Row(
+                          const SizedBox(height: 10),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 3.1,
                             children: AppThemeMode.values.map((mode) {
                               final active = _settings.themeMode == mode;
+                              return iOSBounceButton(
+                                onTap: () => _settings.setThemeMode(mode),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  decoration: BoxDecoration(
+                                    color: active
+                                        ? accent.withValues(alpha: 0.18)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: active ? accent : _app.cardBorderColor,
+                                      width: active ? 1.5 : 1.0,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      mode.label,
+                                      style: TextStyle(
+                                        color: active ? accent : textColor,
+                                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+
+                          const SizedBox(height: 18),
+                          Divider(color: _app.dividerColor, height: 1),
+                          const SizedBox(height: 16),
+
+                          // Now Playing Player Theme Style (BitChord)
+                          Text(
+                            'Now Playing Player Style',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: PlayerThemeStyle.values.map((style) {
+                              final active = _settings.playerThemeStyle == style;
                               return Expanded(
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 3),
                                   child: iOSBounceButton(
-                                    onTap: () => _settings.setThemeMode(mode),
+                                    onTap: () => _settings.setPlayerThemeStyle(style),
                                     child: AnimatedContainer(
                                       duration: const Duration(milliseconds: 200),
                                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -275,25 +337,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             : Colors.transparent,
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                          color: active
-                                              ? accent
-                                              : (isLight
-                                                  ? Colors.black.withValues(alpha: 0.08)
-                                                  : Colors.white.withValues(alpha: 0.12)),
+                                          color: active ? accent : _app.cardBorderColor,
                                           width: active ? 1.5 : 1.0,
                                         ),
                                       ),
                                       child: Center(
                                         child: Text(
-                                          mode == AppThemeMode.light
-                                              ? 'Light'
-                                              : mode == AppThemeMode.dark
-                                                  ? 'Dark'
-                                                  : 'System',
+                                          style == PlayerThemeStyle.frosted
+                                              ? 'Frosted'
+                                              : style == PlayerThemeStyle.vibrant
+                                                  ? 'Vibrant'
+                                                  : 'Minimal',
                                           style: TextStyle(
                                             color: active ? accent : textColor,
                                             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                                            fontSize: 13,
+                                            fontSize: 12.5,
                                           ),
                                         ),
                                       ),
@@ -304,9 +362,87 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             }).toList(),
                           ),
 
-                          const SizedBox(height: 18),
-                          Divider(color: isLight ? Colors.black12 : Colors.white12, height: 1),
                           const SizedBox(height: 16),
+                          Divider(color: _app.dividerColor, height: 1),
+                          const SizedBox(height: 14),
+
+                          // Accent Color Swatches
+                          Text(
+                            'BitChord Accent Color',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: AppState.accentOptions.map((c) {
+                              final selected = _app.staticAccentColor == c;
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  _app.setAccentColor(c);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: c,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: selected
+                                          ? (isLight ? Colors.black87 : Colors.white)
+                                          : Colors.transparent,
+                                      width: 2.5,
+                                    ),
+                                    boxShadow: selected
+                                        ? [
+                                            BoxShadow(
+                                              color: c.withValues(alpha: 0.55),
+                                              blurRadius: 10,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: selected
+                                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                                      : null,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+
+                          const SizedBox(height: 16),
+                          Divider(color: _app.dividerColor, height: 1),
+                          const SizedBox(height: 6),
+
+                          _buildSwitchTile(
+                            title: 'Frosted Glass Cards',
+                            subtitle: 'Translucent Apple Music blur across bars & panels',
+                            value: _settings.glassBlurEnabled,
+                            onChanged: _settings.setGlassBlurEnabled,
+                            icon: Icons.blur_on_rounded,
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
+                          _buildSwitchTile(
+                            title: 'Dynamic Artwork Glow',
+                            subtitle: 'Adapt accent glow to album cover colors',
+                            value: _settings.dynamicArtworkColors,
+                            onChanged: _settings.setDynamicArtworkColors,
+                            icon: Icons.palette_rounded,
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+
+                          Divider(color: _app.dividerColor, height: 1),
+                          const SizedBox(height: 14),
 
                           // Language Toggle
                           Row(
@@ -843,61 +979,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) {
     final secs = _settings.crossfadeSeconds;
 
-    return iOSBounceButton(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        final next = (secs + 1) % 6; // 0s -> 1s -> 2s -> 3s -> 4s -> 5s -> 0s
-        _settings.setCrossfadeSeconds(next);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Icon(Icons.graphic_eq_rounded, color: accent, size: 22),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppState.translate('crossfade'),
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, color: accent, size: 22),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppState.translate('crossfade'),
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    secs == 0
-                        ? 'Off (Direct Play • Click to change)'
-                        : '$secs seconds overlap between songs (Click to change)',
-                    style: TextStyle(
-                      color: secondaryTextColor,
-                      fontSize: 12,
+                    const SizedBox(height: 2),
+                    Text(
+                      secs == 0
+                          ? 'Off (Gapless direct transition)'
+                          : '${secs}s seamless BitChord AutoMix transition',
+                      style: TextStyle(
+                        color: secondaryTextColor,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: accent.withValues(alpha: 0.35)),
-              ),
-              child: Text(
-                secs == 0 ? 'Off' : '${secs}s',
-                style: TextStyle(
-                  color: accent,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13.5,
+                  ],
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: accent.withValues(alpha: 0.35)),
+                ),
+                child: Text(
+                  secs == 0 ? 'Off' : '${secs}s',
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderThemeData(
+              activeTrackColor: accent,
+              inactiveTrackColor: secondaryTextColor.withValues(alpha: 0.2),
+              thumbColor: accent,
+              overlayColor: accent.withValues(alpha: 0.15),
             ),
-          ],
-        ),
+            child: Slider(
+              value: secs.toDouble(),
+              min: 0,
+              max: 12,
+              divisions: 12,
+              onChanged: (v) {
+                HapticFeedback.selectionClick();
+                _settings.setCrossfadeSeconds(v.round());
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

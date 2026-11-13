@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -21,7 +19,8 @@ import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
 import '../services/equalizer_service.dart';
-import '../services/saavn_api_service.dart';
+import '../services/lyrics_service.dart';
+import '../services/settings_service.dart';
 import '../utils/format.dart';
 import '../utils/lrc_parser.dart';
 import '../widgets/add_to_playlist_dialog.dart';
@@ -140,7 +139,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           id: song.id,
           title: song.title,
           artist: song.artist,
-          album: song.album.isNotEmpty ? song.album : 'JioSaavn Online',
+          album: song.album.isNotEmpty ? song.album : 'BitMusic Stream',
           duration: song.duration,
           imageUrl: song.imageUrl,
           isOnline: true,
@@ -243,91 +242,24 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       _userInteractingWithLyrics = false;
     });
 
-    // 1. Check local .lrc file first
-    if (track.mediaFile != null) {
-      try {
-        final path = track.mediaFile!.path;
-        final dot = path.lastIndexOf('.');
-        if (dot > 0) {
-          final base = path.substring(0, dot);
-          final candidates = ['$base.lrc', '$base.LRC', '$base.txt'];
-          for (final p in candidates) {
-            if (File(p).existsSync()) {
-              final parsed = await LrcParser.parseFile(p);
-              if (parsed.isNotEmpty && mounted) {
-                setState(() {
-                  _lyrics = parsed;
-                  _loadingLyrics = false;
-                });
-                return;
-              }
-            }
-          }
-        }
-      } catch (_) {}
-    }
-
-    // 2. Fetch synchronized lyrics from LRCLIB API (for local & online songs)
     try {
-      final cleanTitle = track.title
-          .replaceAll(RegExp(r'\(.*?\)|\[.*?\]'), '')
-          .replaceAll(RegExp(r'feat\..*|ft\..*', caseSensitive: false), '')
-          .trim();
-      final cleanArtist = (track.artist ?? '')
-          .replaceAll(RegExp(r'\(.*?\)|\[.*?\]'), '')
-          .trim();
+      final result = await LyricsService.instance.fetchLyrics(
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        duration: track.duration,
+        localPath: track.mediaFile?.path,
+      );
 
-      final durSec = track.duration.inSeconds > 0
-          ? track.duration.inSeconds
-          : null;
-
-      final queryParams = <String, String>{
-        'track_name': cleanTitle,
-        if (cleanArtist.isNotEmpty && cleanArtist.toLowerCase() != 'unknown')
-          'artist_name': cleanArtist,
-        if (durSec != null) 'duration': durSec.toString(),
-      };
-
-      final uri = Uri.https('lrclib.net', '/api/get', queryParams);
-      final res = await http.get(uri).timeout(const Duration(seconds: 4));
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final synced = data['syncedLyrics'] as String?;
-        final plain = data['plainLyrics'] as String?;
-
-        if (synced != null && synced.isNotEmpty) {
-          final parsed = LrcParser.parseString(synced);
-          if (parsed.isNotEmpty && mounted) {
-            setState(() {
-              _lyrics = parsed;
-              _loadingLyrics = false;
-            });
-            return;
-          }
-        } else if (plain != null && plain.isNotEmpty && mounted) {
-          setState(() {
-            _plainLyrics = plain;
-            _loadingLyrics = false;
-          });
-          return;
-        }
+      if (mounted) {
+        setState(() {
+          _lyrics = result.synced;
+          _plainLyrics = result.plain;
+          _loadingLyrics = false;
+        });
+        return;
       }
     } catch (_) {}
-
-    // 3. Fallback to Saavn lyrics API if online song
-    if (track.isOnline) {
-      try {
-        final lyrics = await SaavnApiService.instance.getLyrics(track.id);
-        if (lyrics != null && lyrics.isNotEmpty && mounted) {
-          setState(() {
-            _plainLyrics = lyrics;
-            _loadingLyrics = false;
-          });
-          return;
-        }
-      } catch (_) {}
-    }
 
     if (mounted) {
       setState(() {
@@ -941,19 +873,19 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           iconSize: 28,
                                           onTap: () => Navigator.of(context).maybePop(),
                                         ),
-                                        // Center: Minimal studio 'Now Playing' pill badge
+                                        // Center: BitChord 'Now Playing' pill badge
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                           decoration: BoxDecoration(
-                                            color: isLight ? Colors.white : const Color(0xFF1C2230),
+                                            color: app.surfaceColor,
                                             borderRadius: BorderRadius.circular(20),
                                             border: Border.all(
-                                              color: isLight ? const Color(0xFFE2E8F0) : Colors.white.withValues(alpha: 0.12),
+                                              color: app.cardBorderColor,
                                               width: 1.0,
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.3),
+                                                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.35),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 2),
                                               ),
@@ -965,12 +897,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                               Icon(Icons.graphic_eq_rounded, size: 14, color: appAccent),
                                               const SizedBox(width: 6),
                                               Text(
-                                                'NOW PLAYING',
+                                                track.isOnline ? 'BITMUSIC • NOW PLAYING' : 'NOW PLAYING',
                                                 style: TextStyle(
-                                                  fontSize: 11,
-                                                  letterSpacing: 1.2,
+                                                  fontSize: 10.5,
+                                                  letterSpacing: 1.1,
                                                   fontWeight: FontWeight.w700,
-                                                  color: isLight ? const Color(0xFF0F172A) : Colors.white,
+                                                  color: app.textColor,
                                                 ),
                                               ),
                                             ],
@@ -1213,9 +1145,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                               child: Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                 decoration: BoxDecoration(
-                                                  color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1C2230),
+                                                  color: app.surfaceColorSecondary,
                                                   borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(color: isLight ? const Color(0xFFE2E8F0) : const Color(0x28FFFFFF)),
+                                                  border: Border.all(color: app.cardBorderColor),
                                                 ),
                                                 child: Text(
                                                   '${speed}x',
@@ -1273,24 +1205,16 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
                                     const SizedBox(height: 12),
 
-                                    // 5. MODERN STUDIO CONTROL DOCK
-                                    Container(
+                                    // 5. BITCHORD STUDIO CONTROL DOCK
+                                    LiquidGlassContainer(
+                                      borderRadius: BorderRadius.circular(36),
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                      decoration: BoxDecoration(
-                                        color: isLight ? Colors.white : const Color(0xFF131722),
-                                        borderRadius: BorderRadius.circular(36),
-                                        border: Border.all(
-                                          color: isLight ? const Color(0xFFE2E8F0) : const Color(0x1FFFFFFF),
-                                          width: 1.0,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.45),
-                                            blurRadius: 18,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
+                                      blur: SettingsService.instance.playerThemeStyle == PlayerThemeStyle.frosted ? 26 : 0,
+                                      opacity: SettingsService.instance.playerThemeStyle == PlayerThemeStyle.frosted ? 0.14 : 0.85,
+                                      tint: SettingsService.instance.playerThemeStyle == PlayerThemeStyle.minimal
+                                          ? app.backgroundColor
+                                          : app.surfaceColor,
+                                      borderColor: app.cardBorderColor,
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                         children: [
@@ -1816,7 +1740,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
   }
 }
 
-/// 1. Dynamic color-matched blurred ambient mesh background
+/// 1. Dynamic BitChord ambient mesh background supporting Frosted / Vibrant / Minimal OLED
 class _BlurredArt extends StatelessWidget {
   const _BlurredArt({required this.track});
   final _AudioTrackInfo track;
@@ -1824,18 +1748,51 @@ class _BlurredArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppState.instance;
+    final settings = SettingsService.instance;
     final isLight = app.isLight;
     final accent = app.accentColor;
+    final style = settings.playerThemeStyle;
+
+    final topAlpha = style == PlayerThemeStyle.minimal
+        ? 0.04
+        : (style == PlayerThemeStyle.vibrant
+            ? (isLight ? 0.22 : 0.42)
+            : (isLight ? 0.14 : 0.26));
+    final bottomAlpha = style == PlayerThemeStyle.minimal
+        ? 0.02
+        : (style == PlayerThemeStyle.vibrant
+            ? (isLight ? 0.16 : 0.28)
+            : (isLight ? 0.09 : 0.18));
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Studio Base Solid Background (Zero-lag)
-        Container(
-          color: isLight ? const Color(0xFFF8FAFC) : const Color(0xFF090D16),
-        ),
-
-        // Subtle Ambient Accent Glow at top
+        Container(color: app.backgroundColor),
+        if (style == PlayerThemeStyle.frosted &&
+            settings.glassBlurEnabled &&
+            track.imageUrl != null &&
+            track.imageUrl!.isNotEmpty)
+          Opacity(
+            opacity: isLight ? 0.14 : 0.20,
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 42, sigmaY: 42),
+              child: Image.network(
+                track.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          )
+        else if (style == PlayerThemeStyle.frosted &&
+            settings.glassBlurEnabled &&
+            track.embeddedArt != null)
+          Opacity(
+            opacity: isLight ? 0.14 : 0.20,
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 42, sigmaY: 42),
+              child: Image.memory(track.embeddedArt!, fit: BoxFit.cover),
+            ),
+          ),
         Positioned(
           top: -100,
           left: -50,
@@ -1847,15 +1804,13 @@ class _BlurredArt extends StatelessWidget {
                 center: Alignment.topCenter,
                 radius: 1.0,
                 colors: [
-                  accent.withValues(alpha: isLight ? 0.12 : 0.25),
+                  accent.withValues(alpha: topAlpha),
                   Colors.transparent,
                 ],
               ),
             ),
           ),
         ),
-
-        // Subtle Ambient Accent Glow at bottom
         Positioned(
           bottom: -80,
           right: -60,
@@ -1866,7 +1821,7 @@ class _BlurredArt extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  accent.withValues(alpha: isLight ? 0.08 : 0.18),
+                  accent.withValues(alpha: bottomAlpha),
                   Colors.transparent,
                 ],
               ),

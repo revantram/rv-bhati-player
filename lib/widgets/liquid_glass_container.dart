@@ -1,10 +1,13 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/app_state.dart';
+import '../services/settings_service.dart';
 
-/// Modern Studio Fluid Container:
-/// High-performance, zero-lag elevated surface with crisp contrast borders & subtle studio shadow.
+/// BitChord Apple Music Liquid Glass Surface:
+/// Translucent frosted glass when glassBlurEnabled is on, crisp elevated card in minimal/fast lists.
 class LiquidGlassContainer extends StatelessWidget {
   const LiquidGlassContainer({
     super.key,
@@ -23,7 +26,6 @@ class LiquidGlassContainer extends StatelessWidget {
     this.glow = true,
   });
 
-  /// Fully rounded "capsule" radius (top bar, bottom nav, pills).
   static const BorderRadius capsuleRadius =
       BorderRadius.all(Radius.circular(999));
 
@@ -45,35 +47,68 @@ class LiquidGlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppState.instance;
+    final settings = SettingsService.instance;
     final isLight = app.isLight;
+    final useBlur = settings.glassBlurEnabled && blur > 0;
 
-    final baseBg = tint ?? (isLight ? Colors.white : const Color(0xFF131722));
-    final borderCol = borderColor ?? (isLight ? const Color(0xFFE2E8F0) : const Color(0x1FFFFFFF));
+    final Color defaultBg;
+    if (tint != null) {
+      defaultBg = tint!;
+    } else if (useBlur) {
+      defaultBg = isLight
+          ? Colors.white.withValues(alpha: opacity < 1.0 ? opacity : 0.78)
+          : app.surfaceColor.withValues(alpha: opacity < 1.0 ? opacity.clamp(0.55, 0.88) : 0.72);
+    } else {
+      defaultBg = isLight ? Colors.white : app.surfaceColor;
+    }
+
+    final borderCol = borderColor ??
+        (isLight
+            ? const Color(0xFFE2E8F0)
+            : Colors.white.withValues(alpha: app.isOled ? 0.11 : 0.13));
+
+    Widget inner = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: defaultBg,
+        borderRadius: borderRadius,
+        border: Border.all(
+          color: borderCol,
+          width: borderWidth,
+        ),
+      ),
+      child: child,
+    );
+
+    if (useBlur) {
+      inner = BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: blur.clamp(4, 24),
+          sigmaY: blur.clamp(4, 24),
+        ),
+        child: inner,
+      );
+    }
 
     return Container(
       width: width,
       height: height,
       margin: margin,
       decoration: BoxDecoration(
-        color: baseBg,
         borderRadius: borderRadius,
-        border: Border.all(
-          color: borderCol,
-          width: borderWidth,
-        ),
         boxShadow: glow
             ? (isLight
                 ? [
                     BoxShadow(
                       color: const Color(0xFF0F172A).withValues(alpha: 0.05),
-                      blurRadius: 12,
+                      blurRadius: 14,
                       offset: const Offset(0, 4),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.40),
-                      blurRadius: 16,
+                      color: Colors.black.withValues(alpha: 0.48),
+                      blurRadius: 18,
                       offset: const Offset(0, 6),
                     ),
                   ])
@@ -81,17 +116,14 @@ class LiquidGlassContainer extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
-        child: Container(
-          padding: padding,
-          child: child,
-        ),
+        child: inner,
       ),
     );
   }
 }
 
 /// Press micro-animation: scale down + opacity dip + haptic tick.
-/// Fully compatible with Android TV & Amazon Fire TV Stick remotes (D-pad focus & OK/Select button).
+/// Compatible with Android TV & Amazon Fire TV Stick remotes.
 class PressableScale extends StatefulWidget {
   const PressableScale({
     super.key,
@@ -178,7 +210,6 @@ class _PressableScaleState extends State<PressableScale> {
         }
         return KeyEventResult.ignored;
       },
-      // Prevent internal child widgets from stealing D-pad focus
       child: ExcludeFocus(
         excluding: true,
         child: GestureDetector(
@@ -230,11 +261,6 @@ class _PressableScaleState extends State<PressableScale> {
                                 blurRadius: 18,
                                 spreadRadius: 3,
                               ),
-                              BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                              ),
                             ],
                           ),
                         ),
@@ -250,7 +276,7 @@ class _PressableScaleState extends State<PressableScale> {
   }
 }
 
-/// Modern Studio Action Button (round or pill) with high contrast.
+/// BitChord Studio Action Button (round or pill) with crisp Apple Music contrast.
 class LiquidGlassButton extends StatelessWidget {
   const LiquidGlassButton({
     super.key,
@@ -282,8 +308,8 @@ class LiquidGlassButton extends StatelessWidget {
         : null;
     final isPill = label != null;
 
-    final btnBg = tint ?? (isLight ? Colors.white : const Color(0xFF1C2230));
-    final btnBorder = isLight ? const Color(0xFFE2E8F0) : const Color(0x28FFFFFF);
+    final btnBg = tint ?? (isLight ? Colors.white : app.surfaceColorSecondary);
+    final btnBorder = app.cardBorderColor;
 
     return Opacity(
       opacity: onTap == null ? 0.35 : 1.0,
@@ -301,7 +327,7 @@ class LiquidGlassButton extends StatelessWidget {
             border: Border.all(color: btnBorder, width: 1.0),
             boxShadow: [
               BoxShadow(
-                color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.35),
+                color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.4),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),

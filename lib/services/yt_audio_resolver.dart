@@ -1,154 +1,112 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-import 'saavn_api_service.dart';
+
+import 'settings_service.dart';
+
+class _CachedStream {
+  final String url;
+  final DateTime expiresAt;
+  const _CachedStream(this.url, this.expiresAt);
+}
 
 class YtAudioResolver {
   YtAudioResolver._();
 
-  static final Map<String, String> _cache = {};
+  static final Map<String, _CachedStream> _cache = {};
 
   static const List<String> _pipedMirrors = [
+    'https://pipedapi.kavin.rocks',
     'https://pipedapi.lunar.icu',
     'https://api.piped.private.coffee',
-    'https://pipedapi.kavin.rocks',
   ];
 
-  /// Extracts multiple search candidate strings from a YouTube video title
-  static List<String> extractSearchCandidates(String rawTitle, [String? artist]) {
-    final candidates = <String>{};
+  static const List<String> _invidiousMirrors = [
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://yewtu.be',
+  ];
 
-    // 1. Clean brackets like (Official Video), [DJ Remix]
-    final noBrackets = rawTitle
-        .replaceAll(RegExp(r'\((.*?)\)'), '')
-        .replaceAll(RegExp(r'\[(.*?)\]'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-
-    // 2. Split by common delimiters like |, -, /, •
-    final parts = noBrackets.split(RegExp(r'[\|\-•/]+'));
-    for (final p in parts) {
-      final clean = p
-          .replaceAll(
-            RegExp(
-              r'(Official Video|Video Song|Full Song|Audio Song|DJ Remix|Lyrical Video|HD Video|New Song|202[0-9])',
-              caseSensitive: false,
-            ),
-            '',
-          )
-          .trim();
-      if (clean.length >= 3) {
-        candidates.add(clean);
-      }
-    }
-
-    if (noBrackets.isNotEmpty && noBrackets.length >= 3) {
-      candidates.add(noBrackets);
-    }
-
-    // 3. Add artist + main title candidate
-    if (artist != null && artist.isNotEmpty && artist != 'YouTube Music' && artist.length >= 3) {
-      candidates.add(artist);
-      if (parts.isNotEmpty && parts.first.trim().length >= 3) {
-        candidates.add('${parts.first.trim()} $artist');
-      }
-    }
-
-    return candidates.toList();
-  }
-
-  /// Verifies whether the candidate song matches the search query.
-  /// Unicode-aware: preserves Devanagari (Hindi/Marwadi/Rajasthani) characters!
-  static bool _isTitleMatching(String searchTitle, String candidateTitle, [String? artist]) {
-    // Strip only punctuation and spaces, keeping letters, digits, and Unicode characters
-    final s1 = searchTitle.toLowerCase().replaceAll(RegExp(r'[\s\-_\.,\|/!?:;()\[\]{}]+'), '');
-    final s2 = candidateTitle.toLowerCase().replaceAll(RegExp(r'[\s\-_\.,\|/!?:;()\[\]{}]+'), '');
-    if (s1.isEmpty || s2.isEmpty) return false;
-    if (s1.contains(s2) || s2.contains(s1)) return true;
-
-    // Check shared significant words (length >= 3)
-    final w1 = searchTitle.toLowerCase().split(RegExp(r'\s+')).where((w) => w.length >= 3).toSet();
-    final w2 = candidateTitle.toLowerCase().split(RegExp(r'\s+')).where((w) => w.length >= 3).toSet();
-    if (w1.intersection(w2).isNotEmpty) return true;
-
-    // Check artist match
-    if (artist != null && artist.isNotEmpty && artist.length >= 3) {
-      final aLower = artist.toLowerCase();
-      if (candidateTitle.toLowerCase().contains(aLower)) return true;
-    }
-
-    return false;
-  }
-
-  /// Resolves direct audio stream for a YouTube video ID.
-  /// 1. Tries YoutubeExplode native audio stream.
-  /// 2. Tries multi-candidate high-bitrate studio audio match on Saavn.
-  /// 3. Tries Piped mirrors.
+  /// Resolves direct audio stream for a YouTube video ID using:
+  /// 1. Quality-aware YoutubeExplode audio-only stream
+  /// 2. Piped API mirrors
+  /// 3. Invidious API mirrors
   static Future<String?> resolveAudioStream(
     String videoId, {
     String? fallbackTitle,
     String? fallbackArtist,
   }) async {
-    final cleanId = videoId.trim();
+    final cleanId = videoId.replaceFirst('yt_', '').trim();
     if (cleanId.isEmpty) return null;
 
-    if (_cache.containsKey(cleanId) && _cache[cleanId]!.isNotEmpty) {
-      return _cache[cleanId];
+    final quality = SettingsService.instance.audioQuality;
+    final cacheKey = '${cleanId}_${quality.name}';
+    final cached = _cache[cacheKey];
+    if (cached != null && DateTime.now().isBefore(cached.expiresAt)) {
+      return cached.url;
     }
 
-    // 1. Try YoutubeExplode native audio extraction with fresh instance
+    // 1. YoutubeExplode native audio extraction
     try {
       final yt = YoutubeExplode();
-      final manifest = await yt.videos.streamsClient
-          .getManifest(cleanId)
-          .timeout(const Duration(milliseconds: 7000));
-      final audioStreams = manifest.audioOnly.sortByBitrate();
-      if (audioStreams.isNotEmpty) {
-        final directUrl = audioStreams.last.url.toString();
-        _cache[cleanId] = directUrl;
+      try {
+        final manifest = await yt.videos.streamsClient
+            .getManifest(cleanId)
+            .timeout(const Duration(milliseconds: 8000));
+        final audioStreams = manifest.audioOnly.sortByBitrate().toList();
+        if (audioStreams.isNotEmpty) {
+          AudioOnlyStreamInfo chosen;
+          if (quality == AudioQuality.saver96) {
+            chosen = audioStreams.first;
+          } else if (quality == AudioQuality.standard160 && audioStreams.length > 2) {
+            chosen = audioStreams[audioStreams.length ~/ 2];
+          } else {
+            chosen = audioStreams.last;
+          }
+          final directUrl = chosen.url.toString();
+          _cache[cacheKey] = _CachedStream(
+            directUrl,
+            DateTime.now().add(const Duration(hours: 3)),
+          );
+          return directUrl;
+        }
+      } finally {
         yt.close();
-        return directUrl;
       }
-      yt.close();
     } catch (e) {
       debugPrint('[YtAudioResolver] YoutubeExplode error for $cleanId: $e');
     }
 
-    // 2. High-precision Saavn Multi-Candidate Resolution (320kbps CD Quality)
-    if (fallbackTitle != null && fallbackTitle.isNotEmpty) {
-      final candidates = extractSearchCandidates(fallbackTitle, fallbackArtist);
-      for (final cand in candidates) {
-        try {
-          final matches = await SaavnApiService.instance.searchSongs(cand, limit: 6);
-          for (final m in matches) {
-            if (m.streamUrl.isNotEmpty && _isTitleMatching(cand, m.title, m.artist)) {
-              _cache[cleanId] = m.streamUrl;
-              return m.streamUrl;
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
-    // 3. Query Piped API mirrors
+    // 2. Piped API mirrors fallback
     for (final mirror in _pipedMirrors) {
       try {
         final uri = Uri.parse('$mirror/streams/$cleanId');
-        final resp = await http.get(uri).timeout(const Duration(milliseconds: 3000));
+        final resp = await http.get(uri).timeout(const Duration(milliseconds: 3500));
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
-          final audioList = data['audioStreams'] as List? ?? [];
+          final audioList = List<Map<String, dynamic>>.from(
+            (data['audioStreams'] as List? ?? []).whereType<Map>(),
+          );
           if (audioList.isNotEmpty) {
             audioList.sort((a, b) {
               final brA = (a['bitrate'] as num?)?.toInt() ?? 0;
               final brB = (b['bitrate'] as num?)?.toInt() ?? 0;
               return brA.compareTo(brB);
             });
-            final streamUrl = audioList.last['url']?.toString();
+            final chosen = quality == AudioQuality.saver96
+                ? audioList.first
+                : (quality == AudioQuality.standard160 && audioList.length > 2
+                    ? audioList[audioList.length ~/ 2]
+                    : audioList.last);
+            final streamUrl = chosen['url']?.toString();
             if (streamUrl != null && streamUrl.isNotEmpty) {
-              _cache[cleanId] = streamUrl;
+              _cache[cacheKey] = _CachedStream(
+                streamUrl,
+                DateTime.now().add(const Duration(hours: 2)),
+              );
               return streamUrl;
             }
           }
@@ -156,14 +114,33 @@ class YtAudioResolver {
       } catch (_) {}
     }
 
-    // 4. Fallback: If not strictly matched yet, search Saavn with fallbackTitle directly
-    if (fallbackTitle != null && fallbackTitle.isNotEmpty) {
+    // 3. Invidious API mirrors fallback
+    for (final mirror in _invidiousMirrors) {
       try {
-        final broadMatches = await SaavnApiService.instance.searchSongs(fallbackTitle, limit: 3);
-        if (broadMatches.isNotEmpty && broadMatches.first.streamUrl.isNotEmpty) {
-          final directUrl = broadMatches.first.streamUrl;
-          _cache[cleanId] = directUrl;
-          return directUrl;
+        final uri = Uri.parse('$mirror/api/v1/videos/$cleanId');
+        final resp = await http.get(uri).timeout(const Duration(milliseconds: 3500));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final adaptive = (data['adaptiveFormats'] as List? ?? [])
+              .whereType<Map>()
+              .where((f) => (f['type']?.toString() ?? '').startsWith('audio/'))
+              .toList();
+          if (adaptive.isNotEmpty) {
+            adaptive.sort((a, b) {
+              final brA = int.tryParse(a['bitrate']?.toString() ?? '0') ?? 0;
+              final brB = int.tryParse(b['bitrate']?.toString() ?? '0') ?? 0;
+              return brA.compareTo(brB);
+            });
+            final chosen = quality == AudioQuality.saver96 ? adaptive.first : adaptive.last;
+            final streamUrl = chosen['url']?.toString();
+            if (streamUrl != null && streamUrl.isNotEmpty) {
+              _cache[cacheKey] = _CachedStream(
+                streamUrl,
+                DateTime.now().add(const Duration(hours: 2)),
+              );
+              return streamUrl;
+            }
+          }
         }
       } catch (_) {}
     }

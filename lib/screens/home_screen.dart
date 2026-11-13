@@ -356,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: app.isLight ? Colors.white : const Color(0xFF14192B),
+          backgroundColor: app.surfaceColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           title: Text(
             app.tr('create_playlist'),
@@ -451,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onOpenOnline: _openNowPlaying,
                 ),
               ),
-              // Bottom Nav: 4 items (Videos, FM Radio, JioSaavn, Settings)
+              // Bottom Nav: 4 items (Videos, FM Radio, BitMusic, Settings)
               Positioned(
                 left: 16,
                 right: 16,
@@ -468,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   items: [
                     GlassNavItem(Icons.movie_filter_rounded, app.tr('videos')),
                     GlassNavItem(Icons.radio_rounded, 'FM Radio'),
-                    GlassNavItem(Icons.music_note_rounded, 'JioSaavn'),
+                    GlassNavItem(Icons.graphic_eq_rounded, app.tr('bitmusic')),
                     GlassNavItem(Icons.settings_rounded, 'Settings'),
                   ],
                 ),
@@ -1386,7 +1386,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(20),
           color: active
               ? app.accentColor
-              : (app.isLight ? Colors.white : const Color(0xFF1E2438)),
+              : app.surfaceColorSecondary,
           border: Border.all(
             color: active
                 ? app.accentColor

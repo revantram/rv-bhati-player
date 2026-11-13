@@ -5,7 +5,7 @@ import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
-import '../services/saavn_api_service.dart';
+import '../services/yt_music_service.dart';
 import '../utils/format.dart';
 import 'add_to_playlist_dialog.dart';
 import 'liquid_glass_container.dart';
@@ -14,7 +14,7 @@ class ArtistSongsSheet extends StatefulWidget {
   final String artistName;
   final String? avatarUrl;
   final String? subtitle;
-  final SaavnArtist? artist;
+  final BitArtist? artist;
 
   const ArtistSongsSheet({
     super.key,
@@ -29,14 +29,13 @@ class ArtistSongsSheet extends StatefulWidget {
     required String artistName,
     String? avatarUrl,
     String? subtitle,
-    SaavnArtist? artist,
+    BitArtist? artist,
   }) {
-    // Extract primary artist if multiple are present e.g. "Arijit Singh, Shreya Ghoshal"
     final cleanArtistName = artistName.contains(',')
         ? artistName.split(',').first.trim()
         : (artistName.contains('&') ? artistName.split('&').first.trim() : artistName.trim());
 
-    final matched = artist ?? SaavnApiService.findCuratedArtist(cleanArtistName);
+    final matched = artist ?? YtMusicService.findCuratedArtist(cleanArtistName);
 
     return showModalBottomSheet(
       context: context,
@@ -69,7 +68,7 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
   }
 
   Future<void> _fetch() async {
-    final songs = await SaavnApiService.instance.getArtistSongs(widget.artistName, limit: 300);
+    final songs = await YtMusicService.instance.getArtistSongs(widget.artistName, limit: 40);
     if (mounted) {
       setState(() {
         _songs = songs;
@@ -95,7 +94,6 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = app.isLight;
     final textColor = app.textColor;
     final secondaryTextColor = app.secondaryTextColor;
     final accent = app.accentColor;
@@ -105,11 +103,12 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.86,
       decoration: BoxDecoration(
-        color: isLight ? const Color(0xFFF2F4F7) : const Color(0xFF0D1224),
+        color: app.backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        border: Border.all(color: app.cardBorderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
+            color: Colors.black.withValues(alpha: 0.45),
             blurRadius: 30,
             spreadRadius: 5,
           ),

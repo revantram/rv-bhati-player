@@ -301,7 +301,7 @@ class _LikedSongsScreenState extends State<LikedSongsScreen> {
                                           Text(
                                             f.duration.inSeconds > 0
                                                 ? '${f.artist} • ${FormatUtils.duration(f.duration)}'
-                                                : '${f.artist} • ${f.isOnline ? "JioSaavn" : "Local Music"}',
+                                                : '${f.artist} • ${f.isOnline ? "BitMusic" : "Local Music"}',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(

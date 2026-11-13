@@ -16,22 +16,15 @@ Future<void> main() async {
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.rvbhati.player.channel.audio',
     androidNotificationChannelName: 'RV Bhati Player',
-    androidNotificationChannelDescription: 'Music playback controls',
+    androidNotificationChannelDescription: 'BitMusic & Media playback controls',
     androidNotificationIcon: 'mipmap/ic_launcher',
     androidNotificationOngoing: true,
     androidStopForegroundOnPause: true,
     androidShowNotificationBadge: true,
-    notificationColor: const Color(0xFF7C6CFF),
+    notificationColor: AppState.instance.accentColor,
   );
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    systemNavigationBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarIconBrightness: Brightness.light,
-    systemNavigationBarContrastEnforced: false,
-  ));
 
   // Ensure TV focus highlights are ALWAYS drawn on Fire TV / Android TV
   FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
@@ -47,17 +40,26 @@ class RvBhatiPlayerApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: AppState.instance,
       builder: (context, _) {
-        final accent = AppState.instance.accentColor;
+        final app = AppState.instance;
+        final accent = app.accentColor;
+        final isLight = app.isLight;
+
+        SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: Colors.transparent,
+          statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+          systemNavigationBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+          systemNavigationBarContrastEnforced: false,
+        ));
+
         return Shortcuts(
           shortcuts: <ShortcutActivator, Intent>{
             ...WidgetsApp.defaultShortcuts,
-            // Fire TV Stick and Android TV remote Center / Select / OK key:
             const SingleActivator(LogicalKeyboardKey.select): const ActivateIntent(),
             const SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
             const SingleActivator(LogicalKeyboardKey.numpadEnter): const ActivateIntent(),
             const SingleActivator(LogicalKeyboardKey.gameButtonA): const ActivateIntent(),
             const SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
-            // D-Pad directional navigation:
             const SingleActivator(LogicalKeyboardKey.arrowUp):
                 const DirectionalFocusIntent(TraversalDirection.up),
             const SingleActivator(LogicalKeyboardKey.arrowDown):
@@ -75,12 +77,16 @@ class RvBhatiPlayerApp extends StatelessWidget {
               title: 'RV Bhati Player',
               debugShowCheckedModeBanner: false,
               theme: ThemeData(
-                brightness: Brightness.dark,
+                brightness: isLight ? Brightness.light : Brightness.dark,
                 useMaterial3: true,
-                scaffoldBackgroundColor: const Color(0xFF0B0F1E),
+                scaffoldBackgroundColor: app.backgroundColor,
+                cardColor: app.surfaceColor,
+                dividerColor: app.dividerColor,
                 colorScheme: ColorScheme.fromSeed(
                   seedColor: accent,
-                  brightness: Brightness.dark,
+                  primary: accent,
+                  brightness: isLight ? Brightness.light : Brightness.dark,
+                  surface: app.surfaceColor,
                 ),
                 focusColor: accent.withValues(alpha: 0.45),
                 splashFactory: NoSplash.splashFactory,

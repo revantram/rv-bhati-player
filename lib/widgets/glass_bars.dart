@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/app_state.dart';
 import 'liquid_glass_container.dart';
 
-/// Floating frosted capsule used as the top app bar.
+/// Floating BitChord frosted capsule used as the top app bar.
 class GlassTopBar extends StatelessWidget {
   const GlassTopBar({
     super.key,
@@ -26,6 +26,7 @@ class GlassTopBar extends StatelessWidget {
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
       padding: const EdgeInsets.all(8),
+      blur: 18,
       child: Row(
         children: [
           if (leading != null) leading!,
@@ -44,7 +45,7 @@ class GlassTopBar extends StatelessWidget {
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: app.textColor,
-                      letterSpacing: 0.2,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   if (subtitle != null)
@@ -74,7 +75,7 @@ class GlassNavItem {
   final String label;
 }
 
-/// Floating frosted capsule bottom navigation bar.
+/// BitChord Apple Music-inspired frosted capsule bottom navigation bar.
 class GlassBottomNav extends StatelessWidget {
   const GlassBottomNav({
     super.key,
@@ -96,13 +97,14 @@ class GlassBottomNav extends StatelessWidget {
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      opacity: isLight ? 0.80 : 0.16,
+      blur: 22,
+      opacity: isLight ? 0.85 : 0.78,
       child: Row(
         children: [
           for (var i = 0; i < items.length; i++)
             Expanded(
               child: PressableScale(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 onTap: () {
                   if (i != index) {
                     HapticFeedback.selectionClick();
@@ -118,28 +120,24 @@ class GlassBottomNav extends StatelessWidget {
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(18),
                           color: i == index
-                              ? (isLight
-                                  ? accent.withValues(alpha: 0.18)
-                                  : Colors.white.withValues(alpha: 0.20))
+                              ? accent.withValues(alpha: isLight ? 0.16 : 0.22)
                               : Colors.transparent,
                           border: Border.all(
                             color: i == index
-                                ? (isLight
-                                    ? accent.withValues(alpha: 0.40)
-                                    : Colors.white.withValues(alpha: 0.35))
+                                ? accent.withValues(alpha: 0.45)
                                 : Colors.transparent,
-                            width: 1.2,
+                            width: 1.1,
                           ),
                         ),
                         child: Icon(
                           items[i].icon,
                           size: 22,
                           color: i == index
-                              ? (isLight ? accent : Colors.white)
+                              ? accent
                               : (isLight ? app.secondaryTextColor : Colors.white60),
                         ),
                       ),
@@ -153,7 +151,7 @@ class GlassBottomNav extends StatelessWidget {
                             maxLines: 1,
                             style: TextStyle(
                               color: i == index
-                                  ? (isLight ? accent : Colors.white)
+                                  ? accent
                                   : (isLight ? app.secondaryTextColor : Colors.white60),
                               fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
                               fontSize: 11,
@@ -173,8 +171,6 @@ class GlassBottomNav extends StatelessWidget {
   }
 }
 
-/// Native material page route supporting Android predictive back gestures & swipe back
 Route<T> glassRoute<T>(Widget page) {
   return MaterialPageRoute<T>(builder: (_) => page);
 }
-
