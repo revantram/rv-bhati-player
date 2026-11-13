@@ -64,12 +64,22 @@ jobs:
 
       - name: Configure Gradle wrapper and mirror fallbacks
         run: |
+          # Detect exact Gradle version required by the installed Flutter/AGP template
+          GRADLE_ZIP="gradle-9.5.0-bin.zip"
+          if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            DETECTED_ZIP=$(grep -oE 'gradle-[0-9.]+-(bin|all)\.zip' android/gradle/wrapper/gradle-wrapper.properties | head -n1 || true)
+            if [ -n "$DETECTED_ZIP" ]; then
+              GRADLE_ZIP="$DETECTED_ZIP"
+            fi
+          fi
+          echo "Using Gradle distribution: $GRADLE_ZIP"
+
           # Pre-download Gradle binary distribution to /tmp with retries to avoid GitHub 504 timeouts
-          curl -fL --retry 5 --retry-delay 3 -o /tmp/gradle-9.3.1-bin.zip https://services.gradle.org/distributions/gradle-9.3.1-bin.zip || \
-          curl -fL --retry 5 --retry-delay 3 -o /tmp/gradle-9.3.1-bin.zip https://mirrors.cloud.tencent.com/gradle/gradle-9.3.1-bin.zip
+          curl -fL --retry 5 --retry-delay 3 -o "/tmp/$GRADLE_ZIP" "https://services.gradle.org/distributions/$GRADLE_ZIP" || \
+          curl -fL --retry 5 --retry-delay 3 -o "/tmp/$GRADLE_ZIP" "https://mirrors.cloud.tencent.com/gradle/$GRADLE_ZIP"
 
           if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
-            sed -i 's|^distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-9.3.1-bin.zip|' android/gradle/wrapper/gradle-wrapper.properties
+            sed -i "s|^distributionUrl=.*|distributionUrl=file\\\\:/tmp/$GRADLE_ZIP|" android/gradle/wrapper/gradle-wrapper.properties
             cat android/gradle/wrapper/gradle-wrapper.properties
           fi
 
