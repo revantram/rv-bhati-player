@@ -55,13 +55,13 @@ class YtAudioResolver {
   ];
 
   static const String _androidVrUa =
-      'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
+      'com.google.android.apps.youtube.vr.oculus/1.71.26 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
   static const String _iosUa =
       'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X; en_IN)';
   static const String _androidTestUa =
       'com.google.android.youtube/19.29.37 (Linux; U; Android 13; en_US) gzip';
-  static const String _tvEmbedUa =
-      'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version';
+  static const String _browserUa =
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36';
 
   static Future<String?> _getVisitorData() async {
     if (_cachedVisitorData != null &&
@@ -76,12 +76,12 @@ class YtAudioResolver {
       req.headers.set('Content-Type', 'application/json');
       req.headers.set('User-Agent', _androidVrUa);
       req.headers.set('X-YouTube-Client-Name', '28');
-      req.headers.set('X-YouTube-Client-Version', '1.60.19');
+      req.headers.set('X-YouTube-Client-Version', '1.71.26');
       req.add(utf8.encode(jsonEncode({
         'context': {
           'client': {
             'clientName': 'ANDROID_VR',
-            'clientVersion': '1.60.19',
+            'clientVersion': '1.71.26',
             'osName': 'Android',
             'osVersion': '12L',
             'androidSdkVersion': 32,
@@ -107,9 +107,9 @@ class YtAudioResolver {
     return _cachedVisitorData;
   }
 
-  /// Resolves verified playable audio stream candidates across multiple YouTube
-  /// engines and mirrors. Probes streams with a tiny HTTP Range check so 403/dead
-  /// URLs are filtered out immediately before ExoPlayer touches them.
+  /// Resolves verified playable audio stream candidates across YouTube engines,
+  /// mirrors, and a full-track AAC CDN fallback by title+artist when YouTube
+  /// blocks an IP/carrier with LOGIN_REQUIRED / PO-token 403.
   static Future<List<ResolvedAudioStream>> resolveAudioCandidates(
     String videoId, {
     String? fallbackTitle,
@@ -146,19 +146,19 @@ class YtAudioResolver {
       }
     }
 
-    // Round 1: Parallel ANDROID_VR + TVHTML5_SIMPLY_EMBEDDED + YoutubeExplode
+    // Round 1: Parallel YouTube native InnerTube (ANDROID_VR + IOS) & YoutubeExplode
     final round1Lists = await Future.wait([
       _fetchInnertubePlayer(
         videoId: cleanId,
         quality: quality,
         clientName: 'ANDROID_VR',
-        clientVersion: '1.60.19',
+        clientVersion: '1.71.26',
         clientId: '28',
         userAgent: _androidVrUa,
         visitorData: visitorData,
         clientBody: {
           'clientName': 'ANDROID_VR',
-          'clientVersion': '1.60.19',
+          'clientVersion': '1.71.26',
           'deviceMake': 'Oculus',
           'deviceModel': 'Quest 3',
           'osName': 'Android',
@@ -171,15 +171,18 @@ class YtAudioResolver {
       _fetchInnertubePlayer(
         videoId: cleanId,
         quality: quality,
-        clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
-        clientVersion: '2.0',
-        clientId: '85',
-        userAgent: _tvEmbedUa,
+        clientName: 'IOS',
+        clientVersion: '20.10.4',
+        clientId: '5',
+        userAgent: _iosUa,
         visitorData: visitorData,
-        thirdPartyEmbedUrl: 'https://www.youtube.com/watch?v=$cleanId',
         clientBody: {
-          'clientName': 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
-          'clientVersion': '2.0',
+          'clientName': 'IOS',
+          'clientVersion': '20.10.4',
+          'deviceMake': 'Apple',
+          'deviceModel': 'iPhone16,2',
+          'osName': 'iPhone',
+          'osVersion': '18.3.2.22D82',
           'hl': 'en',
           'gl': 'IN',
         },
@@ -192,28 +195,10 @@ class YtAudioResolver {
     ];
     await probeAndCollect(round1Raw);
 
-    // Round 2: If Round 1 failed verification (e.g. 403/PO-token), try IOS + ANDROID_TESTSUITE + Mirrors
+    // Round 2: If YouTube blocked Round 1 (LOGIN_REQUIRED / 403), run ANDROID_TESTSUITE +
+    // Piped/Invidious mirrors + Full-Track AAC CDN matcher in parallel!
     if (verified.isEmpty) {
       final round2Lists = await Future.wait([
-        _fetchInnertubePlayer(
-          videoId: cleanId,
-          quality: quality,
-          clientName: 'IOS',
-          clientVersion: '20.10.4',
-          clientId: '5',
-          userAgent: _iosUa,
-          visitorData: visitorData,
-          clientBody: {
-            'clientName': 'IOS',
-            'clientVersion': '20.10.4',
-            'deviceMake': 'Apple',
-            'deviceModel': 'iPhone16,2',
-            'osName': 'iPhone',
-            'osVersion': '18.3.2.22D82',
-            'hl': 'en',
-            'gl': 'IN',
-          },
-        ),
         _fetchInnertubePlayer(
           videoId: cleanId,
           quality: quality,
@@ -233,6 +218,14 @@ class YtAudioResolver {
           },
         ),
         _resolveViaMirrorsParallel(cleanId, quality),
+        if (fallbackTitle != null && fallbackTitle.trim().isNotEmpty)
+          _resolveViaCatalogCdn(
+            title: fallbackTitle,
+            artist: fallbackArtist ?? '',
+            quality: quality,
+          )
+        else
+          Future.value(const <ResolvedAudioStream>[]),
       ]);
 
       final round2Raw = <ResolvedAudioStream>[
@@ -257,8 +250,8 @@ class YtAudioResolver {
     return verified;
   }
 
-  /// Verifies with a tiny Range/GET request that the stream actually returns HTTP 200/206
-  /// and is NOT an expired/403/PO-token blocked googlevideo URL.
+  /// Verifies with a tiny Range/GET request that the stream actually returns HTTP 200/206,
+  /// has a media content-type (never Cloudflare HTML / JSON error pages), and works cleanly.
   static Future<bool> _probePlayable(ResolvedAudioStream candidate) async {
     try {
       var uri = Uri.parse(candidate.url);
@@ -271,7 +264,7 @@ class YtAudioResolver {
           req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-63');
         }
 
-        final resp = await req.close().timeout(const Duration(milliseconds: 2600));
+        final resp = await req.close().timeout(const Duration(milliseconds: 2800));
         if (resp.isRedirect ||
             resp.statusCode == 301 ||
             resp.statusCode == 302 ||
@@ -292,8 +285,15 @@ class YtAudioResolver {
           return false;
         }
 
+        final ct = (resp.headers.value(HttpHeaders.contentTypeHeader) ?? '').toLowerCase();
+        if (ct.contains('text/html') || ct.contains('application/json')) {
+          await resp.drain<void>();
+          debugPrint('[YtAudioResolver] probe ${candidate.source} rejected non-media ($ct)');
+          return false;
+        }
+
         if (candidate.isHls) {
-          final chunk = await resp.first.timeout(const Duration(milliseconds: 1500));
+          final chunk = await resp.first.timeout(const Duration(milliseconds: 1600));
           final text = utf8.decode(chunk, allowMalformed: true);
           return text.contains('#EXTM3U');
         }
@@ -305,6 +305,132 @@ class YtAudioResolver {
     } catch (_) {
       return false;
     }
+  }
+
+  static String _cleanSearchTerm(String raw) {
+    return raw
+        .replaceAll(RegExp(r'\(.*?\)|\[.*?\]|\{.*?\}'), ' ')
+        .replaceAll(
+          RegExp(
+            r'\b(official|video|audio|lyric|lyrics|lyrical|full\s*song|hd|4k|8k|remix|status|lofi|slowed|reverb|jukebox|teaser|trailer)\b',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(RegExp(r'feat\..*|ft\..*', caseSensitive: false), ' ')
+        .split(RegExp(r'[\|\•\-–—]'))
+        .first
+        .replaceAll(RegExp(r'[^\w\s\u0900-\u097F]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  /// Resolves a direct 160/320kbps AAC/M4A stream by track title+artist via direct
+  /// unblocked CDN when YouTube refuses extraction with LOGIN_REQUIRED / 403.
+  static Future<List<ResolvedAudioStream>> _resolveViaCatalogCdn({
+    required String title,
+    required String artist,
+    required AudioQuality quality,
+  }) async {
+    final cleanTitle = _cleanSearchTerm(title);
+    final cleanArtist = _cleanSearchTerm(
+      artist
+          .replaceAll('YouTube Music', '')
+          .replaceAll('Topic', '')
+          .replaceAll('VEVO', ''),
+    );
+    if (cleanTitle.isEmpty) return const [];
+
+    final queries = <String>[
+      if (cleanArtist.isNotEmpty) '$cleanTitle $cleanArtist',
+      cleanTitle,
+    ];
+
+    for (final q in queries) {
+      try {
+        final searchUri = Uri.https('www.jiosaavn.com', '/api.php', {
+          '__call': 'search.getResults',
+          '_format': 'json',
+          '_marker': '0',
+          'cc': 'in',
+          'includeMetaTags': '1',
+          'api_version': '4',
+          'ctx': 'web6dot0',
+          'q': q,
+        });
+        final resp = await http
+            .get(searchUri, headers: const {'User-Agent': _browserUa})
+            .timeout(const Duration(seconds: 4));
+        if (resp.statusCode != 200) continue;
+
+        final data = jsonDecode(resp.body);
+        if (data is! Map<String, dynamic>) continue;
+        final results = (data['results'] as List? ?? []).whereType<Map>().toList();
+        if (results.isEmpty) continue;
+
+        // Pick best matching result where title shares words with cleanTitle
+        final titleTokens = cleanTitle.toLowerCase().split(' ').where((w) => w.length > 2).toSet();
+        Map? bestMatch;
+        for (final r in results.take(5)) {
+          final enc = r['more_info']?['encrypted_media_url']?.toString() ?? '';
+          if (enc.isEmpty) continue;
+          final rTitle = (r['title']?.toString() ?? '').toLowerCase();
+          if (titleTokens.isEmpty || titleTokens.any((tok) => rTitle.contains(tok))) {
+            bestMatch = r;
+            break;
+          }
+          bestMatch ??= r;
+        }
+        if (bestMatch == null) continue;
+
+        final encUrl = bestMatch['more_info']?['encrypted_media_url']?.toString() ?? '';
+        if (encUrl.isEmpty) continue;
+
+        final bitrate = quality == AudioQuality.saver96
+            ? '96'
+            : (quality == AudioQuality.standard160 ? '160' : '320');
+
+        final authUri = Uri.https('www.jiosaavn.com', '/api.php', {
+          '__call': 'song.generateAuthToken',
+          'url': encUrl,
+          'bitrate': bitrate,
+          'api_version': '4',
+          '_format': 'json',
+          'ctx': 'web6dot0',
+          '_marker': '0',
+        });
+        final authResp = await http
+            .get(authUri, headers: const {'User-Agent': _browserUa})
+            .timeout(const Duration(seconds: 4));
+        if (authResp.statusCode != 200) continue;
+
+        final authData = jsonDecode(authResp.body);
+        final rawAuthUrl = (authData is Map ? authData['auth_url']?.toString() : null) ?? '';
+        if (rawAuthUrl.isEmpty) continue;
+
+        final parsed = Uri.tryParse(rawAuthUrl);
+        if (parsed == null || parsed.path.isEmpty) continue;
+
+        final cdnUrl = 'https://aac.saavncdn.com${parsed.path}';
+        final cdn160 = cdnUrl.replaceAll('_320.mp4', '_160.mp4');
+        return [
+          ResolvedAudioStream(
+            url: cdnUrl,
+            headers: const {'User-Agent': _browserUa},
+            source: 'bit_cdn_$bitrate',
+          ),
+          if (cdn160 != cdnUrl)
+            ResolvedAudioStream(
+              url: cdn160,
+              headers: const {'User-Agent': _browserUa},
+              source: 'bit_cdn_160',
+            ),
+        ];
+      } catch (e) {
+        debugPrint('[YtAudioResolver] catalog CDN fallback error: $e');
+      }
+    }
+    return const [];
   }
 
   /// Backward-compatible helper returning the best single URL (prefers non-HLS).
@@ -353,7 +479,6 @@ class YtAudioResolver {
     required String userAgent,
     required Map<String, dynamic> clientBody,
     String? visitorData,
-    String? thirdPartyEmbedUrl,
   }) async {
     try {
       final uri = Uri.parse('https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
@@ -363,8 +488,6 @@ class YtAudioResolver {
         'racyCheckOk': true,
         'context': {
           'client': clientBody,
-          if (thirdPartyEmbedUrl != null)
-            'thirdParty': {'embedUrl': thirdPartyEmbedUrl},
         },
       };
 
@@ -378,7 +501,7 @@ class YtAudioResolver {
       }
       req.add(utf8.encode(jsonEncode(bodyMap)));
 
-      final resp = await req.close().timeout(const Duration(milliseconds: 4500));
+      final resp = await req.close().timeout(const Duration(milliseconds: 4200));
       if (resp.statusCode != 200) {
         await resp.drain<void>();
         return const [];
@@ -482,7 +605,7 @@ class YtAudioResolver {
     try {
       final manifest = await _sharedYt.videos.streamsClient
           .getManifest(cleanId)
-          .timeout(const Duration(milliseconds: 5500));
+          .timeout(const Duration(milliseconds: 5200));
 
       final out = <ResolvedAudioStream>[];
       final audioStreams = manifest.audioOnly.sortByBitrate().toList();
@@ -532,7 +655,6 @@ class YtAudioResolver {
     final futures = <Future<ResolvedAudioStream?>>[
       for (final m in _pipedMirrors) _fetchPipedSingle(m, cleanId, quality),
       for (final m in _invidiousMirrors) _fetchInvidiousSingle(m, cleanId, quality),
-      // Invidious server-proxied M4A fallback (bypasses googlevideo IP locks)
       for (final m in _invidiousMirrors)
         Future.value(ResolvedAudioStream(
           url: '$m/latest_version?id=$cleanId&itag=140&local=true',
@@ -552,7 +674,7 @@ class YtAudioResolver {
     try {
       final resp = await http
           .get(Uri.parse('$mirror/streams/$cleanId'))
-          .timeout(const Duration(milliseconds: 3500));
+          .timeout(const Duration(milliseconds: 3000));
       if (resp.statusCode != 200) return null;
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -595,7 +717,7 @@ class YtAudioResolver {
     try {
       final resp = await http
           .get(Uri.parse('$mirror/api/v1/videos/$cleanId'))
-          .timeout(const Duration(milliseconds: 3500));
+          .timeout(const Duration(milliseconds: 3000));
       if (resp.statusCode != 200) return null;
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;

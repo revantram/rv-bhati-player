@@ -354,6 +354,9 @@ class AudioController {
 
           final concatSource = ConcatenatingAudioSource(children: [audioSource]);
 
+          try {
+            await player.stop();
+          } catch (_) {}
           await player.setVolume(1.0);
           await player
               .setAudioSource(concatSource, initialIndex: 0)

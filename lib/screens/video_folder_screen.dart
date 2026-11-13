@@ -181,65 +181,88 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
       final deniedVideos = !MediaScanner.lastVideoGranted;
       return Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                deniedVideos ? Icons.lock_outline_rounded : Icons.folder_off_rounded,
-                size: 56,
-                color: accent.withValues(alpha: 0.75),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                deniedVideos
-                    ? 'Allow Video Access / वीडियो अनुमति दें'
-                    : 'No Video Folders Found',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                deniedVideos
-                    ? 'Please allow Videos permission to view your local .mp4 and .mkv files.'
-                    : 'Tap Rescan Storage to detect local video folders on your device.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: secondaryTextColor, fontSize: 13),
-              ),
-              const SizedBox(height: 18),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                alignment: WrapAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      widget.onRescan?.call();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+          child: LiquidGlassContainer(
+            borderRadius: BorderRadius.circular(28),
+            padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  deniedVideos ? Icons.lock_outline_rounded : Icons.video_library_outlined,
+                  size: 52,
+                  color: accent,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  deniedVideos
+                      ? 'Allow Video Access / वीडियो अनुमति दें'
+                      : 'No Video Folders Found / कोई वीडियो नहीं मिला',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  deniedVideos
+                      ? 'Please allow Videos permission to view your local .mp4 and .mkv files.'
+                      : 'Tap Rescan Storage or Grant All Files Access to detect videos in Downloads, Movies & WhatsApp.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: secondaryTextColor, fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        HapticFeedback.lightImpact();
+                        if (deniedVideos) {
+                          await MediaScanner.requestPermissions();
+                        }
+                        widget.onRescan?.call();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: Icon(deniedVideos ? Icons.lock_open_rounded : Icons.refresh_rounded, size: 19),
+                      label: Text(
+                        deniedVideos ? 'Allow & Scan' : 'Rescan Storage',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                    label: const Text('Rescan Storage', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                  if (deniedVideos)
                     OutlinedButton.icon(
-                      onPressed: openAppSettings,
+                      onPressed: () async {
+                        HapticFeedback.lightImpact();
+                        try {
+                          await Permission.manageExternalStorage.request();
+                        } catch (_) {
+                          await openAppSettings();
+                        }
+                        widget.onRescan?.call();
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: textColor,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      icon: const Icon(Icons.settings_rounded, size: 18),
-                      label: const Text('App Settings'),
+                      icon: const Icon(Icons.folder_open_rounded, size: 18),
+                      label: const Text('All Files Access'),
                     ),
-                ],
-              ),
-            ],
+                    if (deniedVideos)
+                      TextButton.icon(
+                        onPressed: openAppSettings,
+                        icon: const Icon(Icons.settings_rounded, size: 17),
+                        label: const Text('App Settings'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       );

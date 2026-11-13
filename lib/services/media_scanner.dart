@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -8,7 +9,7 @@ import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_file.dart';
 
-/// Permission handling + fast native MediaStore + PhotoManager + Storage scan
+/// Permission handling + fast native MediaStore + PhotoManager + Safe Directory Walk
 /// for device videos and audio files across Android 8 - 16.
 class MediaScanner {
   MediaScanner._();
@@ -49,24 +50,34 @@ class MediaScanner {
   /// Android 13+ (API 33): READ_MEDIA_VIDEO + READ_MEDIA_AUDIO + POST_NOTIFICATIONS
   /// Android 12 and older: READ_EXTERNAL_STORAGE + POST_NOTIFICATIONS
   static Future<bool> requestPermissions() async {
-    final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    int sdk = 33;
+    try {
+      sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    } catch (_) {}
+
+    bool manageGranted = false;
+    try {
+      manageGranted = await Permission.manageExternalStorage.isGranted;
+    } catch (_) {}
+
     if (sdk >= 33) {
       final res = await [
         Permission.videos,
         Permission.audio,
         Permission.notification,
       ].request();
-      lastVideoGranted = _isAllowedStatus(res[Permission.videos]);
-      lastAudioGranted = _isAllowedStatus(res[Permission.audio]);
+      lastVideoGranted = _isAllowedStatus(res[Permission.videos]) || manageGranted;
+      lastAudioGranted = _isAllowedStatus(res[Permission.audio]) || manageGranted;
       return lastVideoGranted || lastAudioGranted;
     }
+
     final status = await Permission.storage.request();
-    lastVideoGranted = _isAllowedStatus(status);
-    lastAudioGranted = _isAllowedStatus(status);
+    lastVideoGranted = _isAllowedStatus(status) || manageGranted;
+    lastAudioGranted = _isAllowedStatus(status) || manageGranted;
     try {
       await Permission.notification.request();
     } catch (_) {}
-    return lastVideoGranted;
+    return lastVideoGranted || lastAudioGranted;
   }
 
   static Future<List<MediaFile>> scan(MediaKind kind) async {
@@ -76,10 +87,9 @@ class MediaScanner {
 
     // 1. Primary fast path: native Android ContentResolver MediaStore query
     try {
-      final rawList = await _mediaChannel.invokeMethod<List<dynamic>>(
-        'scanMedia',
-        {'kind': isVideo ? 'video' : 'audio'},
-      );
+      final rawList = await _mediaChannel
+          .invokeMethod<List<dynamic>>('scanMedia', {'kind': isVideo ? 'video' : 'audio'})
+          .timeout(const Duration(seconds: 6));
       if (rawList != null) {
         for (final entry in rawList) {
           if (entry is! Map) continue;
@@ -89,14 +99,18 @@ class MediaScanner {
           final fileName = rawTitle.isNotEmpty
               ? rawTitle
               : path.split('/').last;
-          final ext = _extOf(path.isNotEmpty ? path : fileName);
-          if (ext.isNotEmpty && !allowed.contains(ext)) continue;
+          final mime = (entry['mimeType']?.toString() ?? '').toLowerCase();
+          final ext = _extOf(path.startsWith('content://') ? fileName : path);
+          if (ext.isNotEmpty && !allowed.contains(ext) && !mime.startsWith(isVideo ? 'video/' : 'audio/')) {
+            continue;
+          }
 
           final durMs = (entry['durationMs'] as num?)?.toInt() ?? 0;
           final size = (entry['size'] as num?)?.toInt();
           final dateSec = (entry['dateModifiedSec'] as num?)?.toInt();
           final artist = entry['artist']?.toString();
           final album = entry['album']?.toString();
+          final folder = entry['folderName']?.toString();
 
           byPath[path] = MediaFile(
             id: entry['id']?.toString() ?? path,
@@ -112,6 +126,7 @@ class MediaScanner {
                 ? artist
                 : null,
             album: (album != null && album.isNotEmpty) ? album : null,
+            customFolderName: (folder != null && folder.isNotEmpty) ? folder : null,
           );
         }
       }
@@ -119,17 +134,17 @@ class MediaScanner {
       debugPrint('[MediaScanner] native scanMedia error: $e');
     }
 
-    // 2. Fallback/supplement via PhotoManager if native MediaStore returned 0
+    // 2. PhotoManager fallback if native MediaStore returned 0
     if (byPath.isEmpty) {
       try {
         await PhotoManager.setIgnorePermissionCheck(true);
         final albums = await PhotoManager.getAssetPathList(
           type: isVideo ? RequestType.video : RequestType.audio,
           onlyAll: true,
-        );
+        ).timeout(const Duration(seconds: 5));
         if (albums.isNotEmpty) {
           final all = albums.first;
-          final total = await all.assetCountAsync;
+          final total = (await all.assetCountAsync).clamp(0, 1500);
           if (total > 0) {
             final assets = await all.getAssetListRange(start: 0, end: total);
             for (final a in assets) {
@@ -171,10 +186,8 @@ class MediaScanner {
       }
     }
 
-    // 3. Direct storage folder scan fallback if MediaStore is empty or un-indexed
-    if (byPath.isEmpty) {
-      await _scanStorageFoldersFallback(isVideo: isVideo, allowed: allowed, out: byPath);
-    }
+    // 3. Safe direct storage walk (catches un-indexed downloads/movies/folders)
+    await _scanStorageFoldersSafe(isVideo: isVideo, allowed: allowed, out: byPath);
 
     final result = byPath.values.toList();
     if (!isVideo) {
@@ -189,12 +202,14 @@ class MediaScanner {
     return result;
   }
 
-  static Future<void> _scanStorageFoldersFallback({
+  /// Safe iterative BFS directory scanner that catches PathAccessException per-folder
+  /// so one restricted directory never aborts scanning other folders.
+  static Future<void> _scanStorageFoldersSafe({
     required bool isVideo,
     required Set<String> allowed,
     required Map<String, MediaFile> out,
   }) async {
-    final dirs = isVideo
+    final seedDirs = isVideo
         ? const [
             '/storage/emulated/0/Movies',
             '/storage/emulated/0/DCIM',
@@ -203,6 +218,10 @@ class MediaScanner {
             '/storage/emulated/0/Videos',
             '/storage/emulated/0/Video',
             '/storage/emulated/0/Pictures',
+            '/storage/emulated/0/SnapTube',
+            '/storage/emulated/0/VidMate',
+            '/storage/emulated/0/ShareMe',
+            '/storage/emulated/0/MXShare',
             '/storage/emulated/0/WhatsApp/Media/WhatsApp Video',
             '/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Video',
             '/storage/emulated/0/Telegram/Telegram Video',
@@ -218,32 +237,73 @@ class MediaScanner {
             '/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Audio',
           ];
 
-    for (final dirPath in dirs) {
+    final visited = <String>{};
+    final queue = <String>[...seedDirs];
+
+    // Also include top-level custom folders in /storage/emulated/0
+    try {
+      final root = Directory('/storage/emulated/0');
+      if (root.existsSync()) {
+        for (final entry in root.listSync(followLinks: false)) {
+          if (entry is Directory) {
+            final name = entry.path.split('/').last;
+            if (!name.startsWith('.') && name != 'Android') {
+              queue.add(entry.path);
+            }
+          } else if (entry is File) {
+            _tryAddFile(entry, isVideo: isVideo, allowed: allowed, out: out);
+          }
+        }
+      }
+    } catch (_) {}
+
+    int scannedDirs = 0;
+    while (queue.isNotEmpty && scannedDirs < 160) {
+      final dirPath = queue.removeAt(0);
+      if (!visited.add(dirPath)) continue;
+      scannedDirs++;
+
       try {
         final dir = Directory(dirPath);
         if (!dir.existsSync()) continue;
-        await for (final entity in dir.list(recursive: true, followLinks: false)) {
-          if (entity is! File) continue;
-          final p = entity.path;
-          if (out.containsKey(p)) continue;
-          final ext = _extOf(p);
-          if (!allowed.contains(ext)) continue;
-          try {
-            final stat = entity.statSync();
-            if (stat.size <= 0) continue;
-            out[p] = MediaFile(
-              id: p,
-              title: p.split('/').last,
-              path: p,
-              kind: isVideo ? MediaKind.video : MediaKind.audio,
-              duration: Duration.zero,
-              fileSize: stat.size,
-              modifiedDate: stat.modified,
-            );
-          } catch (_) {}
+        final children = dir.listSync(followLinks: false);
+        for (final entity in children) {
+          if (entity is File) {
+            _tryAddFile(entity, isVideo: isVideo, allowed: allowed, out: out);
+          } else if (entity is Directory) {
+            final base = entity.path.split('/').last;
+            if (!base.startsWith('.')) {
+              queue.add(entity.path);
+            }
+          }
         }
       } catch (_) {}
     }
+  }
+
+  static void _tryAddFile(
+    File file, {
+    required bool isVideo,
+    required Set<String> allowed,
+    required Map<String, MediaFile> out,
+  }) {
+    final p = file.path;
+    if (out.containsKey(p)) return;
+    final ext = _extOf(p);
+    if (!allowed.contains(ext)) return;
+    try {
+      final stat = file.statSync();
+      if (stat.size <= 0) return;
+      out[p] = MediaFile(
+        id: p,
+        title: p.split('/').last,
+        path: p,
+        kind: isVideo ? MediaKind.video : MediaKind.audio,
+        duration: Duration.zero,
+        fileSize: stat.size,
+        modifiedDate: stat.modified,
+      );
+    } catch (_) {}
   }
 
   static String _extOf(String s) {
@@ -252,8 +312,6 @@ class MediaScanner {
     return s.substring(dot + 1).toLowerCase();
   }
 
-  /// Fast path: primary-storage path built from MediaStore relative path
-  /// (no file copying). Falls back to photo_manager's file resolver.
   static Future<String?> _resolvePath(AssetEntity a, String title) async {
     final rel = a.relativePath;
     if (rel != null && rel.isNotEmpty) {
@@ -262,11 +320,11 @@ class MediaScanner {
       if (File(candidate).existsSync()) return candidate;
     }
     try {
-      final f = await a.originFile;
+      final f = await a.originFile.timeout(const Duration(milliseconds: 500));
       if (f != null && f.path.isNotEmpty) return f.path;
     } catch (_) {}
     try {
-      final f = await a.file;
+      final f = await a.file.timeout(const Duration(milliseconds: 500));
       return f?.path;
     } catch (_) {
       return null;

@@ -472,86 +472,115 @@ class MainActivity : AudioServiceActivity() {
                     val kind = call.argument<String>("kind") ?: "video"
                     Thread {
                         val items = ArrayList<Map<String, Any?>>()
+                        val seenPaths = HashSet<String>()
                         try {
                             val isVideo = (kind == "video")
-                            val uri = if (isVideo) {
-                                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                            val contentBase = if (isVideo) {
+                                "content://media/external/video/media"
                             } else {
-                                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                                "content://media/external/audio/media"
                             }
-                            val projection = if (isVideo) {
-                                arrayOf(
-                                    MediaStore.Video.Media._ID,
-                                    MediaStore.Video.Media.DATA,
-                                    MediaStore.Video.Media.DISPLAY_NAME,
-                                    MediaStore.Video.Media.TITLE,
-                                    MediaStore.Video.Media.DURATION,
-                                    MediaStore.Video.Media.SIZE,
-                                    MediaStore.Video.Media.DATE_MODIFIED,
-                                    MediaStore.Video.Media.MIME_TYPE
-                                )
-                            } else {
-                                arrayOf(
-                                    MediaStore.Audio.Media._ID,
-                                    MediaStore.Audio.Media.DATA,
-                                    MediaStore.Audio.Media.DISPLAY_NAME,
-                                    MediaStore.Audio.Media.TITLE,
-                                    MediaStore.Audio.Media.DURATION,
-                                    MediaStore.Audio.Media.SIZE,
-                                    MediaStore.Audio.Media.DATE_MODIFIED,
-                                    MediaStore.Audio.Media.MIME_TYPE,
-                                    MediaStore.Audio.Media.ARTIST,
-                                    MediaStore.Audio.Media.ALBUM
-                                )
-                            }
-                            val sortOrder = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
-                            contentResolver.query(uri, projection, null, null, sortOrder)?.use { cursor ->
-                                val idIdx = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
-                                val dataIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
-                                val dispIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
-                                val titleIdx = cursor.getColumnIndex(MediaStore.MediaColumns.TITLE)
-                                val durIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION)
-                                val sizeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
-                                val dateIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
-                                val mimeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE)
-                                val artistIdx = if (!isVideo) cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST) else -1
-                                val albumIdx = if (!isVideo) cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM) else -1
-
-                                while (cursor.moveToNext()) {
-                                    val path = if (dataIdx >= 0) cursor.getString(dataIdx) ?: "" else ""
-                                    if (path.isEmpty()) continue
-                                    val file = File(path)
-                                    if (!file.exists() || !file.isFile) continue
-
-                                    val id = if (idIdx >= 0) cursor.getLong(idIdx).toString() else path
-                                    val dispName = if (dispIdx >= 0) cursor.getString(dispIdx) else null
-                                    val titleRaw = if (titleIdx >= 0) cursor.getString(titleIdx) else null
-                                    val title = when {
-                                        !dispName.isNullOrEmpty() -> dispName
-                                        !titleRaw.isNullOrEmpty() -> titleRaw
-                                        else -> file.name
-                                    }
-                                    val durMs = if (durIdx >= 0) cursor.getLong(durIdx) else 0L
-                                    val fileSize = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else file.length()
-                                    val dateSec = if (dateIdx >= 0) cursor.getLong(dateIdx) else (file.lastModified() / 1000L)
-                                    val mime = if (mimeIdx >= 0) cursor.getString(mimeIdx) ?: "" else ""
-                                    val artist = if (artistIdx >= 0) cursor.getString(artistIdx) else null
-                                    val album = if (albumIdx >= 0) cursor.getString(albumIdx) else null
-
-                                    items.add(
-                                        mapOf(
-                                            "id" to id,
-                                            "title" to title,
-                                            "path" to path,
-                                            "durationMs" to durMs,
-                                            "size" to fileSize,
-                                            "dateModifiedSec" to dateSec,
-                                            "mimeType" to mime,
-                                            "artist" to artist,
-                                            "album" to album
-                                        )
+                            val queries = ArrayList<Triple<Uri, String?, Array<String>?>>()
+                            if (isVideo) {
+                                queries.add(Triple(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, null, null))
+                                queries.add(
+                                    Triple(
+                                        MediaStore.Files.getContentUri("external"),
+                                        "${MediaStore.Files.FileColumns.MIME_TYPE} LIKE ?",
+                                        arrayOf("video/%")
                                     )
+                                )
+                            } else {
+                                queries.add(Triple(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, null, null))
+                            }
+
+                            val baseProj = ArrayList<String>().apply {
+                                add(MediaStore.MediaColumns._ID)
+                                add(MediaStore.MediaColumns.DATA)
+                                add(MediaStore.MediaColumns.DISPLAY_NAME)
+                                add(MediaStore.MediaColumns.TITLE)
+                                add(MediaStore.MediaColumns.DURATION)
+                                add(MediaStore.MediaColumns.SIZE)
+                                add(MediaStore.MediaColumns.DATE_MODIFIED)
+                                add(MediaStore.MediaColumns.MIME_TYPE)
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    add(MediaStore.MediaColumns.RELATIVE_PATH)
                                 }
+                                if (!isVideo) {
+                                    add(MediaStore.Audio.Media.ARTIST)
+                                    add(MediaStore.Audio.Media.ALBUM)
+                                }
+                            }.toTypedArray()
+
+                            val sortOrder = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
+                            for ((uri, sel, selArgs) in queries) {
+                                try {
+                                    contentResolver.query(uri, baseProj, sel, selArgs, sortOrder)?.use { cursor ->
+                                        val idIdx = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
+                                        val dataIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+                                        val dispIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                                        val titleIdx = cursor.getColumnIndex(MediaStore.MediaColumns.TITLE)
+                                        val durIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION)
+                                        val sizeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
+                                        val dateIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
+                                        val mimeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE)
+                                        val relIdx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                            cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+                                        } else -1
+                                        val artistIdx = if (!isVideo) cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST) else -1
+                                        val albumIdx = if (!isVideo) cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM) else -1
+
+                                        while (cursor.moveToNext()) {
+                                            val id = if (idIdx >= 0) cursor.getLong(idIdx).toString() else ""
+                                            var path = if (dataIdx >= 0) cursor.getString(dataIdx) ?: "" else ""
+                                            val dispName = if (dispIdx >= 0) cursor.getString(dispIdx) else null
+                                            val relPath = if (relIdx >= 0) cursor.getString(relIdx) else null
+                                            val fileSize = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else 0L
+
+                                            if (path.isEmpty() && !relPath.isNullOrEmpty() && !dispName.isNullOrEmpty()) {
+                                                val cleanRel = if (relPath.endsWith("/")) relPath else "$relPath/"
+                                                path = "/storage/emulated/0/$cleanRel$dispName"
+                                            }
+                                            if (path.isEmpty() && id.isEmpty()) continue
+
+                                            val file = if (path.isNotEmpty()) File(path) else null
+                                            val fileOk = file != null && file.exists() && file.isFile
+                                            if (!fileOk && (id.isEmpty() || fileSize <= 0L)) continue
+
+                                            val effectivePath = if (fileOk) path else "$contentBase/$id"
+                                            if (!seenPaths.add(effectivePath)) continue
+
+                                            val titleRaw = if (titleIdx >= 0) cursor.getString(titleIdx) else null
+                                            val title = when {
+                                                !dispName.isNullOrEmpty() -> dispName
+                                                !titleRaw.isNullOrEmpty() -> titleRaw
+                                                file != null -> file.name
+                                                else -> "Media $id"
+                                            }
+                                            val durMs = if (durIdx >= 0) cursor.getLong(durIdx) else 0L
+                                            val actualSize = if (fileSize > 0L) fileSize else (file?.length() ?: 0L)
+                                            val dateSec = if (dateIdx >= 0) cursor.getLong(dateIdx) else ((file?.lastModified() ?: 0L) / 1000L)
+                                            val mime = if (mimeIdx >= 0) cursor.getString(mimeIdx) ?: "" else ""
+                                            val artist = if (artistIdx >= 0) cursor.getString(artistIdx) else null
+                                            val album = if (albumIdx >= 0) cursor.getString(albumIdx) else null
+
+                                            items.add(
+                                                mapOf(
+                                                    "id" to (if (id.isNotEmpty()) id else effectivePath),
+                                                    "title" to title,
+                                                    "path" to effectivePath,
+                                                    "folderName" to (relPath?.trim('/')?.split('/')?.lastOrNull() ?: ""),
+                                                    "durationMs" to durMs,
+                                                    "size" to actualSize,
+                                                    "dateModifiedSec" to dateSec,
+                                                    "mimeType" to mime,
+                                                    "artist" to artist,
+                                                    "album" to album
+                                                )
+                                            )
+                                        }
+                                    }
+                                } catch (ignored: Exception) {}
                             }
                         } catch (ignored: Exception) {}
                         runOnUiThread { result.success(items) }

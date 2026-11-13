@@ -175,9 +175,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
 
     final isNetwork = item.path.startsWith('http://') || item.path.startsWith('https://');
+    final isContent = item.path.startsWith('content://');
     final c = isNetwork
         ? VideoPlayerController.networkUrl(Uri.parse(item.path))
-        : VideoPlayerController.file(File(item.path));
+        : (isContent
+            ? VideoPlayerController.contentUri(Uri.parse(item.path))
+            : VideoPlayerController.file(File(item.path)));
     try {
       await c.initialize();
       if (!mounted) {

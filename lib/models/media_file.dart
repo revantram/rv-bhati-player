@@ -17,6 +17,7 @@ class MediaFile {
     this.fileSize,
     this.modifiedDate,
     this.qualityUrls,
+    this.customFolderName,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class MediaFile {
   final Duration duration;
   final AssetEntity? entity;
   final Map<String, String>? qualityUrls;
+  final String? customFolderName;
 
   String? artist;
   String? album;
@@ -46,6 +48,9 @@ class MediaFile {
   }
 
   String get folderName {
+    if (customFolderName != null && customFolderName!.isNotEmpty) {
+      return customFolderName!;
+    }
     try {
       final parts = path.split('/');
       if (parts.length >= 2) {

@@ -585,8 +585,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final topOffset = pad.top + 8;
     final bottomOffset = pad.bottom + 155;
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
+    return KeyedSubtree(
+      key: ValueKey('home_tab_$_tab'),
       child: _tab == 0
           ? _buildVideosSection(topOffset, bottomOffset)
           : _tab == 1
