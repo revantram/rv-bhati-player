@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import 'settings_service.dart';
+import 'yt_webview_extractor.dart';
 
 class ResolvedAudioStream {
   final String url;
@@ -218,6 +219,7 @@ class YtAudioResolver {
           },
         ),
         _resolveViaMirrorsParallel(cleanId, quality),
+        YtWebViewExtractor.extractAudioStreams(cleanId),
         if (fallbackTitle != null && fallbackTitle.trim().isNotEmpty)
           _resolveViaCatalogCdn(
             title: fallbackTitle,
