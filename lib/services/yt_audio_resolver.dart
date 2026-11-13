@@ -56,7 +56,9 @@ class YtAudioResolver {
   ];
 
   static const String _androidVrUa =
-      'com.google.android.apps.youtube.vr.oculus/1.71.26 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
+      'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
+  static const String _androidVr156Ua =
+      'com.google.android.apps.youtube.vr.oculus/1.56.21 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
   static const String _iosUa =
       'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X; en_IN)';
   static const String _androidTestUa =
@@ -77,12 +79,12 @@ class YtAudioResolver {
       req.headers.set('Content-Type', 'application/json');
       req.headers.set('User-Agent', _androidVrUa);
       req.headers.set('X-YouTube-Client-Name', '28');
-      req.headers.set('X-YouTube-Client-Version', '1.71.26');
+      req.headers.set('X-YouTube-Client-Version', '1.60.19');
       req.add(utf8.encode(jsonEncode({
         'context': {
           'client': {
             'clientName': 'ANDROID_VR',
-            'clientVersion': '1.71.26',
+            'clientVersion': '1.60.19',
             'osName': 'Android',
             'osVersion': '12L',
             'androidSdkVersion': 32,
@@ -108,9 +110,8 @@ class YtAudioResolver {
     return _cachedVisitorData;
   }
 
-  /// Resolves verified playable audio stream candidates across YouTube engines,
-  /// mirrors, and a full-track AAC CDN fallback by title+artist when YouTube
-  /// blocks an IP/carrier with LOGIN_REQUIRED / PO-token 403.
+  /// Resolves verified playable audio stream candidates using a fast race-to-first-valid
+  /// pipeline so playback starts in ~1-2s instead of stalling on slow/dead mirrors.
   static Future<List<ResolvedAudioStream>> resolveAudioCandidates(
     String videoId, {
     String? fallbackTitle,
@@ -126,11 +127,22 @@ class YtAudioResolver {
       return cached.streams;
     }
 
-    final visitorData = await _getVisitorData();
-    final verified = <ResolvedAudioStream>[];
-    final seenUrls = <String>{};
+    // Warm visitorData in background without blocking the first playback tap
+    final visitorData = _cachedVisitorData;
+    if (visitorData == null) {
+      unawaited(_getVisitorData());
+    }
 
-    Future<void> probeAndCollect(List<ResolvedAudioStream> rawList) async {
+    final verifiedYt = <ResolvedAudioStream>[];
+    final verifiedFallback = <ResolvedAudioStream>[];
+    final seenUrls = <String>{};
+    final firstYtReady = Completer<void>();
+    final firstFallbackReady = Completer<void>();
+
+    Future<void> probeBatch(
+      List<ResolvedAudioStream> rawList, {
+      required bool isFallback,
+    }) async {
       final unique = <ResolvedAudioStream>[];
       for (final item in rawList) {
         if (item.url.isNotEmpty && seenUrls.add(item.url)) {
@@ -142,24 +154,36 @@ class YtAudioResolver {
       final probeResults = await Future.wait(
         unique.map((c) async => (await _probePlayable(c)) ? c : null),
       );
+      final target = isFallback ? verifiedFallback : verifiedYt;
+      bool added = false;
       for (final ok in probeResults) {
-        if (ok != null) verified.add(ok);
+        if (ok != null) {
+          target.add(ok);
+          added = true;
+        }
+      }
+      if (added) {
+        if (!isFallback && !firstYtReady.isCompleted) {
+          firstYtReady.complete();
+        } else if (isFallback && !firstFallbackReady.isCompleted) {
+          firstFallbackReady.complete();
+        }
       }
     }
 
-    // Round 1: Parallel YouTube native InnerTube (ANDROID_VR + IOS) & YoutubeExplode
-    final round1Lists = await Future.wait([
+    // Launch all fast YouTube direct extractors in parallel (AND Catalog CDN in parallel)
+    final ytTasks = <Future<void>>[
       _fetchInnertubePlayer(
         videoId: cleanId,
         quality: quality,
         clientName: 'ANDROID_VR',
-        clientVersion: '1.71.26',
+        clientVersion: '1.60.19',
         clientId: '28',
         userAgent: _androidVrUa,
         visitorData: visitorData,
         clientBody: {
           'clientName': 'ANDROID_VR',
-          'clientVersion': '1.71.26',
+          'clientVersion': '1.60.19',
           'deviceMake': 'Oculus',
           'deviceModel': 'Quest 3',
           'osName': 'Android',
@@ -168,7 +192,7 @@ class YtAudioResolver {
           'hl': 'en',
           'gl': 'IN',
         },
-      ),
+      ).then((l) => probeBatch(l, isFallback: false)),
       _fetchInnertubePlayer(
         videoId: cleanId,
         quality: quality,
@@ -187,54 +211,105 @@ class YtAudioResolver {
           'hl': 'en',
           'gl': 'IN',
         },
-      ),
-      _resolveViaYoutubeExplode(cleanId, quality),
+      ).then((l) => probeBatch(l, isFallback: false)),
+      _fetchInnertubePlayer(
+        videoId: cleanId,
+        quality: quality,
+        clientName: 'ANDROID_VR_156',
+        clientVersion: '1.56.21',
+        clientId: '28',
+        userAgent: _androidVr156Ua,
+        visitorData: visitorData,
+        clientBody: {
+          'clientName': 'ANDROID_VR',
+          'clientVersion': '1.56.21',
+          'deviceMake': 'Oculus',
+          'deviceModel': 'Quest 3',
+          'osName': 'Android',
+          'osVersion': '12L',
+          'androidSdkVersion': 32,
+          'hl': 'en',
+          'gl': 'IN',
+        },
+      ).then((l) => probeBatch(l, isFallback: false)),
+      _fetchInnertubePlayer(
+        videoId: cleanId,
+        quality: quality,
+        clientName: 'ANDROID_TESTSUITE',
+        clientVersion: '1.9',
+        clientId: '30',
+        userAgent: _androidTestUa,
+        visitorData: visitorData,
+        clientBody: {
+          'clientName': 'ANDROID_TESTSUITE',
+          'clientVersion': '1.9',
+          'osName': 'Android',
+          'osVersion': '13',
+          'androidSdkVersion': 33,
+          'hl': 'en',
+          'gl': 'IN',
+        },
+      ).then((l) => probeBatch(l, isFallback: false)),
+      _resolveViaYoutubeExplode(cleanId, quality)
+          .then((l) => probeBatch(l, isFallback: false)),
+    ];
+
+    final allYtDone = Future.wait(ytTasks);
+
+    final Future<void> catalogTask;
+    if (fallbackTitle != null && fallbackTitle.trim().isNotEmpty) {
+      catalogTask = _resolveViaCatalogCdn(
+        title: fallbackTitle,
+        artist: fallbackArtist ?? '',
+        quality: quality,
+      ).then((l) => probeBatch(l, isFallback: true));
+    } else {
+      catalogTask = Future.value();
+    }
+
+    // Prefer fast YouTube stream immediately; otherwise accept Catalog CDN right away
+    await Future.any<void>([
+      firstYtReady.future,
+      allYtDone,
+      Future.delayed(const Duration(milliseconds: 2400)),
     ]);
 
-    final round1Raw = <ResolvedAudioStream>[
-      for (final list in round1Lists) ...list,
-    ];
-    await probeAndCollect(round1Raw);
-
-    // Round 2: If YouTube blocked Round 1 (LOGIN_REQUIRED / 403), run ANDROID_TESTSUITE +
-    // Piped/Invidious mirrors + Full-Track AAC CDN matcher in parallel!
-    if (verified.isEmpty) {
-      final round2Lists = await Future.wait([
-        _fetchInnertubePlayer(
-          videoId: cleanId,
-          quality: quality,
-          clientName: 'ANDROID_TESTSUITE',
-          clientVersion: '1.9',
-          clientId: '30',
-          userAgent: _androidTestUa,
-          visitorData: visitorData,
-          clientBody: {
-            'clientName': 'ANDROID_TESTSUITE',
-            'clientVersion': '1.9',
-            'osName': 'Android',
-            'osVersion': '13',
-            'androidSdkVersion': 33,
-            'hl': 'en',
-            'gl': 'IN',
-          },
-        ),
-        _resolveViaMirrorsParallel(cleanId, quality),
-        YtWebViewExtractor.extractAudioStreams(cleanId),
-        if (fallbackTitle != null && fallbackTitle.trim().isNotEmpty)
-          _resolveViaCatalogCdn(
-            title: fallbackTitle,
-            artist: fallbackArtist ?? '',
-            quality: quality,
-          )
-        else
-          Future.value(const <ResolvedAudioStream>[]),
+    if (verifiedYt.isNotEmpty) {
+      // Brief grace so sibling YouTube progressive stream can land too
+      await Future.delayed(const Duration(milliseconds: 120));
+    } else {
+      // Give catalogTask / any remaining fast YT task a moment to finish
+      await Future.any<void>([
+        firstYtReady.future,
+        firstFallbackReady.future,
+        Future.wait([allYtDone, catalogTask]),
+        Future.delayed(const Duration(milliseconds: 2200)),
       ]);
-
-      final round2Raw = <ResolvedAudioStream>[
-        for (final list in round2Lists) ...list,
-      ];
-      await probeAndCollect(round2Raw);
     }
+
+    // Round 2: Only if ALL fast extractors failed, race WebView + Piped/Invidious mirrors
+    if (verifiedYt.isEmpty && verifiedFallback.isEmpty) {
+      final mirrorReady = Completer<void>();
+      final round2Tasks = <Future<void>>[
+        YtWebViewExtractor.extractAudioStreams(cleanId).then((l) async {
+          await probeBatch(l, isFallback: false);
+          if (verifiedYt.isNotEmpty && !mirrorReady.isCompleted) mirrorReady.complete();
+        }),
+        _resolveViaMirrorsParallel(cleanId, quality).then((l) async {
+          await probeBatch(l, isFallback: false);
+          if (verifiedYt.isNotEmpty && !mirrorReady.isCompleted) mirrorReady.complete();
+        }),
+      ];
+      await Future.any<void>([
+        mirrorReady.future,
+        Future.wait(round2Tasks),
+      ]);
+    }
+
+    final verified = <ResolvedAudioStream>[
+      ...verifiedYt,
+      ...verifiedFallback,
+    ];
 
     // Prefer non-HLS progressive streams first for reliable seeking & proxy support
     verified.sort((a, b) {
@@ -257,6 +332,9 @@ class YtAudioResolver {
   static Future<bool> _probePlayable(ResolvedAudioStream candidate) async {
     try {
       var uri = Uri.parse(candidate.url);
+      if (uri.queryParameters['ump'] == '1' || uri.queryParameters['sabr'] == '1') {
+        return false;
+      }
       for (int hop = 0; hop < 4; hop++) {
         final req = await _httpClient.getUrl(uri);
         req.followRedirects = false;
@@ -266,7 +344,7 @@ class YtAudioResolver {
           req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-63');
         }
 
-        final resp = await req.close().timeout(const Duration(milliseconds: 2800));
+        final resp = await req.close().timeout(const Duration(milliseconds: 2400));
         if (resp.isRedirect ||
             resp.statusCode == 301 ||
             resp.statusCode == 302 ||
@@ -288,7 +366,9 @@ class YtAudioResolver {
         }
 
         final ct = (resp.headers.value(HttpHeaders.contentTypeHeader) ?? '').toLowerCase();
-        if (ct.contains('text/html') || ct.contains('application/json')) {
+        if (ct.contains('text/html') ||
+            ct.contains('application/json') ||
+            ct.contains('yt-ump')) {
           await resp.drain<void>();
           debugPrint('[YtAudioResolver] probe ${candidate.source} rejected non-media ($ct)');
           return false;
@@ -348,7 +428,19 @@ class YtAudioResolver {
       cleanTitle,
     ];
 
+    final artistTokens = cleanArtist
+        .toLowerCase()
+        .split(' ')
+        .where((w) => w.length >= 3)
+        .toSet();
+    final titleTokens = cleanTitle
+        .toLowerCase()
+        .split(' ')
+        .where((w) => w.length >= 3)
+        .toSet();
+
     for (final q in queries) {
+      final isTitleOnlyQuery = q == cleanTitle && artistTokens.isNotEmpty;
       try {
         final searchUri = Uri.https('www.jiosaavn.com', '/api.php', {
           '__call': 'search.getResults',
@@ -362,7 +454,7 @@ class YtAudioResolver {
         });
         final resp = await http
             .get(searchUri, headers: const {'User-Agent': _browserUa})
-            .timeout(const Duration(seconds: 4));
+            .timeout(const Duration(seconds: 3));
         if (resp.statusCode != 200) continue;
 
         final data = jsonDecode(resp.body);
@@ -370,18 +462,33 @@ class YtAudioResolver {
         final results = (data['results'] as List? ?? []).whereType<Map>().toList();
         if (results.isEmpty) continue;
 
-        // Pick best matching result where title shares words with cleanTitle
-        final titleTokens = cleanTitle.toLowerCase().split(' ').where((w) => w.length > 2).toSet();
         Map? bestMatch;
-        for (final r in results.take(5)) {
+        for (final r in results.take(6)) {
           final enc = r['more_info']?['encrypted_media_url']?.toString() ?? '';
           if (enc.isEmpty) continue;
           final rTitle = (r['title']?.toString() ?? '').toLowerCase();
-          if (titleTokens.isEmpty || titleTokens.any((tok) => rTitle.contains(tok))) {
+          final rSub = (r['subtitle']?.toString() ?? '').toLowerCase();
+          final primaryArtists = (r['more_info']?['artistMap']?['primary_artists'] as List? ?? [])
+              .whereType<Map>()
+              .map((a) => (a['name']?.toString() ?? '').toLowerCase())
+              .join(' ');
+          final combinedArtistInfo = '$rSub $primaryArtists';
+
+          final titleMatches =
+              titleTokens.isEmpty || titleTokens.any((tok) => rTitle.contains(tok));
+          final artistMatches = artistTokens.isEmpty ||
+              artistTokens.any((tok) => combinedArtistInfo.contains(tok));
+
+          if (isTitleOnlyQuery) {
+            // Avoid playing a completely different artist's song with the same title
+            if (titleMatches && artistMatches) {
+              bestMatch = r;
+              break;
+            }
+          } else if (titleMatches) {
             bestMatch = r;
             break;
           }
-          bestMatch ??= r;
         }
         if (bestMatch == null) continue;
 

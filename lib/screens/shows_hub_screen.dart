@@ -150,6 +150,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     final onlineSongs = _oshoTracks.map((t) => t.toOnlineSong(_selectedOshoSeries!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
     if (!mounted) return;
+    if (err == AudioController.playbackCancelledToken) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
@@ -170,6 +171,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     final onlineSongs = _desiEpisodes.map((ep) => ep.toOnlineSong(_selectedDesiSeries!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
     if (!mounted) return;
+    if (err == AudioController.playbackCancelledToken) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
@@ -190,6 +192,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     final onlineSongs = _aawazEpisodes.map((ep) => ep.toOnlineSong(_selectedAawazShow!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
     if (!mounted) return;
+    if (err == AudioController.playbackCancelledToken) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),

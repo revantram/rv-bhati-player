@@ -27,6 +27,7 @@ class DownloadsScreen extends StatelessWidget {
       shuffle: shuffle,
     );
     if (!context.mounted) return;
+    if (err == AudioController.playbackCancelledToken) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),

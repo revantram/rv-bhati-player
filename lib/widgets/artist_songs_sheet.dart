@@ -86,29 +86,31 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
   Future<void> _playSong(int index) async {
     if (_songs.isEmpty || index < 0 || index >= _songs.length) return;
     final selected = _songs[index];
+    if (_resolvingSongId == selected.id) return;
     setState(() => _resolvingSongId = selected.id);
     HapticFeedback.lightImpact();
 
     final err = await AudioController.instance.playOnlineQueue(_songs, index);
     if (!mounted) return;
-    setState(() => _resolvingSongId = null);
+    if (err == AudioController.playbackCancelledToken) return;
+    if (_resolvingSongId == selected.id) {
+      setState(() => _resolvingSongId = null);
+    }
 
     if (err != null) {
+      if (selected.id.startsWith('yt_')) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => YouTubeMusicSheet(song: selected),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(err),
           behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Play Web',
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => YouTubeMusicSheet(song: selected),
-              );
-            },
-          ),
         ),
       );
       return;
@@ -125,29 +127,31 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
     final list = List<OnlineSong>.from(_songs);
     if (shuffle) list.shuffle();
     final first = list.first;
+    if (_resolvingSongId == first.id) return;
     setState(() => _resolvingSongId = first.id);
     HapticFeedback.lightImpact();
 
     final err = await AudioController.instance.playOnlineQueue(list, 0, shuffle: shuffle);
     if (!mounted) return;
-    setState(() => _resolvingSongId = null);
+    if (err == AudioController.playbackCancelledToken) return;
+    if (_resolvingSongId == first.id) {
+      setState(() => _resolvingSongId = null);
+    }
 
     if (err != null) {
+      if (first.id.startsWith('yt_')) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => YouTubeMusicSheet(song: first),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(err),
           behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Play Web',
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => YouTubeMusicSheet(song: first),
-              );
-            },
-          ),
         ),
       );
       return;

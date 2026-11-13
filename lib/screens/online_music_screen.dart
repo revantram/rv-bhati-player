@@ -162,29 +162,31 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   Future<void> _playSong(List<OnlineSong> list, int index) async {
     if (index < 0 || index >= list.length) return;
     final selected = list[index];
+    if (_resolvingSongId == selected.id) return;
     setState(() => _resolvingSongId = selected.id);
     HapticFeedback.lightImpact();
 
     final error = await AudioController.instance.playOnlineQueue(list, index);
     if (!mounted) return;
-    setState(() => _resolvingSongId = null);
+    if (error == AudioController.playbackCancelledToken) return;
+    if (_resolvingSongId == selected.id) {
+      setState(() => _resolvingSongId = null);
+    }
 
     if (error != null) {
+      if (selected.id.startsWith('yt_')) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => YouTubeMusicSheet(song: selected),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),
           behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Play Web',
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => YouTubeMusicSheet(song: selected),
-              );
-            },
-          ),
         ),
       );
       return;

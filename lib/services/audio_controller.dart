@@ -292,8 +292,11 @@ class AudioController {
     );
   }
 
+  static const String playbackCancelledToken = '__cancelled__';
+
   /// Resolves and starts playback of [items[startIndex]].
-  /// Returns `null` on success, or an error message string if stream extraction/playback failed.
+  /// Returns `null` on success, `playbackCancelledToken` if superseded by a newer tap,
+  /// or an error message string if stream extraction/playback failed.
   Future<String?> playOnlineQueue(
     List<OnlineSong> items,
     int startIndex, {
@@ -324,7 +327,7 @@ class AudioController {
       );
     }
 
-    if (gen != _queueSessionGen) return 'Cancelled';
+    if (gen != _queueSessionGen) return playbackCancelledToken;
     if (candidates.isEmpty) {
       return 'Could not find playable audio stream for "${target.title}".';
     }
@@ -332,7 +335,7 @@ class AudioController {
     // Try up to 6 resolved stream candidates until ExoPlayer loads one cleanly
     Object? lastErr;
     for (final candidate in candidates.take(6)) {
-      if (gen != _queueSessionGen) return 'Cancelled';
+      if (gen != _queueSessionGen) return playbackCancelledToken;
       final isRemote = !candidate.url.startsWith('/') &&
           !candidate.url.startsWith('file:') &&
           !candidate.url.startsWith('http://127.0.0.1');
@@ -341,7 +344,7 @@ class AudioController {
           : const [false];
 
       for (final proxyMode in proxyModes) {
-        if (gen != _queueSessionGen) return 'Cancelled';
+        if (gen != _queueSessionGen) return playbackCancelledToken;
         try {
           final resolvedSong = target.copyWith(streamUrl: candidate.url);
           final audioSource = await _buildAudioSource(
@@ -350,7 +353,7 @@ class AudioController {
             isHls: candidate.isHls,
             useProxy: proxyMode,
           );
-          if (gen != _queueSessionGen) return 'Cancelled';
+          if (gen != _queueSessionGen) return playbackCancelledToken;
 
           final concatSource = ConcatenatingAudioSource(children: [audioSource]);
 
@@ -362,7 +365,7 @@ class AudioController {
               .setAudioSource(concatSource, initialIndex: 0)
               .timeout(const Duration(seconds: 10));
 
-          if (gen != _queueSessionGen) return 'Cancelled';
+          if (gen != _queueSessionGen) return playbackCancelledToken;
 
           onlineQueue = [resolvedSong];
           _activeOnlineConcat = concatSource;

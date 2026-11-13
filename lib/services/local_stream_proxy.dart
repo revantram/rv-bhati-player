@@ -74,6 +74,14 @@ class LocalStreamProxy {
         rangeHeader: rangeHeader,
       );
 
+      if (upstreamResp.statusCode >= 400) {
+        await upstreamResp.drain<void>();
+        req.response.statusCode = upstreamResp.statusCode;
+        await req.response.close();
+        return;
+      }
+
+      req.response.bufferOutput = false;
       req.response.statusCode = upstreamResp.statusCode;
 
       final contentType = upstreamResp.headers.value(HttpHeaders.contentTypeHeader);

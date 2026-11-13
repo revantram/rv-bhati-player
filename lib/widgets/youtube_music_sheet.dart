@@ -3,6 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../models/online_song.dart';
 import '../services/app_state.dart';
+import '../services/audio_controller.dart';
 import '../services/download_service.dart';
 import 'ios_bounce_button.dart';
 
@@ -18,10 +19,32 @@ class YouTubeMusicSheet extends StatefulWidget {
 class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
   InAppWebViewController? _webViewController;
   bool _isLoading = true;
+  bool _useMobileWatch = false;
 
   String get _videoId {
     final id = widget.song.id;
     return id.startsWith('yt_') ? id.replaceFirst('yt_', '') : id;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      AudioController.instance.player.pause();
+    } catch (_) {}
+  }
+
+  void _switchToMobileWatch() {
+    if (!mounted || _useMobileWatch) return;
+    setState(() {
+      _useMobileWatch = true;
+      _isLoading = true;
+    });
+    _webViewController?.loadUrl(
+      urlRequest: URLRequest(
+        url: WebUri('https://m.youtube.com/watch?v=$_videoId'),
+      ),
+    );
   }
 
   @override
@@ -41,15 +64,28 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background-color: #0B0F19; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-    iframe { width: 100%; height: 100%; border: none; border-radius: 16px; }
+    #player { width: 100%; height: 100%; border: none; border-radius: 16px; }
   </style>
 </head>
 <body>
-  <iframe src="https://www.youtube.com/embed/$_videoId?autoplay=1&playsinline=1&enablejsapi=1&origin=https://revantram.github.io"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
-          allowfullscreen>
-  </iframe>
+  <div id="player"></div>
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    function onYouTubeIframeAPIReady() {
+      new YT.Player('player', {
+        videoId: '$_videoId',
+        playerVars: { autoplay: 1, playsinline: 1, rel: 0, origin: 'https://revantram.github.io' },
+        events: {
+          onReady: function(e) { try { e.target.playVideo(); } catch (_) {} },
+          onError: function(e) {
+            if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+              window.flutter_inappwebview.callHandler('embedError', e.data);
+            }
+          }
+        }
+      });
+    }
+  </script>
 </body>
 </html>
 ''';
@@ -122,7 +158,7 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${widget.song.artist} • YouTube Music Engine',
+                      '${widget.song.artist} • ${_useMobileWatch ? "YouTube Mobile" : "YouTube Web Engine"}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -133,6 +169,14 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
                   ],
                 ),
               ),
+              if (!_useMobileWatch)
+                TextButton(
+                  onPressed: _switchToMobileWatch,
+                  child: Text(
+                    'Full Web',
+                    style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
               IconButton(
                 icon: Icon(Icons.close_rounded, color: secondaryTextColor),
                 onPressed: () => Navigator.pop(context),
@@ -145,7 +189,7 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              height: 220,
+              height: _useMobileWatch ? 320 : 220,
               width: double.infinity,
               color: Colors.black,
               child: Stack(
@@ -164,13 +208,28 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
                       javaScriptEnabled: true,
                       transparentBackground: true,
                       userAgent:
-                          'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36',
+                          'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
                     ),
                     onWebViewCreated: (ctrl) {
                       _webViewController = ctrl;
+                      ctrl.addJavaScriptHandler(
+                        handlerName: 'embedError',
+                        callback: (_) {
+                          _switchToMobileWatch();
+                          return null;
+                        },
+                      );
                     },
                     onLoadStop: (ctrl, url) {
                       if (mounted) setState(() => _isLoading = false);
+                      if (_useMobileWatch) {
+                        ctrl.evaluateJavascript(source: '''
+                          (function() {
+                            var v = document.querySelector('video');
+                            if (v) { v.muted = false; v.play().catch(function(){}); }
+                          })();
+                        ''');
+                      }
                     },
                   ),
                   if (_isLoading)

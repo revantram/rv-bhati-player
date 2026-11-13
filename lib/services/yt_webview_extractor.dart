@@ -18,7 +18,7 @@ class YtWebViewExtractor {
 
   static Future<List<ResolvedAudioStream>> extractAudioStreams(
     String videoId, {
-    Duration timeout = const Duration(seconds: 7),
+    Duration timeout = const Duration(seconds: 5),
   }) async {
     final cleanId = videoId.replaceFirst('yt_', '').trim();
     if (cleanId.isEmpty) return const [];
@@ -42,6 +42,15 @@ class YtWebViewExtractor {
       }
     }
 
+    void scheduleFinish([Duration delay = Duration.zero]) {
+      if (finished) return;
+      if (delay == Duration.zero) {
+        Timer.run(finishNow);
+      } else {
+        Timer(delay, finishNow);
+      }
+    }
+
     void considerUrl(String rawUrl, {Map<String, String>? reqHeaders}) {
       if (finished || rawUrl.isEmpty) return;
       if (!rawUrl.contains('googlevideo.com/videoplayback')) return;
@@ -49,6 +58,9 @@ class YtWebViewExtractor {
       final uri = Uri.tryParse(rawUrl);
       if (uri == null) return;
       final qp = Map<String, String>.from(uri.queryParameters);
+      // UMP/SABR chunks are binary protobufs, not progressive audio containers
+      if (qp['ump'] == '1' || qp['sabr'] == '1') return;
+
       final mime = (qp['mime'] ?? '').toLowerCase();
       final itag = qp['itag'] ?? '';
       final isAudio = mime.startsWith('audio/') ||
@@ -57,7 +69,8 @@ class YtWebViewExtractor {
           itag == '251' ||
           itag == '250' ||
           itag == '249';
-      if (!isAudio) return;
+      final isMuxedFallback = itag == '18';
+      if (!isAudio && !isMuxedFallback) return;
 
       // Strip chunk range parameters so ExoPlayer/LocalStreamProxy can fetch from byte 0
       qp.remove('range');
@@ -75,14 +88,14 @@ class YtWebViewExtractor {
       collected.add(ResolvedAudioStream(
         url: cleanUrl,
         headers: headers,
-        source: 'webview_yt',
+        source: isMuxedFallback ? 'webview_yt_mux' : 'webview_yt',
       ));
 
-      // Prefer audio/mp4 (itag 140/139); finish immediately once found
+      // Prefer audio/mp4 (itag 140/139); dispatch finish on main isolate
       if (mime.contains('mp4') || itag == '140' || itag == '139') {
-        finishNow();
+        scheduleFinish();
       } else {
-        Future.delayed(const Duration(milliseconds: 500), finishNow);
+        scheduleFinish(const Duration(milliseconds: 450));
       }
     }
 
