@@ -8,11 +8,40 @@ import 'audio_controller.dart';
 
 class RadioController extends ChangeNotifier {
   RadioController._() {
-    AudioController.instance.player.playerStateStream.listen((_) {
+    final p = AudioController.instance.player;
+    p.playerStateStream.listen((_) {
       notifyListeners();
     });
+
+    p.currentIndexStream.listen((idx) {
+      if (_currentStation != null &&
+          idx != null &&
+          idx >= 0 &&
+          idx < _stationQueue.length) {
+        final target = _stationQueue[idx];
+        if (_currentStation?.id != target.id) {
+          _currentStation = target;
+          _isLoading = false;
+          _errorMessage = null;
+          notifyListeners();
+        }
+      }
+    });
+
+    p.playbackEventStream.listen(
+      (_) {},
+      onError: (Object e, StackTrace st) {
+        if (_currentStation != null) {
+          debugPrint('[RadioController] Playback error: $e');
+          _handleStreamError();
+        }
+      },
+    );
   }
   static final RadioController instance = RadioController._();
+
+  List<RadioStation> _stationQueue = RadioStation.stations;
+  List<RadioStation> get stationQueue => _stationQueue;
 
   RadioStation? _currentStation;
   RadioStation? get currentStation => _currentStation;
@@ -22,6 +51,8 @@ class RadioController extends ChangeNotifier {
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  bool _isHandlingError = false;
 
   final Map<String, String> _resolvedStreamUrls = {};
 
@@ -41,7 +72,24 @@ class RadioController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleStation(RadioStation station) async {
+  Future<void> _handleStreamError() async {
+    if (_isHandlingError || _currentStation == null) return;
+    _isHandlingError = true;
+    try {
+      await Future.delayed(const Duration(milliseconds: 600));
+      final p = AudioController.instance.player;
+      if (p.hasNext) {
+        await p.seekToNext();
+      } else if (_stationQueue.isNotEmpty) {
+        await p.seek(Duration.zero, index: 0);
+      }
+    } catch (_) {
+    } finally {
+      _isHandlingError = false;
+    }
+  }
+
+  Future<void> toggleStation(RadioStation station, {List<RadioStation>? customQueue}) async {
     final p = AudioController.instance.player;
     if (_currentStation?.id == station.id) {
       if (p.playing) {
@@ -53,7 +101,22 @@ class RadioController extends ChangeNotifier {
       return;
     }
 
-    await playStation(station);
+    if (_stationQueue.isNotEmpty && p.audioSource is ConcatenatingAudioSource) {
+      final idx = _stationQueue.indexWhere((s) => s.id == station.id);
+      if (idx >= 0) {
+        _currentStation = station;
+        _isLoading = false;
+        _errorMessage = null;
+        notifyListeners();
+        try {
+          await p.seek(Duration.zero, index: idx);
+          p.play();
+          return;
+        } catch (_) {}
+      }
+    }
+
+    await playStation(station, customQueue: customQueue);
   }
 
   Future<String?> _resolveOnlineRadioFmStream(String stationId) async {
@@ -79,7 +142,21 @@ class RadioController extends ChangeNotifier {
     return null;
   }
 
-  Future<void> playStation(RadioStation station) async {
+  AudioSource _buildStationAudioSource(RadioStation station) {
+    final url = station.effectiveStreamUrl;
+    return AudioSource.uri(
+      Uri.parse(url),
+      tag: MediaItem(
+        id: station.id,
+        title: station.name,
+        album: '🔴 Live Radio Stream',
+        artist: '🔴 Live Radio Stream • ${station.frequency}',
+        artUri: station.imageUrl != null ? Uri.tryParse(station.imageUrl!) : null,
+      ),
+    );
+  }
+
+  Future<void> playStation(RadioStation station, {List<RadioStation>? customQueue}) async {
     AudioController.instance.ensureNotificationPermission();
     _currentStation = station;
     _isLoading = true;
@@ -88,84 +165,59 @@ class RadioController extends ChangeNotifier {
 
     final p = AudioController.instance.player;
 
-    String targetUrl = station.streamUrl;
-    if (targetUrl.isEmpty || !targetUrl.startsWith('http')) {
-      targetUrl = await _resolveOnlineRadioFmStream(station.id) ?? '';
-    }
+    // Clear music queues to prevent conflict
+    AudioController.instance.queue = const [];
+    AudioController.instance.onlineQueue = const [];
+    AudioController.instance.hybridQueue = const [];
 
-    if (targetUrl.isEmpty) {
-      _isLoading = false;
-      _errorMessage = 'Live stream not available for this station';
-      notifyListeners();
-      return;
-    }
+    _stationQueue = (customQueue != null && customQueue.isNotEmpty)
+        ? customQueue
+        : RadioStation.stations;
+
+    final targetIdx = _stationQueue.indexWhere((s) => s.id == station.id);
+    final safeIdx = targetIdx >= 0 ? targetIdx : 0;
 
     try {
-      AudioController.instance.queue = [];
-      AudioController.instance.onlineQueue = [];
-      final source = AudioSource.uri(
-        Uri.parse(targetUrl),
-        tag: MediaItem(
-          id: station.id,
-          title: station.name,
-          album: '🔴 Live Radio Stream',
-          artist: '🔴 Live Radio Stream • ${station.frequency}',
-          artUri: station.imageUrl != null ? Uri.tryParse(station.imageUrl!) : null,
-        ),
-      );
-      await p.setAudioSource(source);
+      final children = [
+        for (final s in _stationQueue) _buildStationAudioSource(s),
+      ];
+      final concatSource = ConcatenatingAudioSource(children: children);
+
+      try {
+        await p.stop();
+      } catch (_) {}
+
+      await p.setVolume(1.0);
+      await p.setAudioSource(concatSource, initialIndex: safeIdx);
+      await p.setLoopMode(LoopMode.all);
+      await p.setShuffleModeEnabled(false);
       p.play();
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      // Try fallback if available
-      if (station.fallbackStreamUrl != null &&
-          station.fallbackStreamUrl!.isNotEmpty &&
-          station.fallbackStreamUrl != targetUrl) {
-        try {
-          final fallbackSource = AudioSource.uri(
-            Uri.parse(station.fallbackStreamUrl!),
-            tag: MediaItem(
-              id: station.id,
-              title: station.name,
-              album: '🔴 Live Radio Stream',
-              artist: '🔴 Live Radio Stream • ${station.frequency}',
-              artUri: station.imageUrl != null ? Uri.tryParse(station.imageUrl!) : null,
-            ),
-          );
-          await p.setAudioSource(fallbackSource);
-          p.play();
-          _isLoading = false;
-          notifyListeners();
-          return;
-        } catch (_) {}
-      }
-
-      // Try dynamic resolution from onlineradiofm
-      final dynamicUrl = await _resolveOnlineRadioFmStream(station.id);
-      if (dynamicUrl != null && dynamicUrl.isNotEmpty && dynamicUrl != targetUrl) {
-        try {
-          final dynamicSource = AudioSource.uri(
-            Uri.parse(dynamicUrl),
-            tag: MediaItem(
-              id: station.id,
-              title: station.name,
-              album: '🔴 Live Radio Stream',
-              artist: '🔴 Live Radio Stream • ${station.frequency}',
-              artUri: station.imageUrl != null ? Uri.tryParse(station.imageUrl!) : null,
-            ),
-          );
-          await p.setAudioSource(dynamicSource);
-          p.play();
-          _isLoading = false;
-          notifyListeners();
-          return;
-        } catch (_) {}
-      }
-
+      debugPrint('[RadioController] playStation error: $e');
       _isLoading = false;
       _errorMessage = 'Could not connect to live stream';
       notifyListeners();
+    }
+  }
+
+  Future<void> nextStation() async {
+    final p = AudioController.instance.player;
+    if (p.hasNext) {
+      await p.seekToNext();
+    } else if (_stationQueue.isNotEmpty) {
+      await p.seek(Duration.zero, index: 0);
+    }
+  }
+
+  Future<void> previousStation() async {
+    final p = AudioController.instance.player;
+    if (p.hasPrevious) {
+      await p.seekToPrevious();
+    } else if (_stationQueue.isNotEmpty) {
+      await p.seek(Duration.zero, index: _stationQueue.length - 1);
     }
   }
 

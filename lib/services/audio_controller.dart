@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -21,6 +22,7 @@ import 'yt_audio_resolver.dart';
 /// lock-screen controls) after the screen closes or the app is minimised.
 class AudioController {
   AudioController._() {
+    _initAudioSession();
     _initSleepListener();
     _initAudioSessionListener();
     _initAutoAdvanceListener();
@@ -30,6 +32,42 @@ class AudioController {
     _applyPlaybackSettings();
   }
   static final AudioController instance = AudioController._();
+
+  Future<void> _initAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              player.setVolume(0.5);
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              player.pause();
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              player.setVolume(1.0);
+              break;
+            case AudioInterruptionType.pause:
+              player.play();
+              break;
+            case AudioInterruptionType.unknown:
+              break;
+          }
+        }
+      });
+      session.becomingNoisyEventStream.listen((_) {
+        player.pause();
+      });
+    } catch (e) {
+      debugPrint('[AudioController] AudioSession configure error: $e');
+    }
+  }
 
   final AudioPlayer player = AudioPlayer();
   List<MediaFile> queue = const [];
@@ -418,7 +456,7 @@ class AudioController {
               EqualizerService.instance.attachAudioSession(onlineSessId);
             }
 
-            Future.delayed(const Duration(milliseconds: 1600), () {
+            Future.delayed(const Duration(milliseconds: 150), () {
               if (gen == _queueSessionGen) {
                 _appendNextPendingTrack(gen);
               }
@@ -665,6 +703,11 @@ class AudioController {
   }
 
   Future<void> next() async {
+    if (RadioController.instance.currentStation != null) {
+      await RadioController.instance.nextStation();
+      return;
+    }
+
     if (onlineQueue.isNotEmpty) {
       final cur = player.currentIndex ?? 0;
       if (cur < onlineQueue.length - 1) {
@@ -692,6 +735,11 @@ class AudioController {
   }
 
   void previous() {
+    if (RadioController.instance.currentStation != null) {
+      RadioController.instance.previousStation();
+      return;
+    }
+
     if (player.position > const Duration(seconds: 3) || !player.hasPrevious) {
       player.seek(Duration.zero);
     } else {

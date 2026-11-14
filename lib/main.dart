@@ -20,8 +20,8 @@ Future<void> main() async {
     androidNotificationChannelName: 'RV Bhati Player',
     androidNotificationChannelDescription: 'BitMusic & Media playback controls',
     androidNotificationIcon: 'mipmap/ic_launcher',
-    androidNotificationOngoing: true,
-    androidStopForegroundOnPause: true,
+    androidNotificationOngoing: false,
+    androidStopForegroundOnPause: false,
     androidShowNotificationBadge: true,
     notificationColor: AppState.instance.accentColor,
   );

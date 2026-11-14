@@ -291,13 +291,13 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Previous Song
+                                  // Previous Song / Station
                                   _buildIslandButton(
                                     icon: Icons.skip_previous_rounded,
                                     size: 19,
                                     onTap: () {
                                       HapticFeedback.lightImpact();
-                                      if (!isRadio) AudioController.instance.previous();
+                                      AudioController.instance.previous();
                                     },
                                   ),
                                   const SizedBox(width: 4),
@@ -337,13 +337,13 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                                   ),
                                   const SizedBox(width: 4),
 
-                                  // Next Song
+                                  // Next Song / Station
                                   _buildIslandButton(
                                     icon: Icons.skip_next_rounded,
                                     size: 19,
                                     onTap: () {
                                       HapticFeedback.lightImpact();
-                                      if (!isRadio) AudioController.instance.next();
+                                      AudioController.instance.next();
                                     },
                                   ),
                                 ],

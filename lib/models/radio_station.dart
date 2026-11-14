@@ -27,6 +27,18 @@ class RadioStation {
   final String icon;
   final String? imageUrl;
 
+  String get effectiveStreamUrl {
+    if (streamUrl.isNotEmpty && streamUrl.startsWith('http')) {
+      return streamUrl;
+    }
+    if (fallbackStreamUrl != null &&
+        fallbackStreamUrl!.isNotEmpty &&
+        fallbackStreamUrl!.startsWith('http')) {
+      return fallbackStreamUrl!;
+    }
+    return streamUrl;
+  }
+
   /// Curated list of 208 Rajasthan & Bollywood Radio Stations
   static const List<RadioStation> stations = [
     RadioStation(
