@@ -550,6 +550,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addFavoriteItem(PlaylistItem item) {
+    _favorites.add(item.id);
+    _favoriteItems[item.id] = item;
+    _save();
+    notifyListeners();
+  }
+
+  void saveState() => _save();
+
   List<PlaylistItem> get favoritePlaylistItems {
     final list = <PlaylistItem>[];
     for (final id in _favorites) {
