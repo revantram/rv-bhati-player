@@ -367,6 +367,70 @@ class AudioController {
     final safeStart = startIndex.clamp(0, items.length - 1);
     final target = items[safeStart];
 
+    // Fast-path for direct/decryptable streams (e.g. JioSaavn / BitMusic):
+    // Build full ConcatenatingAudioSource upfront so Next and Prev controls
+    // are immediately active and functional in the system notification and lock screen.
+    final kbps = SettingsService.instance.audioQuality.kbps;
+    final bool allDirect = items.every((s) =>
+        s.encryptedMediaUrl.isNotEmpty ||
+        (s.streamUrl.isNotEmpty && s.streamUrl.startsWith('http')));
+
+    if (allDirect) {
+      try {
+        final children = <AudioSource>[];
+        final allResolved = <OnlineSong>[];
+        for (final s in items) {
+          final stream = s.getStreamUrlForBitrate(kbps);
+          final resolved = s.copyWith(streamUrl: stream);
+          allResolved.add(resolved);
+          children.add(
+            AudioSource.uri(
+              Uri.parse(stream),
+              tag: MediaItem(
+                id: resolved.id,
+                title: resolved.title,
+                artist: resolved.artist,
+                album: resolved.album.isNotEmpty ? resolved.album : 'BitMusic',
+                duration: resolved.duration,
+                artUri: resolved.imageUrl.isNotEmpty ? Uri.tryParse(resolved.imageUrl) : null,
+              ),
+            ),
+          );
+        }
+
+        final concatSource = ConcatenatingAudioSource(children: children);
+
+        try {
+          await player.stop();
+        } catch (_) {}
+
+        await player.setVolume(1.0);
+        await player.setAudioSource(concatSource, initialIndex: safeStart);
+        onlineQueue = allResolved;
+        _activeOnlineConcat = concatSource;
+        _lastPlayedIndex = safeStart;
+        _pendingOnlineSongs = const [];
+
+        if (shuffle) {
+          await player.setShuffleModeEnabled(true);
+          await player.shuffle();
+        } else {
+          await player.setShuffleModeEnabled(false);
+        }
+        await player.setLoopMode(LoopMode.all);
+        player.play();
+
+        final sessId = player.androidAudioSessionId;
+        if (sessId != null && sessId > 0) {
+          EqualizerService.instance.attachAudioSession(sessId);
+        }
+
+        return null;
+      } catch (e) {
+        debugPrint('[AudioController] allDirect play error: $e');
+      }
+    }
+
     // If song already carries a direct non-YT or decrypted media streamUrl
     final String directUrl = target.getStreamUrlForBitrate(SettingsService.instance.audioQuality.kbps);
     final List<ResolvedAudioStream> candidates;

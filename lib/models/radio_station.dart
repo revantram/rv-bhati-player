@@ -28,15 +28,15 @@ class RadioStation {
   final String? imageUrl;
 
   String get effectiveStreamUrl {
-    if (streamUrl.isNotEmpty && streamUrl.startsWith('http')) {
-      return streamUrl;
+    final s = streamUrl.trim();
+    if (s.isNotEmpty && s.startsWith('http')) {
+      return s;
     }
-    if (fallbackStreamUrl != null &&
-        fallbackStreamUrl!.isNotEmpty &&
-        fallbackStreamUrl!.startsWith('http')) {
-      return fallbackStreamUrl!;
+    final f = (fallbackStreamUrl ?? '').trim();
+    if (f.isNotEmpty && f.startsWith('http')) {
+      return f;
     }
-    return streamUrl;
+    return 'https://radio.wavespb.com/live/23ae73f45ccdd42d/23ae73f45ccdd42d.m3u8';
   }
 
   /// Curated list of 208 Rajasthan & Bollywood Radio Stations
@@ -2285,8 +2285,8 @@ class RadioStation {
       id: 'goldy-bhal',
       name: 'Goldy Bhal',
       tagline: 'Goldy Bhal • Live Stream',
-      streamUrl: 'http://stream.zeno.fm/rfxzab5h3p8uv   ',
-      fallbackStreamUrl: 'http://stream.zeno.fm/rfxzab5h3p8uv   ',
+      streamUrl: 'http://stream.zeno.fm/rfxzab5h3p8uv',
+      fallbackStreamUrl: 'http://stream.zeno.fm/rfxzab5h3p8uv',
       embedUrl: 'https://onlineradiofm.in/stations/goldy-bhal',
       category: 'Bollywood & Hindi',
       frequency: 'Online FM',
@@ -2341,8 +2341,8 @@ class RadioStation {
       id: 'goldy-blast',
       name: 'Goldy Blast',
       tagline: 'Goldy Blast • Live Stream',
-      streamUrl: 'http://stream.zeno.fm/d0rwvvwa6p8uv ',
-      fallbackStreamUrl: 'http://stream.zeno.fm/d0rwvvwa6p8uv ',
+      streamUrl: 'http://stream.zeno.fm/d0rwvvwa6p8uv',
+      fallbackStreamUrl: 'http://stream.zeno.fm/d0rwvvwa6p8uv',
       embedUrl: 'https://onlineradiofm.in/stations/goldy-blast',
       category: 'Bollywood & Hindi',
       frequency: 'Online FM',
