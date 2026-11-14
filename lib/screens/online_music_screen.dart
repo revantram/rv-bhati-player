@@ -9,7 +9,9 @@ import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
+import '../services/saavn_api_service.dart';
 import '../services/settings_service.dart';
+import '../services/spotify_service.dart';
 import '../services/yt_music_service.dart';
 import '../utils/format.dart';
 import '../widgets/add_to_playlist_dialog.dart';
@@ -94,9 +96,18 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     if (mounted) setState(() {});
   }
 
+  MusicEngine get _engine => SettingsService.instance.musicEngine;
+
   Future<void> _loadTrending({bool force = false}) async {
     setState(() => _isLoadingTrending = true);
-    final songs = await YtMusicService.instance.getTrendingSongs(forceRefresh: force);
+    List<OnlineSong> songs;
+    if (_engine == MusicEngine.youtube) {
+      songs = await YtMusicService.instance.getTrendingSongs(forceRefresh: force);
+    } else if (_engine == MusicEngine.spotify) {
+      songs = await SpotifyService.instance.getTrendingSongs();
+    } else {
+      songs = await SaavnApiService.instance.getTrendingSongs(forceRefresh: force);
+    }
     if (mounted) {
       setState(() {
         _trendingSongs = songs;
@@ -122,14 +133,24 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _isLoadingResults = true;
     });
     _debounce = Timer(const Duration(milliseconds: 380), () async {
-      final results = await Future.wait([
-        YtMusicService.instance.search(clean),
-        YtMusicService.instance.getSuggestions(clean),
-      ]);
+      List<OnlineSong> songs;
+      List<String> sugg = [];
+      if (_engine == MusicEngine.youtube) {
+        final results = await Future.wait([
+          YtMusicService.instance.search(clean),
+          YtMusicService.instance.getSuggestions(clean),
+        ]);
+        songs = results[0] as List<OnlineSong>;
+        sugg = results[1] as List<String>;
+      } else if (_engine == MusicEngine.spotify) {
+        songs = await SpotifyService.instance.search(clean);
+      } else {
+        songs = await SaavnApiService.instance.searchSongs(clean);
+      }
       if (mounted && _searchCtrl.text.trim() == clean) {
         setState(() {
-          _searchResults = results[0] as List<OnlineSong>;
-          _suggestions = results[1] as List<String>;
+          _searchResults = songs;
+          _suggestions = sugg;
           _isLoadingResults = false;
         });
       }
@@ -142,7 +163,14 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _isLoadingCustomSongs = true;
       _customSongs = [];
     });
-    final songs = await YtMusicService.instance.search(query);
+    List<OnlineSong> songs;
+    if (_engine == MusicEngine.youtube) {
+      songs = await YtMusicService.instance.search(query);
+    } else if (_engine == MusicEngine.spotify) {
+      songs = await SpotifyService.instance.search(query);
+    } else {
+      songs = await SaavnApiService.instance.searchSongs(query, limit: 100);
+    }
     if (mounted) {
       setState(() {
         _customSongs = songs;
@@ -205,14 +233,22 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = app.accentColor;
+    Color accent = app.accentColor;
+    if (_engine == MusicEngine.youtube) {
+      accent = const Color(0xFFFF1744);
+    } else if (_engine == MusicEngine.spotify) {
+      accent = const Color(0xFF1DB954);
+    } else {
+      accent = const Color(0xFF10B981);
+    }
 
     return Column(
       children: [
         SizedBox(height: widget.topOffset),
         _buildBitMusicHeader(accent),
+        _buildExtensionSelector(accent),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: _buildSearchBar(accent),
         ),
         if (_isSearching && _suggestions.isNotEmpty) _buildSuggestionChips(accent),
@@ -221,7 +257,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               ? _buildSongList(
                   _searchResults,
                   _isLoadingResults,
-                  'No songs found on BitMusic',
+                  _engine == MusicEngine.youtube
+                      ? 'No songs found on YouTube Music'
+                      : _engine == MusicEngine.spotify
+                          ? 'No songs found on Spotify'
+                          : 'No songs found on JioSaavn HD',
                   accent,
                 )
               : _buildHomeView(accent),
@@ -231,6 +271,20 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildBitMusicHeader(Color accent) {
+    String title = 'YouTube Music';
+    String subtitle = 'YouTube Innertube • Synced Lyrics';
+    IconData icon = Icons.play_arrow_rounded;
+
+    if (_engine == MusicEngine.jiosaavn) {
+      title = 'JioSaavn HD';
+      subtitle = '320kbps Studio Audio • Lossless FLAC';
+      icon = Icons.music_note_rounded;
+    } else if (_engine == MusicEngine.spotify) {
+      title = 'Spotify Music';
+      subtitle = 'Top Charts, Playlists & Viral Hits';
+      icon = Icons.graphic_eq_rounded;
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       child: Row(
@@ -256,8 +310,8 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                 ),
               ],
             ),
-            child: const Center(
-              child: Icon(Icons.graphic_eq_rounded, color: Colors.white, size: 20),
+            child: Center(
+              child: Icon(icon, color: Colors.white, size: 20),
             ),
           ),
           const SizedBox(width: 10),
@@ -265,16 +319,16 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'BitMusic',
+                title,
                 style: TextStyle(
-                  fontSize: 19,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: app.textColor,
                   letterSpacing: -0.4,
                 ),
               ),
               Text(
-                'BitChord Studio • Synced Lyrics',
+                subtitle,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -302,7 +356,99 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     );
   }
 
+  Widget _buildExtensionSelector(Color accent) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: app.surfaceColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: app.cardBorderColor,
+          ),
+        ),
+        child: Row(
+          children: MusicEngine.values.map((eng) {
+            final isSel = _engine == eng;
+            Color col;
+            IconData ic;
+            if (eng == MusicEngine.youtube) {
+              col = const Color(0xFFFF1744);
+              ic = Icons.play_arrow_rounded;
+            } else if (eng == MusicEngine.spotify) {
+              col = const Color(0xFF1DB954);
+              ic = Icons.graphic_eq_rounded;
+            } else {
+              col = const Color(0xFF10B981);
+              ic = Icons.music_note_rounded;
+            }
+
+            return Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  if (_engine != eng) {
+                    HapticFeedback.selectionClick();
+                    SettingsService.instance.setMusicEngine(eng);
+                    setState(() {
+                      _searchCtrl.clear();
+                      _isSearching = false;
+                      _searchResults = [];
+                      _suggestions = [];
+                      _customDisplayTitle = null;
+                      _customSongs = null;
+                    });
+                    _loadTrending(force: true);
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSel ? col : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: isSel
+                        ? [
+                            BoxShadow(
+                              color: col.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(ic, size: 14, color: isSel ? Colors.white : app.secondaryTextColor),
+                      const SizedBox(width: 5),
+                      Text(
+                        eng.shortName,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                          color: isSel ? Colors.white : app.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchBar(Color accent) {
+    String hint = 'YouTube Music par gaana ya artist khojein...';
+    if (_engine == MusicEngine.jiosaavn) {
+      hint = 'JioSaavn 320kbps HD gane khojein...';
+    } else if (_engine == MusicEngine.spotify) {
+      hint = 'Spotify Top Hits, Playlist ya gaana khojein...';
+    }
+
     return LiquidGlassContainer(
       borderRadius: BorderRadius.circular(18),
       blur: 0,
@@ -314,7 +460,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         onSubmitted: _onSearch,
         style: TextStyle(color: app.textColor, fontSize: 14.5),
         decoration: InputDecoration(
-          hintText: app.tr('search_online'),
+          hintText: hint,
           hintStyle: TextStyle(color: app.secondaryTextColor, fontSize: 13.5),
           prefixIcon: Icon(Icons.search_rounded, color: accent, size: 21),
           suffixIcon: _searchCtrl.text.isNotEmpty
@@ -441,6 +587,101 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           _buildArtistsSection(accent),
           const SizedBox(height: 18),
 
+          if (_engine == MusicEngine.spotify) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                'SPOTIFY FEATURED PLAYLISTS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: app.secondaryTextColor,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    icon: Icons.whatshot_rounded,
+                    title: "Today's Top Hits",
+                    subtitle: 'Spotify Global',
+                    accent: const Color(0xFF1DB954),
+                    onTap: () async {
+                      setState(() {
+                        _customDisplayTitle = "🔥 Today's Top Hits (Spotify)";
+                        _isLoadingCustomSongs = true;
+                        _customSongs = [];
+                      });
+                      final songs = await SpotifyService.instance.getSpotifyPlaylist('top_hits');
+                      if (mounted) setState(() { _customSongs = songs; _isLoadingCustomSongs = false; });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildActionCard(
+                    icon: Icons.music_note_rounded,
+                    title: 'Hot Hits Hindi',
+                    subtitle: 'Spotify India',
+                    accent: const Color(0xFFFF416C),
+                    onTap: () async {
+                      setState(() {
+                        _customDisplayTitle = '🇮🇳 Hot Hits Hindi (Spotify)';
+                        _isLoadingCustomSongs = true;
+                        _customSongs = [];
+                      });
+                      final songs = await SpotifyService.instance.getSpotifyPlaylist('india_50');
+                      if (mounted) setState(() { _customSongs = songs; _isLoadingCustomSongs = false; });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    icon: Icons.rocket_launch_rounded,
+                    title: 'Viral Hits India',
+                    subtitle: 'Trending Reels',
+                    accent: const Color(0xFF8E2DE2),
+                    onTap: () async {
+                      setState(() {
+                        _customDisplayTitle = '🚀 Viral Hits India (Spotify)';
+                        _isLoadingCustomSongs = true;
+                        _customSongs = [];
+                      });
+                      final songs = await SpotifyService.instance.getSpotifyPlaylist('viral_50');
+                      if (mounted) setState(() { _customSongs = songs; _isLoadingCustomSongs = false; });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildActionCard(
+                    icon: Icons.bolt_rounded,
+                    title: 'Punjabi 101',
+                    subtitle: 'Sidhu & Karan Aujla',
+                    accent: const Color(0xFFF7971E),
+                    onTap: () async {
+                      setState(() {
+                        _customDisplayTitle = '⚡ Punjabi 101 (Spotify)';
+                        _isLoadingCustomSongs = true;
+                        _customSongs = [];
+                      });
+                      final songs = await SpotifyService.instance.getSpotifyPlaylist('punjabi_100');
+                      if (mounted) setState(() { _customSongs = songs; _isLoadingCustomSongs = false; });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+          ],
+
           // 4. Discover / Selected Mix Header
           Row(
             children: [
@@ -452,7 +693,12 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _customDisplayTitle ?? 'Discover on BitMusic',
+                  _customDisplayTitle ??
+                      (_engine == MusicEngine.youtube
+                          ? '🔥 Trending YouTube Music'
+                          : _engine == MusicEngine.spotify
+                              ? '🔥 Spotify Top Charts & Viral Hits'
+                              : '🔥 Popular Right Now (JioSaavn HD)'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -916,7 +1162,11 @@ class _BitMusicSongTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
-                          SettingsService.instance.audioQuality.label.split(' ').first,
+                          song.id.startsWith('yt_')
+                              ? 'YouTube'
+                              : SettingsService.instance.musicEngine == MusicEngine.spotify
+                                  ? 'Spotify'
+                                  : '320 kbps HD',
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w800,
@@ -1002,7 +1252,12 @@ class _BitMusicSongTile extends StatelessWidget {
                       } else if (val == 'download') {
                         DownloadService.instance.downloadSong(song);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Downloading "${song.title}"...')),
+                          SnackBar(content: Text('Downloading Audio "${song.title}"...')),
+                        );
+                      } else if (val == 'download_video') {
+                        DownloadService.instance.downloadVideo(song);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Downloading Video "${song.title}"...')),
                         );
                       } else if (val == 'play_next') {
                         AudioController.instance.playOnlineNext(song);
@@ -1029,9 +1284,19 @@ class _BitMusicSongTile extends StatelessWidget {
                         value: 'download',
                         child: Row(
                           children: [
-                            Icon(Icons.download_rounded, color: app.secondaryTextColor, size: 20),
+                            Icon(Icons.music_note_rounded, color: const Color(0xFF10B981), size: 20),
                             const SizedBox(width: 10),
-                            Text('Download Offline', style: TextStyle(color: app.textColor)),
+                            Text('Download Audio (MP3)', style: TextStyle(color: app.textColor)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'download_video',
+                        child: Row(
+                          children: [
+                            Icon(Icons.video_collection_rounded, color: const Color(0xFFFF1744), size: 20),
+                            const SizedBox(width: 10),
+                            Text('Download Video (MP4)', style: TextStyle(color: app.textColor)),
                           ],
                         ),
                       ),

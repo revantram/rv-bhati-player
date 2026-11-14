@@ -126,11 +126,11 @@ jobs:
       - name: Prepare APKs for release
         run: |
           cd build/app/outputs/flutter-apk
-          # Universal APK (Compatible with 100% of all TVs, Fire TV Sticks, Tablets & Phones)
+          # Universal APK (Compatible with 100% of all Phones, Tablets & TVs)
+          cp app-release.apk RV-Bhati-Player.apk
           cp app-release.apk RV-Bhati-Player-Universal.apk
           cp app-release.apk RV-Bhati-Player-AndroidTV.apk
           # Split APKs for phones & low storage devices
-          cp app-arm64-v8a-release.apk RV-Bhati-Player.apk
           cp app-arm64-v8a-release.apk RV-Bhati-Player-arm64.apk
           cp app-armeabi-v7a-release.apk RV-Bhati-Player-armv7-32bit.apk
 

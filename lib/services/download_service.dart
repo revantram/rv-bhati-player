@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models/online_song.dart';
 import 'media_action_service.dart';
@@ -264,6 +265,64 @@ class DownloadService extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('[DownloadService] download failed: $e');
+      _progress.remove(song.id);
+      _activeDownloads.remove(song.id);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> downloadVideo(OnlineSong song) async {
+    if (isDownloading(song.id)) return true;
+
+    _activeDownloads.add(song.id);
+    _progress[song.id] = 0.02;
+    notifyListeners();
+
+    try {
+      final ytId = song.id.startsWith('yt_') ? song.id.replaceFirst('yt_', '') : song.id;
+      final yt = YoutubeExplode();
+      final manifest = await yt.videos.streamsClient.getManifest(ytId);
+      final muxedStreams = manifest.muxed.sortByVideoQuality();
+      if (muxedStreams.isEmpty) {
+        yt.close();
+        return downloadSong(song);
+      }
+      final streamInfo = muxedStreams.last;
+
+      final dir = Directory('/storage/emulated/0/Download/RV-Bhati-Player/Videos');
+      if (!dir.existsSync()) {
+        dir.createSync(recursive: true);
+      }
+      final cleanTitle = song.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+      final filename = '${cleanTitle}.mp4'.replaceAll(' ', '_');
+      final targetFile = File('${dir.path}/$filename');
+
+      final stream = yt.videos.streamsClient.get(streamInfo);
+      final sink = targetFile.openWrite();
+      final totalBytes = streamInfo.size.totalBytes;
+      int receivedBytes = 0;
+
+      await for (final chunk in stream) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (totalBytes > 0) {
+          _progress[song.id] = (receivedBytes / totalBytes).clamp(0.0, 1.0);
+          notifyListeners();
+        }
+      }
+      await sink.flush();
+      await sink.close();
+      yt.close();
+
+      await MediaActionService.scanFile(targetFile.path);
+
+      _progress.remove(song.id);
+      _activeDownloads.remove(song.id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('[DownloadService] video download error: $e');
       _progress.remove(song.id);
       _activeDownloads.remove(song.id);
       notifyListeners();

@@ -14,11 +14,14 @@ enum AudioQuality {
 }
 
 enum MusicEngine {
-  bitmusic('BitMusic YT', 'YouTube Music + LRCLIB Synced Lyrics');
+  youtube('YouTube Music', 'Universal Search (Songs, Covers, Mashups, Live)', 'YouTube'),
+  jiosaavn('JioSaavn HD', 'Lossless 320kbps High Fidelity Audio', 'JioSaavn'),
+  spotify('Spotify Music', 'Spotify Top Charts, Hot Hits & Viral Engine', 'Spotify');
 
-  const MusicEngine(this.label, this.description);
+  const MusicEngine(this.label, this.description, this.shortName);
   final String label;
   final String description;
+  final String shortName;
 }
 
 enum AppThemeMode {
@@ -49,7 +52,7 @@ class SettingsService extends ChangeNotifier {
   AudioQuality _audioQuality = AudioQuality.hd320;
   AudioQuality get audioQuality => _audioQuality;
 
-  MusicEngine _musicEngine = MusicEngine.bitmusic;
+  MusicEngine _musicEngine = MusicEngine.youtube;
   MusicEngine get musicEngine => _musicEngine;
 
   bool _autoQuality = true;
@@ -94,6 +97,12 @@ class SettingsService extends ChangeNotifier {
           _audioQuality = AudioQuality.values.firstWhere(
             (q) => q.name == map['audioQuality'],
             orElse: () => AudioQuality.hd320,
+          );
+        }
+        if (map['musicEngine'] != null) {
+          _musicEngine = MusicEngine.values.firstWhere(
+            (e) => e.name == map['musicEngine'] || (map['musicEngine'] == 'bitmusic' && e == MusicEngine.youtube),
+            orElse: () => MusicEngine.youtube,
           );
         }
         if (map['autoQuality'] != null) {

@@ -102,6 +102,10 @@ class SpotifyService {
     return const [];
   }
 
+  Future<List<OnlineSong>> getTrendingSongs() async {
+    return getSpotifyPlaylist('india_50');
+  }
+
   /// Search via BitMusic
   Future<List<OnlineSong>> search(String query) async {
     final clean = query.trim();

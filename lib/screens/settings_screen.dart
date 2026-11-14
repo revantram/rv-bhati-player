@@ -140,6 +140,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // My Library Hub
                       _buildMyLibrarySection(context, textColor, secondaryTextColor, accent, isLight),
 
+                    // Section: Music Extensions
+                    _buildSectionHeader('MUSIC EXTENSIONS / म्यूजिक एक्सटेंशन', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 0,
+                      child: Column(
+                        children: [
+                          for (final eng in MusicEngine.values) ...[
+                            _buildEngineTile(eng, textColor, secondaryTextColor, accent),
+                            if (eng != MusicEngine.values.last)
+                              _buildDivider(isLight),
+                          ],
+                        ],
+                      ),
+                    ),
 
                     // Section 1: Streaming Quality
                     _buildSectionHeader('AUDIO STREAMING QUALITY', textColor),
@@ -797,6 +813,100 @@ class _SettingsScreenState extends State<SettingsScreen> {
       indent: 52,
       endIndent: 16,
       color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+    );
+  }
+
+  Widget _buildEngineTile(
+    MusicEngine engine,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+  ) {
+    final isSelected = SettingsService.instance.musicEngine == engine;
+    Color engineColor;
+    IconData engineIcon;
+    if (engine == MusicEngine.youtube) {
+      engineColor = const Color(0xFFFF1744);
+      engineIcon = Icons.play_arrow_rounded;
+    } else if (engine == MusicEngine.spotify) {
+      engineColor = const Color(0xFF1DB954);
+      engineIcon = Icons.graphic_eq_rounded;
+    } else {
+      engineColor = const Color(0xFF10B981);
+      engineIcon = Icons.music_note_rounded;
+    }
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        SettingsService.instance.setMusicEngine(engine);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: engineColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(engineIcon, color: engineColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        engine.label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      if (isSelected)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: engineColor.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Active',
+                            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: engineColor),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    engine.description,
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                ],
+              ),
+            ),
+            Radio<MusicEngine>(
+              value: engine,
+              groupValue: SettingsService.instance.musicEngine,
+              activeColor: engineColor,
+              onChanged: (val) {
+                if (val != null) {
+                  HapticFeedback.selectionClick();
+                  SettingsService.instance.setMusicEngine(val);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
