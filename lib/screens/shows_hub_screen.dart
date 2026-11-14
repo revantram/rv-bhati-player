@@ -354,7 +354,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                           ],
                         ),
                       ),
-                      if (!_isInSubView) ...[
+                      if (!_isInSubView)
                         IconButton(
                           icon: Icon(Icons.refresh_rounded, color: accent),
                           tooltip: 'Refresh',
@@ -368,16 +368,6 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                             }
                           },
                         ),
-                        if (widget.isTab)
-                          IconButton(
-                            icon: Icon(Icons.settings_outlined, color: secondaryTextColor),
-                            tooltip: 'Settings',
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                            ),
-                          ),
-                      ],
                     ],
                   ),
                   if (!_isInSubView) ...[

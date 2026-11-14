@@ -461,10 +461,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onOpenOnline: _openNowPlaying,
                   ),
                 ),
-              // Bottom Nav: 4 items (Videos, Music Hub, FM Radio, Shows & Osho)
+              // Bottom Nav: 5 items (Videos, Music Hub, FM Radio, Shows & Osho, Settings)
               Positioned(
-                left: 16,
-                right: 16,
+                left: 12,
+                right: 12,
                 bottom: pad.bottom + 12,
                 child: GlassBottomNav(
                   index: _tab,
@@ -480,6 +480,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     GlassNavItem(Icons.graphic_eq_rounded, app.tr('bitmusic')),
                     GlassNavItem(Icons.radio_rounded, 'FM Radio'),
                     GlassNavItem(Icons.podcasts_rounded, 'Shows & Osho'),
+                    GlassNavItem(Icons.settings_rounded, 'Settings'),
                   ],
                 ),
               ),
@@ -618,7 +619,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ? OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset)
               : _tab == 2
                   ? RadioScreen(topOffset: topOffset, bottomOffset: bottomOffset)
-                  : ShowsHubScreen(isTab: true, bottomOffset: bottomOffset),
+                  : _tab == 3
+                      ? ShowsHubScreen(isTab: true, bottomOffset: bottomOffset)
+                      : SettingsScreen(isTab: true, bottomOffset: bottomOffset),
     );
   }
 
