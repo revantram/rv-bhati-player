@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/online_song.dart';
 import '../models/playlist_item.dart';
@@ -53,16 +52,26 @@ class JioSaavnAuthService extends ChangeNotifier {
     return 'JioSaavn User';
   }
 
+  File _getAuthFile() {
+    final dir = Directory('/data/user/0/com.rvbhati.player/files');
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    return File('${dir.path}/jiosaavn_auth.json');
+  }
+
   Future<void> init() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _isLoggedIn = prefs.getBool(_kLoggedIn) ?? false;
-      _phoneNumber = prefs.getString(_kPhone);
-      _userId = prefs.getString(_kUserId);
-      _userName = prefs.getString(_kUserName);
-      _avatarUrl = prefs.getString(_kAvatar);
-      _cookies = prefs.getString(_kCookies);
-      notifyListeners();
+      final file = _getAuthFile();
+      if (file.existsSync()) {
+        final content = file.readAsStringSync();
+        final map = jsonDecode(content) as Map<String, dynamic>;
+        _isLoggedIn = map[_kLoggedIn] as bool? ?? false;
+        _phoneNumber = map[_kPhone] as String?;
+        _userId = map[_kUserId] as String?;
+        _userName = map[_kUserName] as String?;
+        _avatarUrl = map[_kAvatar] as String?;
+        _cookies = map[_kCookies] as String?;
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('[JioSaavnAuth] Init error: $e');
     }
@@ -83,13 +92,16 @@ class JioSaavnAuthService extends ChangeNotifier {
     if (avatarUrl != null && avatarUrl.isNotEmpty) _avatarUrl = avatarUrl;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_kLoggedIn, true);
-      await prefs.setString(_kCookies, _cookies ?? '');
-      if (_phoneNumber != null) await prefs.setString(_kPhone, _phoneNumber!);
-      if (_userId != null) await prefs.setString(_kUserId, _userId!);
-      if (_userName != null) await prefs.setString(_kUserName, _userName!);
-      if (_avatarUrl != null) await prefs.setString(_kAvatar, _avatarUrl!);
+      final file = _getAuthFile();
+      final map = {
+        _kLoggedIn: true,
+        _kCookies: _cookies ?? '',
+        _kPhone: _phoneNumber,
+        _kUserId: _userId,
+        _kUserName: _userName,
+        _kAvatar: _avatarUrl,
+      };
+      await file.writeAsString(jsonEncode(map));
     } catch (e) {
       debugPrint('[JioSaavnAuth] Error saving session: $e');
     }
@@ -111,13 +123,10 @@ class JioSaavnAuthService extends ChangeNotifier {
     _lastSyncMessage = null;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_kLoggedIn);
-      await prefs.remove(_kPhone);
-      await prefs.remove(_kUserId);
-      await prefs.remove(_kUserName);
-      await prefs.remove(_kAvatar);
-      await prefs.remove(_kCookies);
+      final file = _getAuthFile();
+      if (file.existsSync()) {
+        await file.delete();
+      }
 
       // Clear webview cookies
       try {
