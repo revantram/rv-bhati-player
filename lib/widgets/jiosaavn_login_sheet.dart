@@ -29,38 +29,38 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
   bool _loginHandled = false;
 
   static const String _kCustomCss = '''
-    html, body {
+    html, body, #root, .u-fullscreen, .o-wrapper {
       background-color: #0d1117 !important;
       color: #f0f6fc !important;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
-    /* Ensure the login container and its contents are ALWAYS visible */
-    .login, .login.banner, #root, main, form {
-      display: block !important;
-      visibility: visible !important;
-      opacity: 1 !important;
-      background: transparent !important;
+    h1, h2, h3, p, span, em, label {
+      color: #f0f6fc !important;
     }
-    /* Hide top header bar, footer and accessibility announcer */
+    /* Hide top header bar, footer, and announcer */
     header.c-header, footer, nav, #sr-toast-announcer-global {
       display: none !important;
     }
     /* Hide Facebook and social buttons */
-    .c-btn--facebook, .c-login__social, .c-login__divider {
+    .c-btn--facebook, .c-login__social, .c-login__divider, .o-rule {
       display: none !important;
     }
-    .PhoneInputInput, input[type="tel"] {
+    .PhoneInput {
       background: #161b22 !important;
-      color: #ffffff !important;
       border: 1.5px solid #30363d !important;
       border-radius: 12px !important;
-      padding: 14px 16px !important;
-      font-size: 17px !important;
+      padding: 6px 12px !important;
+      margin: 12px 0 !important;
+    }
+    .PhoneInputInput, input[type="tel"] {
+      background: transparent !important;
+      color: #ffffff !important;
+      font-size: 18px !important;
+      border: none !important;
       outline: none !important;
     }
-    .PhoneInputInput:focus, input[type="tel"]:focus {
-      border-color: #2ea043 !important;
-      box-shadow: 0 0 10px rgba(46, 160, 67, 0.3) !important;
+    .PhoneInputCountrySelect {
+      background: #161b22 !important;
+      color: #ffffff !important;
     }
     input[type="number"], input[maxlength="1"], input[maxlength="6"] {
       background: #161b22 !important;
@@ -75,10 +75,11 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
       color: #ffffff !important;
       border: none !important;
       border-radius: 25px !important;
-      padding: 14px 28px !important;
+      padding: 12px 28px !important;
       font-size: 16px !important;
       font-weight: 600 !important;
       box-shadow: 0 4px 15px rgba(46, 160, 67, 0.4) !important;
+      width: 100% !important;
     }
   ''';
 
@@ -327,45 +328,85 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
               ),
             ),
 
-            // WebView
+            // WebView with loading indicator
             Expanded(
-              child: InAppWebView(
-                initialUrlRequest: URLRequest(
-                  url: WebUri('https://www.jiosaavn.com/login'),
-                ),
-                initialSettings: InAppWebViewSettings(
-                  javaScriptEnabled: true,
-                  domStorageEnabled: true,
-                  cacheEnabled: true,
-                  mediaPlaybackRequiresUserGesture: false,
-                  userAgent: 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-                ),
-                onWebViewCreated: (controller) {
-                  _webViewController = controller;
-                  controller.addJavaScriptHandler(
-                    handlerName: 'onLoginSuccess',
-                    callback: (args) => _handleSuccessfulLogin(args),
-                  );
-                },
-                onLoadStart: (controller, url) {
-                  setState(() => _isLoading = true);
-                },
-                onProgressChanged: (controller, progress) {
-                  setState(() => _progress = progress / 100);
-                },
-                onLoadStop: (controller, url) async {
-                  setState(() => _isLoading = false);
-                  await controller.injectCSSCode(source: _kCustomCss);
-                  await controller.evaluateJavascript(source: _kInjectionJs);
+              child: Stack(
+                children: [
+                  InAppWebView(
+                    initialUrlRequest: URLRequest(
+                      url: WebUri('https://www.jiosaavn.com/login'),
+                    ),
+                    initialSettings: InAppWebViewSettings(
+                      javaScriptEnabled: true,
+                      domStorageEnabled: true,
+                      thirdPartyCookiesEnabled: true,
+                      cacheEnabled: true,
+                      supportMultipleWindows: false,
+                      javaScriptCanOpenWindowsAutomatically: true,
+                      mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                      allowContentAccess: true,
+                      allowFileAccess: true,
+                      useWideViewPort: true,
+                      loadWithOverviewMode: true,
+                      userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                    ),
+                    onWebViewCreated: (controller) {
+                      _webViewController = controller;
+                      controller.addJavaScriptHandler(
+                        handlerName: 'onLoginSuccess',
+                        callback: (args) => _handleSuccessfulLogin(args),
+                      );
+                    },
+                    onLoadStart: (controller, url) {
+                      setState(() => _isLoading = true);
+                    },
+                    onProgressChanged: (controller, progress) {
+                      setState(() => _progress = progress / 100);
+                      if (progress > 60) {
+                        controller.injectCSSCode(source: _kCustomCss);
+                        controller.evaluateJavascript(source: _kInjectionJs);
+                      }
+                    },
+                    onLoadStop: (controller, url) async {
+                      setState(() => _isLoading = false);
+                      await controller.injectCSSCode(source: _kCustomCss);
+                      await controller.evaluateJavascript(source: _kInjectionJs);
 
-                  // If navigated away from login page, check if login occurred
-                  final urlStr = url?.toString() ?? '';
-                  if (!urlStr.contains('/login') && !urlStr.contains('/signup')) {
-                    _handleSuccessfulLogin([
-                      {'cookies': '', 'data': null}
-                    ]);
-                  }
-                },
+                      // If navigated away from login page, check if login occurred
+                      final urlStr = url?.toString() ?? '';
+                      if (!urlStr.contains('/login') && !urlStr.contains('/signup')) {
+                        _handleSuccessfulLogin([
+                          {'cookies': '', 'data': null}
+                        ]);
+                      }
+                    },
+                  ),
+                  if (_isLoading)
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF161B22),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            CircularProgressIndicator(
+                              color: Color(0xFF2EA043),
+                              strokeWidth: 2.5,
+                            ),
+                            SizedBox(height: 12),
+                            Text(
+                              'Connecting to JioSaavn...',
+                              style: TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

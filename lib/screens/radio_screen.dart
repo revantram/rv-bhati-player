@@ -130,9 +130,9 @@ class _RadioScreenState extends State<RadioScreen> {
             itemCount: filteredStations.length,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.88,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: isTabletOrTv ? 2.8 : 2.35,
             ),
             itemBuilder: (context, i) {
               return _RadioStationGridCard(station: filteredStations[i]);
@@ -345,37 +345,36 @@ class _RadioStationGridCard extends StatelessWidget {
             radio.toggleStation(station);
           },
           child: LiquidGlassContainer(
-            borderRadius: BorderRadius.circular(18),
-            padding: const EdgeInsets.all(12),
+            borderRadius: BorderRadius.circular(15),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             blur: 0,
-            opacity: app.isLight ? 0.85 : 0.12,
+            opacity: app.isLight ? 0.88 : 0.12,
             borderWidth: isActive ? 1.5 : 1.0,
             borderColor: isActive
-                ? station.color.withValues(alpha: 0.75)
+                ? station.color.withValues(alpha: 0.8)
                 : (app.isLight
-                    ? Colors.white.withValues(alpha: 0.6)
+                    ? Colors.black.withValues(alpha: 0.08)
                     : Colors.white.withValues(alpha: 0.12)),
             tint: isActive ? station.color.withValues(alpha: 0.12) : null,
             glow: isActive,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
               children: [
-                // 52x52 Round Icon/Logo Container
+                // 34x34 Round Icon/Logo Container
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: station.color.withValues(alpha: 0.15),
                     border: Border.all(
-                      color: station.color.withValues(alpha: isPlaying ? 0.6 : 0.25),
+                      color: station.color.withValues(alpha: isPlaying ? 0.7 : 0.25),
                       width: 1.2,
                     ),
                     boxShadow: isPlaying
                         ? [
                             BoxShadow(
                               color: station.color.withValues(alpha: 0.35),
-                              blurRadius: 12,
+                              blurRadius: 8,
                               spreadRadius: 1,
                             ),
                           ]
@@ -388,124 +387,73 @@ class _RadioStationGridCard extends StatelessWidget {
                             ? ClipOval(
                                 child: Image.network(
                                   station.imageUrl!,
-                                  width: 44,
-                                  height: 44,
+                                  width: 30,
+                                  height: 30,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => Text(
                                     station.icon,
-                                    style: const TextStyle(fontSize: 24),
+                                    style: const TextStyle(fontSize: 16),
                                   ),
                                 ),
                               )
                             : Text(
                                 station.icon,
-                                style: const TextStyle(fontSize: 24),
+                                style: const TextStyle(fontSize: 16),
                               )),
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(width: 8),
 
-                // Station Name
-                Text(
-                  station.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: isPlaying ? station.color : app.textColor,
+                // Station Info Column
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        station.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11.5,
+                          color: isPlaying ? station.color : app.textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        station.tagline.isNotEmpty ? station.tagline : station.frequency,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: app.secondaryTextColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 3),
+                const SizedBox(width: 4),
 
-                // Station Tagline
-                Text(
-                  station.tagline,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: app.secondaryTextColor,
+                // Status Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isPlaying
+                        ? const Color(0xFF00E676)
+                        : (isLoading ? const Color(0xFFFFB300) : const Color(0xFFEF4444).withValues(alpha: 0.8)),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Live Badge & Status Pill
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: isPlaying
-                            ? const Color(0xFF00E676)
-                            : (isLoading ? const Color(0xFFFFB300) : const Color(0xFFEF4444)),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isPlaying
-                                    ? const Color(0xFF00E676)
-                                    : (isLoading
-                                        ? const Color(0xFFFFB300)
-                                        : const Color(0xFFEF4444)))
-                                .withValues(alpha: 0.4),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isLoading)
-                            const SizedBox(
-                              width: 8,
-                              height: 8,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          else if (isPlaying)
-                            const _PulsingDot(color: Colors.white)
-                          else
-                            Container(
-                              width: 5,
-                              height: 5,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                              ),
-                            ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isPlaying
-                                ? 'PLAYING'
-                                : (isLoading ? 'CONNECTING' : '🔴 LIVE'),
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ],
-                      ),
+                  child: Text(
+                    isLoading ? '...' : (isPlaying ? 'LIVE' : 'FM'),
+                    style: const TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      station.frequency,
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: app.secondaryTextColor.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),

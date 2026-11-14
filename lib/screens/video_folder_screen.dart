@@ -100,6 +100,11 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
               ),
               const SizedBox(height: 14),
               _buildSortOption(
+                FolderSortType.recent,
+                'Recent Use (हाल ही में उपयोग किया गया)',
+                Icons.history_rounded,
+              ),
+              _buildSortOption(
                 FolderSortType.count,
                 'Video Count (सर्वाधिक वीडियो)',
                 Icons.format_list_numbered_rounded,

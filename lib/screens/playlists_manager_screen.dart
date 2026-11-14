@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/media_file.dart';
+import '../models/playlist_item.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/media_scanner.dart';
@@ -216,6 +217,21 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
     );
   }
 
+  List<PlaylistItem> _getItemsForPlaylist(String name) {
+    final customList = app.customPlaylists[name] ?? [];
+    final legacyIds = app.playlists[name] ?? [];
+    final List<PlaylistItem> items = List.from(customList);
+    for (final id in legacyIds) {
+      if (!items.any((i) => i.id == id)) {
+        final local = MediaScanner.lastScannedAudios.where((a) => a.id == id).firstOrNull;
+        if (local != null) {
+          items.add(PlaylistItem.fromMediaFile(local));
+        }
+      }
+    }
+    return items;
+  }
+
   Widget _buildPlaylistsList(
     Color textColor,
     Color secondaryTextColor,
@@ -259,7 +275,7 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final name = allNames[index];
-        final songIds = app.playlists[name] ?? app.customPlaylists[name] ?? [];
+        final items = _getItemsForPlaylist(name);
 
         return iOSBounceButton(
           onTap: () {
@@ -310,7 +326,7 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${songIds.length} Tracks',
+                        '${items.length} Tracks',
                         style: TextStyle(
                           color: secondaryTextColor,
                           fontSize: 12,
@@ -336,12 +352,11 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
     bool isLight,
   ) {
     final name = _selectedPlaylist!;
-    final songIds = app.playlists[name] ?? app.customPlaylists[name] ?? [];
-    final songs = MediaScanner.lastScannedAudios.where((a) => songIds.contains(a.id)).toList();
+    final items = _getItemsForPlaylist(name);
 
     return Column(
       children: [
-        if (songs.isNotEmpty)
+        if (items.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
             child: Row(
@@ -361,7 +376,7 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
                     label: const Text('Play All',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                     onPressed: () {
-                      AudioController.instance.playQueue(songs, 0, shuffle: false);
+                      AudioController.instance.playHybridQueue(items, 0, shuffle: false);
                     },
                   ),
                 ),
@@ -384,7 +399,7 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
                     label: const Text('Shuffle',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                     onPressed: () {
-                      AudioController.instance.playQueue(songs, 0, shuffle: true);
+                      AudioController.instance.playHybridQueue(items, 0, shuffle: true);
                     },
                   ),
                 ),
@@ -392,7 +407,7 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
             ),
           ),
         Expanded(
-          child: songs.isEmpty
+          child: items.isEmpty
               ? Center(
                   child: Text(
                     'No songs added to this playlist yet.',
@@ -401,13 +416,13 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
                 )
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
-                  itemCount: songs.length,
+                  itemCount: items.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    final s = songs[index];
+                    final s = items[index];
                     return iOSBounceButton(
                       onTap: () {
-                        AudioController.instance.playQueue(songs, index);
+                        AudioController.instance.playHybridQueue(items, index, shuffle: false);
                       },
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -422,23 +437,17 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: accent.withValues(alpha: 0.15),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    color: accent,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: (s.imageUrl != null && s.imageUrl!.isNotEmpty)
+                                  ? Image.network(
+                                      s.imageUrl!,
+                                      width: 44,
+                                      height: 44,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _buildIndexBadge(index + 1, accent),
+                                    )
+                                  : _buildIndexBadge(index + 1, accent),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -457,7 +466,7 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${s.artist ?? "Unknown"} • ${FormatUtils.duration(s.duration)}',
+                                    '${s.artist}${s.isOnline ? " • JioSaavn HD" : ""} • ${FormatUtils.duration(s.duration)}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -478,6 +487,27 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildIndexBadge(int index, Color accent) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Text(
+          '$index',
+          style: TextStyle(
+            color: accent,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+        ),
+      ),
     );
   }
 }

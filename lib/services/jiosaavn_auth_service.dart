@@ -102,6 +102,9 @@ class JioSaavnAuthService extends ChangeNotifier {
         _kAvatar: _avatarUrl,
       };
       await file.writeAsString(jsonEncode(map));
+      if (_phoneNumber != null && _phoneNumber!.isNotEmpty) {
+        AppState.instance.setUserPhone(_phoneNumber!);
+      }
     } catch (e) {
       debugPrint('[JioSaavnAuth] Error saving session: $e');
     }

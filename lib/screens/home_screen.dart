@@ -36,6 +36,7 @@ import 'radio_screen.dart';
 import 'video_folder_screen.dart';
 import 'video_player_screen.dart';
 import 'settings_screen.dart';
+import 'shows_hub_screen.dart';
 import '../widgets/wave_visualizer.dart';
 
 enum SortOption {
@@ -448,18 +449,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   right: 16,
                   child: _buildSearchBar(),
                 ),
-              // Dynamic Island: Floats above bottom nav when audio/radio is playing
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: pad.bottom + 84,
-                child: DynamicIslandPlayer(
-                  onOpen: _openNowPlaying,
-                  onOpenRadio: () => setState(() => _tab = 1),
-                  onOpenOnline: _openNowPlaying,
+              // Dynamic Island: Floats above bottom nav when audio/radio is playing (hidden on Videos tab)
+              if (_tab != 0)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: pad.bottom + 84,
+                  child: DynamicIslandPlayer(
+                    onOpen: _openNowPlaying,
+                    onOpenRadio: () => setState(() => _tab = 2),
+                    onOpenOnline: _openNowPlaying,
+                  ),
                 ),
-              ),
-              // Bottom Nav: 4 items (Videos, FM Radio, BitMusic, Settings)
+              // Bottom Nav: 4 items (Videos, Music Hub, FM Radio, Shows & Osho)
               Positioned(
                 left: 16,
                 right: 16,
@@ -475,9 +477,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                   items: [
                     GlassNavItem(Icons.movie_filter_rounded, app.tr('videos')),
-                    GlassNavItem(Icons.radio_rounded, 'FM Radio'),
                     GlassNavItem(Icons.graphic_eq_rounded, app.tr('bitmusic')),
-                    GlassNavItem(Icons.settings_rounded, 'Settings'),
+                    GlassNavItem(Icons.radio_rounded, 'FM Radio'),
+                    GlassNavItem(Icons.podcasts_rounded, 'Shows & Osho'),
                   ],
                 ),
               ),
@@ -613,10 +615,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: _tab == 0
           ? _buildVideosSection(topOffset, bottomOffset)
           : _tab == 1
-              ? RadioScreen(topOffset: topOffset, bottomOffset: bottomOffset)
+              ? OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset)
               : _tab == 2
-                  ? OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset)
-                  : SettingsScreen(isTab: true, bottomOffset: bottomOffset),
+                  ? RadioScreen(topOffset: topOffset, bottomOffset: bottomOffset)
+                  : ShowsHubScreen(isTab: true, bottomOffset: bottomOffset),
     );
   }
 
@@ -717,81 +719,65 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         if (recentVideo != null)
           Positioned(
-            left: 20,
-            right: 20,
-            bottom: bottomOffset - 78,
-            child: Center(
-              child: PressableScale(
-                onTap: () {
-                  HapticFeedback.mediumImpact();
-                  _open([recentVideo], 0);
-                },
-                child: Container(
-                  height: 52,
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: isLight ? Colors.white : const Color(0xFF1E2438),
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: accent, width: 1.4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
+            right: 18,
+            bottom: bottomOffset - 72,
+            child: PressableScale(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                _open([recentVideo], 0);
+              },
+              child: LiquidGlassContainer(
+                borderRadius: BorderRadius.circular(24),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                blur: 0,
+                opacity: isLight ? 0.92 : 0.22,
+                borderWidth: 1.2,
+                borderColor: accent.withValues(alpha: 0.6),
+                tint: accent.withValues(alpha: 0.12),
+                glow: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [accent, const Color(0xFF00D2FF)],
+                        ),
                       ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [accent, const Color(0xFF00D2FF)],
+                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Resume Video',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: accent,
+                            ),
                           ),
-                        ),
-                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 10),
-                      Flexible(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Resume Recent Video / पिछला वीडियो',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: accent,
-                              ),
+                          Text(
+                            VideoFolderScreen.cleanFolderName(recentVideo.displayTitle),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: app.textColor,
                             ),
-                            Text(
-                              VideoFolderScreen.cleanFolderName(recentVideo.displayTitle),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: app.textColor,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 12, color: accent),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),

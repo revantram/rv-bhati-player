@@ -51,20 +51,8 @@ class MediaActionService {
   static Future<bool> deleteVideo(MediaFile video) async {
     bool deleted = false;
 
-    // 1. PhotoManager Scoped Storage Delete (Handles Android 11+ system permission modal)
-    try {
-      if (video.id.isNotEmpty) {
-        final res = await PhotoManager.editor.deleteWithIds([video.id]);
-        if (res.contains(video.id)) {
-          deleted = true;
-        }
-      }
-    } catch (e) {
-      debugPrint('PhotoManager Scoped delete exception: $e');
-    }
-
-    // 2. Direct File deletion fallback (App internal or legacy storage)
-    if (!deleted && video.path.isNotEmpty) {
+    // 1. Direct File deletion first (Uses storage permission directly, avoiding redundant OS prompt)
+    if (video.path.isNotEmpty) {
       try {
         final f = File(video.path);
         if (f.existsSync()) {
@@ -76,7 +64,7 @@ class MediaActionService {
       }
     }
 
-    // 3. Native channel ContentResolver delete fallback
+    // 2. Native channel ContentResolver delete fallback
     if (!deleted && (video.path.isNotEmpty || video.id.isNotEmpty)) {
       try {
         final res = await _mediaChannel.invokeMethod<bool>('deleteMedia', {
@@ -86,6 +74,18 @@ class MediaActionService {
         deleted = res == true;
       } catch (e) {
         debugPrint('Native channel deleteMedia exception: $e');
+      }
+    }
+
+    // 3. PhotoManager Scoped Storage Delete fallback
+    if (!deleted && video.id.isNotEmpty) {
+      try {
+        final res = await PhotoManager.editor.deleteWithIds([video.id]);
+        if (res.contains(video.id)) {
+          deleted = true;
+        }
+      } catch (e) {
+        debugPrint('PhotoManager Scoped delete exception: $e');
       }
     }
 

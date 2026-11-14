@@ -1,9 +1,10 @@
 import '../models/media_file.dart';
 
 enum FolderSortType {
-  name,
-  size,
+  recent,
   count,
+  size,
+  name,
 }
 
 class VideoFolder {
@@ -65,6 +66,13 @@ class VideoFolder {
 
     // Apply sorting
     switch (sortType) {
+      case FolderSortType.recent:
+        folders.sort((a, b) {
+          final aDate = a.videos.isNotEmpty ? (a.videos.first.modifiedDate ?? DateTime(0)) : DateTime(0);
+          final bDate = b.videos.isNotEmpty ? (b.videos.first.modifiedDate ?? DateTime(0)) : DateTime(0);
+          return bDate.compareTo(aDate);
+        });
+        break;
       case FolderSortType.name:
         folders.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
         break;

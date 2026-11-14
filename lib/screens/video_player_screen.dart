@@ -106,6 +106,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _index = widget.startIndex;
     AudioController.instance.player.pause(); // stop music
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    try {
+      VolumeController.instance.showSystemUI = false;
+    } catch (_) {}
     WakelockPlus.enable();
     _readDeviceLevels();
     _load(_index);
@@ -120,6 +123,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _controller?.removeListener(_onTick);
     _controller?.dispose();
     WakelockPlus.disable();
+    try {
+      VolumeController.instance.showSystemUI = true;
+    } catch (_) {}
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     ScreenBrightness.instance.resetApplicationScreenBrightness().catchError((_) {});
@@ -402,7 +408,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       ));
     } else {
       _volume = (_volume + delta).clamp(0.0, 1.0).toDouble();
-      VolumeController.instance.setVolume(_volume);
+      try {
+        VolumeController.instance.setVolume(_volume, showSystemUI: false);
+      } catch (_) {}
+      _controller?.setVolume(_volume);
       _showHud(_Hud(
         _volume == 0
             ? Icons.volume_off_rounded
@@ -416,6 +425,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   void _onScaleStart(ScaleStartDetails d) {
     if (_touchLocked || _controller == null) return;
+    final screenH = MediaQuery.maybeOf(context)?.size.height ?? 800;
+    if (d.localFocalPoint.dy < 36 || d.localFocalPoint.dy > screenH - 36) {
+      _dragMode = 'edge_ignored';
+      return;
+    }
     _baseZoom = _zoomScale;
     _basePan = _panOffset;
     _dragMode = null;
@@ -430,6 +444,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   void _onScaleUpdate(ScaleUpdateDetails d, double screenWidth, double screenHeight) {
     if (_touchLocked || _controller == null) return;
+    if (_dragMode == 'edge_ignored') return;
 
     // 2-finger pinch-to-zoom & pan
     if (d.pointerCount >= 2 || _isPinching) {

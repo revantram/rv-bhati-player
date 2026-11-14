@@ -142,26 +142,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // My Library Hub
                       _buildMyLibrarySection(context, textColor, secondaryTextColor, accent, isLight),
 
-                    // Section: Music Extensions
-                    _buildSectionHeader('MUSIC EXTENSIONS / म्यूजिक एक्सटेंशन', textColor),
-                    LiquidGlassContainer(
-                      borderRadius: BorderRadius.circular(22),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      blur: 0,
-                      child: Column(
-                        children: [
-                          for (final eng in MusicEngine.values) ...[
-                            _buildEngineTile(eng, textColor, secondaryTextColor, accent),
-                            if (eng != MusicEngine.values.last)
-                              _buildDivider(isLight),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    // Section: JioSaavn Account (Mobile OTP)
-                    _buildJioSaavnAccountSection(context, textColor, secondaryTextColor, accent, isLight),
-
                     // Section 1: Streaming Quality
                     _buildSectionHeader('AUDIO STREAMING QUALITY', textColor),
                     LiquidGlassContainer(
@@ -1475,7 +1455,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Personal Audio Space (Click to edit)',
+                              _app.userPhone.isNotEmpty
+                                  ? '${_app.userPhone} • Personal Space'
+                                  : 'Personal Audio Space (Click to edit)',
                               style: TextStyle(
                                 color: secondaryTextColor,
                                 fontSize: 12,
@@ -1661,6 +1643,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showEditNameDialog(BuildContext context) {
     final controller = TextEditingController(text: _app.userName);
+    final phoneController = TextEditingController(text: _app.userPhone);
     final isLight = _app.isLight;
     final textColor = _app.textColor;
     final accent = _app.accentColor;
@@ -1673,33 +1656,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
             : const Color(0xFF1E1E22).withValues(alpha: 0.95),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Edit Profile Name',
+          'Edit Profile',
           style: TextStyle(
             color: textColor,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
         ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: TextStyle(color: textColor),
-          decoration: InputDecoration(
-            hintText: 'Enter your name',
-            hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
-            filled: true,
-            fillColor: isLight
-                ? Colors.black.withValues(alpha: 0.04)
-                : Colors.white.withValues(alpha: 0.06),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Full Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _app.secondaryTextColor)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
+                hintText: 'Enter your name',
+                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
+                filled: true,
+                fillColor: isLight
+                    ? Colors.black.withValues(alpha: 0.04)
+                    : Colors.white.withValues(alpha: 0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: accent, width: 1.5),
+                ),
+              ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: accent, width: 1.5),
+            const SizedBox(height: 14),
+            Text('Mobile Number', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _app.secondaryTextColor)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
+                hintText: 'Enter mobile number (e.g. +91 98765 43210)',
+                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
+                filled: true,
+                fillColor: isLight
+                    ? Colors.black.withValues(alpha: 0.04)
+                    : Colors.white.withValues(alpha: 0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: accent, width: 1.5),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
         actions: [
           TextButton(
@@ -1721,8 +1736,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final newName = controller.text.trim();
               if (newName.isNotEmpty) {
                 _app.setUserName(newName);
-                setState(() {});
               }
+              _app.setUserPhone(phoneController.text.trim());
+              setState(() {});
               Navigator.pop(ctx);
             },
             child: const Text('Save'),

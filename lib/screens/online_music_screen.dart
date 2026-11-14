@@ -304,12 +304,34 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             tooltip: 'Refresh Feed',
             onPressed: () => _loadTrending(force: true),
           ),
-          IconButton(
-            icon: Icon(Icons.settings_outlined, color: app.secondaryTextColor, size: 21),
-            tooltip: 'Settings',
-            onPressed: () => Navigator.push(
+          const SizedBox(width: 4),
+          iOSBounceButton(
+            onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              MaterialPageRoute(builder: (_) => const ArtistsHubScreen()),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: accent.withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.mic_external_on_rounded, color: accent, size: 16),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Artists',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -318,7 +340,13 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildJioSaavnAccountBar(Color accent) {
+    if (_engine != MusicEngine.jiosaavn) return const SizedBox.shrink();
     final auth = JioSaavnAuthService.instance;
+    final app = AppState.instance;
+    final isLight = app.isLight;
+    final cardTextColor = isLight ? const Color(0xFF111827) : Colors.white;
+    final cardSubTextColor = isLight ? const Color(0xFF4B5563) : Colors.white.withValues(alpha: 0.65);
+
     return AnimatedBuilder(
       animation: auth,
       builder: (context, _) {
@@ -332,13 +360,22 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF2EA043).withValues(alpha: 0.18),
-                      const Color(0xFF238636).withValues(alpha: 0.08),
-                    ],
+                    colors: isLight
+                        ? [
+                            Colors.white,
+                            const Color(0xFFF3F4F6),
+                          ]
+                        : [
+                            const Color(0xFF2EA043).withValues(alpha: 0.18),
+                            const Color(0xFF238636).withValues(alpha: 0.08),
+                          ],
                   ),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF2EA043).withValues(alpha: 0.35)),
+                  border: Border.all(
+                    color: isLight
+                        ? const Color(0xFF2EA043).withValues(alpha: 0.5)
+                        : const Color(0xFF2EA043).withValues(alpha: 0.35),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -355,19 +392,19 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'JioSaavn Mobile Login (OTP)',
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                              color: cardTextColor,
                             ),
                           ),
                           Text(
                             'Sync Liked Songs & Playlists • 100% Ad-Free',
                             style: TextStyle(
                               fontSize: 10.5,
-                              color: Colors.white.withValues(alpha: 0.65),
+                              color: cardSubTextColor,
                             ),
                           ),
                         ],
@@ -409,9 +446,13 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: isLight ? Colors.white : Colors.white.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF2EA043).withValues(alpha: 0.4)),
+              border: Border.all(
+                color: isLight
+                    ? const Color(0xFF2EA043).withValues(alpha: 0.6)
+                    : const Color(0xFF2EA043).withValues(alpha: 0.4),
+              ),
             ),
             child: Row(
               children: [
@@ -436,10 +477,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                             child: Text(
                               auth.displayName,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: cardTextColor,
                               ),
                             ),
                           ),
@@ -457,7 +498,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                           fontSize: 10,
                           color: auth.isSyncing
                               ? const Color(0xFF2EA043)
-                              : Colors.white.withValues(alpha: 0.65),
+                              : cardSubTextColor,
                         ),
                       ),
                     ],
@@ -937,36 +978,26 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           children: [
             Expanded(
               child: _buildActionCard(
-                icon: Icons.podcasts_rounded,
-                title: 'Shows & Osho',
-                subtitle: 'Desi FM & Aawaz',
-                accent: const Color(0xFFFF9F0A),
+                icon: Icons.queue_music_rounded,
+                title: 'Playlists Hub',
+                subtitle: '${app.customPlaylists.length + app.playlists.length} Playlists',
+                accent: const Color(0xFF00D2FF),
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const ShowsHubScreen()),
+                  MaterialPageRoute(builder: (_) => const PlaylistsManagerScreen()),
                 ),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _buildActionCard(
-                icon: Icons.queue_music_rounded,
-                title: 'Playlists & Offline',
+                icon: Icons.download_done_rounded,
+                title: 'Offline Downloads',
                 subtitle: '${DownloadService.instance.downloadedSongs.length} Saved',
-                accent: const Color(0xFF00D2FF),
+                accent: const Color(0xFF34C759),
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DownloadsScreen()),
-                ),
-                trailing: IconButton(
-                  icon: Icon(Icons.playlist_play_rounded, color: accent, size: 22),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: 'My Playlists',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PlaylistsManagerScreen()),
-                  ),
                 ),
               ),
             ),

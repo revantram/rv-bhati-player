@@ -10,9 +10,17 @@ import '../services/download_service.dart';
 import '../services/osho_service.dart';
 import '../widgets/ios_bounce_button.dart';
 import 'audio_player_screen.dart';
+import 'settings_screen.dart';
 
 class ShowsHubScreen extends StatefulWidget {
-  const ShowsHubScreen({super.key});
+  final bool isTab;
+  final double bottomOffset;
+
+  const ShowsHubScreen({
+    super.key,
+    this.isTab = false,
+    this.bottomOffset = 0.0,
+  });
 
   @override
   State<ShowsHubScreen> createState() => _ShowsHubScreenState();
@@ -277,30 +285,47 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                 children: [
                   Row(
                     children: [
-                      iOSBounceButton(
-                        onTap: () {
-                          if (_isInSubView) {
-                            _closeSubView();
-                          } else {
-                            Navigator.pop(context);
-                          }
-                        },
-                        child: Container(
+                      if (!widget.isTab || _isInSubView)
+                        iOSBounceButton(
+                          onTap: () {
+                            if (_isInSubView) {
+                              _closeSubView();
+                            } else {
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: isLight
+                                  ? Colors.black.withValues(alpha: 0.05)
+                                  : Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 19,
+                              color: textColor,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
                           width: 42,
                           height: 42,
                           decoration: BoxDecoration(
-                            color: isLight
-                                ? Colors.black.withValues(alpha: 0.05)
-                                : Colors.white.withValues(alpha: 0.08),
+                            gradient: LinearGradient(
+                              colors: [accent, const Color(0xFFFF9F0A)],
+                            ),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 19,
-                            color: textColor,
+                          child: const Icon(
+                            Icons.podcasts_rounded,
+                            size: 22,
+                            color: Colors.white,
                           ),
                         ),
-                      ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -329,9 +354,10 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                           ],
                         ),
                       ),
-                      if (!_isInSubView)
+                      if (!_isInSubView) ...[
                         IconButton(
                           icon: Icon(Icons.refresh_rounded, color: accent),
+                          tooltip: 'Refresh',
                           onPressed: () {
                             if (_selectedCategoryIndex == 0) {
                               _loadOshoSeries(force: true);
@@ -342,6 +368,16 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                             }
                           },
                         ),
+                        if (widget.isTab)
+                          IconButton(
+                            icon: Icon(Icons.settings_outlined, color: secondaryTextColor),
+                            tooltip: 'Settings',
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                            ),
+                          ),
+                      ],
                     ],
                   ),
                   if (!_isInSubView) ...[
@@ -412,17 +448,20 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
 
             // Main Content Area
             Expanded(
-              child: _selectedOshoSeries != null
-                  ? _buildOshoSeriesDetail(textColor, secondaryTextColor, accent, isLight)
-                  : (_selectedDesiSeries != null
-                      ? _buildDesiSeriesDetail(textColor, secondaryTextColor, accent, isLight)
-                      : (_selectedAawazShow != null
-                          ? _buildAawazShowDetail(textColor, secondaryTextColor, accent, isLight)
-                          : (_selectedCategoryIndex == 0
-                              ? _buildOshoSection(textColor, secondaryTextColor, accent, isLight)
-                              : (_selectedCategoryIndex == 1
-                                  ? _buildDesiFmSection(textColor, secondaryTextColor, accent, isLight)
-                                  : _buildAawazSection(textColor, secondaryTextColor, accent, isLight))))),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: widget.bottomOffset),
+                child: _selectedOshoSeries != null
+                    ? _buildOshoSeriesDetail(textColor, secondaryTextColor, accent, isLight)
+                    : (_selectedDesiSeries != null
+                        ? _buildDesiSeriesDetail(textColor, secondaryTextColor, accent, isLight)
+                        : (_selectedAawazShow != null
+                            ? _buildAawazShowDetail(textColor, secondaryTextColor, accent, isLight)
+                            : (_selectedCategoryIndex == 0
+                                ? _buildOshoSection(textColor, secondaryTextColor, accent, isLight)
+                                : (_selectedCategoryIndex == 1
+                                    ? _buildDesiFmSection(textColor, secondaryTextColor, accent, isLight)
+                                    : _buildAawazSection(textColor, secondaryTextColor, accent, isLight))))),
+              ),
             ),
           ],
         ),
