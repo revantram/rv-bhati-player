@@ -271,8 +271,8 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
                       ],
                     ),
                   ),
-                  IosBounceButton(
-                    onPressed: () => Navigator.of(context).pop(false),
+                  iOSBounceButton(
+                    onTap: () => Navigator.of(context).pop(false),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(

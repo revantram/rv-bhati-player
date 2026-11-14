@@ -976,8 +976,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   height: 22,
                                   child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2EA043)),
                                 )
-                              : IosBounceButton(
-                                  onPressed: () => auth.syncUserLibrary(),
+                              : iOSBounceButton(
+                                  onTap: () => auth.syncUserLibrary(),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
@@ -1047,8 +1047,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: secondaryTextColor,
                         ),
                       ),
-                      trailing: IosBounceButton(
-                        onPressed: () => JioSaavnLoginSheet.show(context),
+                      trailing: iOSBounceButton(
+                        onTap: () => JioSaavnLoginSheet.show(context),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(

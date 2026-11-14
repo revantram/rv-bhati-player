@@ -166,3 +166,4 @@ class _iOSBounceButtonState extends State<iOSBounceButton> {
 /// Convenience typedef / alias for iOSBounceButton
 typedef GlassTapWrapper = iOSBounceButton;
 typedef BouncingButton = iOSBounceButton;
+typedef IosBounceButton = iOSBounceButton;
