@@ -34,13 +34,19 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
       color: #f0f6fc !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
-    header, footer, nav, [class*="header" i], [class*="footer" i], [class*="banner" i], .c-banner, #sr-toast-announcer-global {
+    /* Ensure the login container and its contents are ALWAYS visible */
+    .login, .login.banner, #root, main, form {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      background: transparent !important;
+    }
+    /* Hide top header bar, footer and accessibility announcer */
+    header.c-header, footer, nav, #sr-toast-announcer-global {
       display: none !important;
     }
-    [class*="email" i], button[name*="email" i], a[href*="email" i], div:has(> input[type="email"]), input[type="email"] {
-      display: none !important;
-    }
-    [class*="google" i], [class*="facebook" i], [class*="apple" i], [class*="social" i], .c-login__social, .c-login__divider {
+    /* Hide Facebook and social buttons */
+    .c-btn--facebook, .c-login__social, .c-login__divider {
       display: none !important;
     }
     .PhoneInputInput, input[type="tel"] {
@@ -79,13 +85,14 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
   static const String _kInjectionJs = '''
     (function() {
       function removeNonOtpOptions() {
-        document.querySelectorAll('button, a, p, span, div').forEach(function(el) {
+        document.querySelectorAll('button, a').forEach(function(el) {
           var t = (el.innerText || '').toLowerCase();
           if (t.includes('continue with email') || t.includes('or continue with') || t.includes('facebook') || t.includes('google') || t.includes('log in with email')) {
-            if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.classList.contains('c-login__social')) {
-              el.style.display = 'none';
-            }
+            el.style.display = 'none';
           }
+        });
+        document.querySelectorAll('.c-btn--facebook, .c-login__social, .c-login__divider').forEach(function(el) {
+          el.style.display = 'none';
         });
       }
       removeNonOtpOptions();
@@ -330,9 +337,7 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
                   javaScriptEnabled: true,
                   domStorageEnabled: true,
                   cacheEnabled: true,
-                  useShouldOverrideUrlLoading: true,
                   mediaPlaybackRequiresUserGesture: false,
-                  transparentBackground: true,
                   userAgent: 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                 ),
                 onWebViewCreated: (controller) {
@@ -347,10 +352,6 @@ class _JioSaavnLoginSheetState extends State<JioSaavnLoginSheet> {
                 },
                 onProgressChanged: (controller, progress) {
                   setState(() => _progress = progress / 100);
-                  if (progress > 50) {
-                    controller.injectCSSCode(source: _kCustomCss);
-                    controller.evaluateJavascript(source: _kInjectionJs);
-                  }
                 },
                 onLoadStop: (controller, url) async {
                   setState(() => _isLoading = false);
