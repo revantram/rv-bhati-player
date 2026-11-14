@@ -409,7 +409,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } else {
       _volume = (_volume + delta).clamp(0.0, 1.0).toDouble();
       try {
-        VolumeController.instance.setVolume(_volume, showSystemUI: false);
+        VolumeController.instance.showSystemUI = false;
+        VolumeController.instance.setVolume(_volume);
       } catch (_) {}
       _controller?.setVolume(_volume);
       _showHud(_Hud(
