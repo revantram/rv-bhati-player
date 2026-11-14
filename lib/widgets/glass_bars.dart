@@ -95,8 +95,8 @@ class GlassBottomNav extends StatelessWidget {
     final accent = app.accentColor;
 
     return LiquidGlassContainer(
-      borderRadius: BorderRadius.circular(24),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      borderRadius: BorderRadius.circular(22),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       blur: 22,
       opacity: isLight ? 0.92 : 0.82,
       borderWidth: 1.1,
@@ -104,9 +104,12 @@ class GlassBottomNav extends StatelessWidget {
           ? Colors.black.withValues(alpha: 0.08)
           : Colors.white.withValues(alpha: 0.15),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           for (var i = 0; i < items.length; i++)
             Expanded(
+              flex: 1,
               child: PressableScale(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
@@ -115,16 +118,17 @@ class GlassBottomNav extends StatelessWidget {
                     onChanged(i);
                   }
                 },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: SizedBox(
+                  width: double.infinity,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        width: 46,
+                        width: 48,
                         height: 28,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
@@ -153,15 +157,17 @@ class GlassBottomNav extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
                           child: Text(
                             items[i].label,
                             maxLines: 1,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: i == index
                                   ? accent
                                   : (isLight ? const Color(0xFF4B5563) : Colors.white60),
                               fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
-                              fontSize: 10.5,
+                              fontSize: 10,
                               letterSpacing: -0.2,
                             ),
                           ),

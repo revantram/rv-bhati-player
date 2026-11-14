@@ -242,6 +242,7 @@ class _PressableScaleState extends State<PressableScale> {
               opacity: _down ? widget.pressedOpacity : 1.0,
               duration: const Duration(milliseconds: 120),
               child: Stack(
+                alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
                   widget.child,
