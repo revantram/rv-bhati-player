@@ -28,12 +28,12 @@ class AppStrings {
       'hi': 'म्यूजिक',
     },
     'bitmusic': {
-      'en': 'BitMusic',
-      'hi': 'बिटम्यूज़िक',
+      'en': 'Music Hub',
+      'hi': 'म्यूजिक हब',
     },
     'online_music': {
-      'en': 'BitMusic',
-      'hi': 'बिटम्यूज़िक',
+      'en': 'Music Hub',
+      'hi': 'म्यूजिक हब',
     },
     'trending': {
       'en': 'Trending Hits',

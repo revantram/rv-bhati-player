@@ -101,9 +101,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   Future<void> _loadTrending({bool force = false}) async {
     setState(() => _isLoadingTrending = true);
     List<OnlineSong> songs;
-    if (_engine == MusicEngine.youtube) {
-      songs = await YtMusicService.instance.getTrendingSongs(forceRefresh: force);
-    } else if (_engine == MusicEngine.spotify) {
+    if (_engine == MusicEngine.spotify) {
       songs = await SpotifyService.instance.getTrendingSongs();
     } else {
       songs = await SaavnApiService.instance.getTrendingSongs(forceRefresh: force);
@@ -134,15 +132,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     });
     _debounce = Timer(const Duration(milliseconds: 380), () async {
       List<OnlineSong> songs;
-      List<String> sugg = [];
-      if (_engine == MusicEngine.youtube) {
-        final results = await Future.wait([
-          YtMusicService.instance.search(clean),
-          YtMusicService.instance.getSuggestions(clean),
-        ]);
-        songs = results[0] as List<OnlineSong>;
-        sugg = results[1] as List<String>;
-      } else if (_engine == MusicEngine.spotify) {
+      if (_engine == MusicEngine.spotify) {
         songs = await SpotifyService.instance.search(clean);
       } else {
         songs = await SaavnApiService.instance.searchSongs(clean);
@@ -150,7 +140,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       if (mounted && _searchCtrl.text.trim() == clean) {
         setState(() {
           _searchResults = songs;
-          _suggestions = sugg;
+          _suggestions = [];
           _isLoadingResults = false;
         });
       }
@@ -164,9 +154,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _customSongs = [];
     });
     List<OnlineSong> songs;
-    if (_engine == MusicEngine.youtube) {
-      songs = await YtMusicService.instance.search(query);
-    } else if (_engine == MusicEngine.spotify) {
+    if (_engine == MusicEngine.spotify) {
       songs = await SpotifyService.instance.search(query);
     } else {
       songs = await SaavnApiService.instance.searchSongs(query, limit: 100);
@@ -206,20 +194,6 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         SnackBar(
           content: Text(error),
           behavior: SnackBarBehavior.floating,
-          action: selected.id.startsWith('yt_')
-              ? SnackBarAction(
-                  label: 'Play Web',
-                  onPressed: () {
-                    if (!mounted) return;
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => YouTubeMusicSheet(song: selected),
-                    );
-                  },
-                )
-              : null,
         ),
       );
       return;
@@ -233,14 +207,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Color accent = app.accentColor;
-    if (_engine == MusicEngine.youtube) {
-      accent = const Color(0xFFFF1744);
-    } else if (_engine == MusicEngine.spotify) {
-      accent = const Color(0xFF1DB954);
-    } else {
-      accent = const Color(0xFF10B981);
-    }
+    final accent = _engine == MusicEngine.spotify
+        ? const Color(0xFF1DB954)
+        : const Color(0xFF10B981);
 
     return Column(
       children: [
@@ -257,11 +226,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               ? _buildSongList(
                   _searchResults,
                   _isLoadingResults,
-                  _engine == MusicEngine.youtube
-                      ? 'No songs found on YouTube Music'
-                      : _engine == MusicEngine.spotify
-                          ? 'No songs found on Spotify'
-                          : 'No songs found on JioSaavn HD',
+                  _engine == MusicEngine.spotify
+                      ? 'No songs found on Spotify'
+                      : 'No songs found on JioSaavn HD',
                   accent,
                 )
               : _buildHomeView(accent),
@@ -271,19 +238,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildBitMusicHeader(Color accent) {
-    String title = 'YouTube Music';
-    String subtitle = 'YouTube Innertube • Synced Lyrics';
-    IconData icon = Icons.play_arrow_rounded;
-
-    if (_engine == MusicEngine.jiosaavn) {
-      title = 'JioSaavn HD';
-      subtitle = '320kbps Studio Audio • Lossless FLAC';
-      icon = Icons.music_note_rounded;
-    } else if (_engine == MusicEngine.spotify) {
-      title = 'Spotify Music';
-      subtitle = 'Top Charts, Playlists & Viral Hits';
-      icon = Icons.graphic_eq_rounded;
-    }
+    final isSpotify = _engine == MusicEngine.spotify;
+    final title = isSpotify ? 'Spotify Music' : 'JioSaavn HD';
+    final subtitle = isSpotify ? 'Top Charts, Playlists & Viral Hits' : '320kbps Studio Audio • Lossless FLAC';
+    final icon = isSpotify ? Icons.graphic_eq_rounded : Icons.music_note_rounded;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -373,10 +331,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             final isSel = _engine == eng;
             Color col;
             IconData ic;
-            if (eng == MusicEngine.youtube) {
-              col = const Color(0xFFFF1744);
-              ic = Icons.play_arrow_rounded;
-            } else if (eng == MusicEngine.spotify) {
+            if (eng == MusicEngine.spotify) {
               col = const Color(0xFF1DB954);
               ic = Icons.graphic_eq_rounded;
             } else {
@@ -442,12 +397,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildSearchBar(Color accent) {
-    String hint = 'YouTube Music par gaana ya artist khojein...';
-    if (_engine == MusicEngine.jiosaavn) {
-      hint = 'JioSaavn 320kbps HD gane khojein...';
-    } else if (_engine == MusicEngine.spotify) {
-      hint = 'Spotify Top Hits, Playlist ya gaana khojein...';
-    }
+    String hint = _engine == MusicEngine.spotify
+        ? 'Spotify Top Hits, Playlist ya gaana khojein...'
+        : 'JioSaavn 320kbps HD gane ya gayak khojein...';
 
     return LiquidGlassContainer(
       borderRadius: BorderRadius.circular(18),
@@ -694,11 +646,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               Expanded(
                 child: Text(
                   _customDisplayTitle ??
-                      (_engine == MusicEngine.youtube
-                          ? '🔥 Trending YouTube Music'
-                          : _engine == MusicEngine.spotify
-                              ? '🔥 Spotify Top Charts & Viral Hits'
-                              : '🔥 Popular Right Now (JioSaavn HD)'),
+                      (_engine == MusicEngine.spotify
+                          ? '🔥 Spotify Top Charts & Viral Hits'
+                          : '🔥 Popular Right Now (JioSaavn HD)'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1162,11 +1112,9 @@ class _BitMusicSongTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
-                          song.id.startsWith('yt_')
-                              ? 'YouTube'
-                              : SettingsService.instance.musicEngine == MusicEngine.spotify
-                                  ? 'Spotify'
-                                  : '320 kbps HD',
+                          SettingsService.instance.musicEngine == MusicEngine.spotify
+                              ? 'Spotify'
+                              : '320 kbps HD',
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w800,

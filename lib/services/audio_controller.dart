@@ -329,9 +329,12 @@ class AudioController {
     final safeStart = startIndex.clamp(0, items.length - 1);
     final target = items[safeStart];
 
-    // If song already carries a direct non-YT or local file streamUrl
+    // If song already carries a direct non-YT or decrypted media streamUrl
+    final String directUrl = target.getStreamUrlForBitrate(SettingsService.instance.audioQuality.kbps);
     final List<ResolvedAudioStream> candidates;
-    if (target.streamUrl.isNotEmpty) {
+    if (directUrl.isNotEmpty) {
+      candidates = [ResolvedAudioStream(url: directUrl, source: 'direct')];
+    } else if (target.streamUrl.isNotEmpty) {
       candidates = [ResolvedAudioStream(url: target.streamUrl, source: 'direct')];
     } else {
       final ytId = target.id.startsWith('yt_') ? target.id.replaceFirst('yt_', '') : target.id;
@@ -472,8 +475,11 @@ class AudioController {
     try {
       while (_pendingNextRawIdx < _pendingOnlineSongs.length && gen == _queueSessionGen) {
         final nextSong = _pendingOnlineSongs[_pendingNextRawIdx++];
+        final String directUrl = nextSong.getStreamUrlForBitrate(SettingsService.instance.audioQuality.kbps);
         List<ResolvedAudioStream> candidates;
-        if (nextSong.streamUrl.isNotEmpty) {
+        if (directUrl.isNotEmpty) {
+          candidates = [ResolvedAudioStream(url: directUrl, source: 'direct')];
+        } else if (nextSong.streamUrl.isNotEmpty) {
           candidates = [ResolvedAudioStream(url: nextSong.streamUrl, source: 'direct')];
         } else {
           final ytId = nextSong.id.startsWith('yt_')

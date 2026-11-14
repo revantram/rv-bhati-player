@@ -1,5 +1,5 @@
 import '../models/online_song.dart';
-import 'yt_music_service.dart';
+import 'saavn_api_service.dart';
 
 class SpotifyTrack {
   final String id;
@@ -82,7 +82,7 @@ class SpotifyService {
     },
   ];
 
-  /// Fetch playlist songs via BitMusic (YtMusicService)
+  /// Fetch playlist songs via Saavn HD 320kbps
   Future<List<OnlineSong>> getSpotifyPlaylist(String categoryId, {int limit = 30}) async {
     if (_cachedPlaylists.containsKey(categoryId)) {
       return _cachedPlaylists[categoryId]!;
@@ -94,7 +94,7 @@ class SpotifyService {
     );
     final query = cat['query'] ?? 'Top Hits Audio';
 
-    final songs = await YtMusicService.instance.search(query);
+    final songs = await SaavnApiService.instance.searchSongs(query, limit: limit);
     if (songs.isNotEmpty) {
       _cachedPlaylists[categoryId] = songs.take(limit).toList();
       return _cachedPlaylists[categoryId]!;
@@ -106,11 +106,11 @@ class SpotifyService {
     return getSpotifyPlaylist('india_50');
   }
 
-  /// Search via BitMusic
+  /// Search via Saavn HD
   Future<List<OnlineSong>> search(String query) async {
     final clean = query.trim();
     if (clean.isEmpty) return const [];
-    final songs = await YtMusicService.instance.search(clean);
+    final songs = await SaavnApiService.instance.searchSongs(clean, limit: 30);
     return songs.take(30).toList();
   }
 }

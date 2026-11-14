@@ -187,8 +187,11 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Resolve direct non-HLS stream URL + headers if it's YouTube or missing
-      String streamUrl = song.streamUrl;
+      // 1. Resolve direct non-HLS stream URL + headers
+      String streamUrl = song.getStreamUrlForBitrate(320);
+      if (streamUrl.isEmpty) {
+        streamUrl = song.streamUrl;
+      }
       Map<String, String>? streamHeaders;
       if (streamUrl.isEmpty || song.id.startsWith('yt_')) {
         final ytId = song.id.startsWith('yt_') ? song.id.replaceFirst('yt_', '') : song.id;

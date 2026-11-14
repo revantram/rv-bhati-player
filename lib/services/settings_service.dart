@@ -14,7 +14,6 @@ enum AudioQuality {
 }
 
 enum MusicEngine {
-  youtube('YouTube Music', 'Universal Search (Songs, Covers, Mashups, Live)', 'YouTube'),
   jiosaavn('JioSaavn HD', 'Lossless 320kbps High Fidelity Audio', 'JioSaavn'),
   spotify('Spotify Music', 'Spotify Top Charts, Hot Hits & Viral Engine', 'Spotify');
 
@@ -52,7 +51,7 @@ class SettingsService extends ChangeNotifier {
   AudioQuality _audioQuality = AudioQuality.hd320;
   AudioQuality get audioQuality => _audioQuality;
 
-  MusicEngine _musicEngine = MusicEngine.youtube;
+  MusicEngine _musicEngine = MusicEngine.jiosaavn;
   MusicEngine get musicEngine => _musicEngine;
 
   bool _autoQuality = true;
@@ -101,8 +100,8 @@ class SettingsService extends ChangeNotifier {
         }
         if (map['musicEngine'] != null) {
           _musicEngine = MusicEngine.values.firstWhere(
-            (e) => e.name == map['musicEngine'] || (map['musicEngine'] == 'bitmusic' && e == MusicEngine.youtube),
-            orElse: () => MusicEngine.youtube,
+            (e) => e.name == map['musicEngine'],
+            orElse: () => MusicEngine.jiosaavn,
           );
         }
         if (map['autoQuality'] != null) {
