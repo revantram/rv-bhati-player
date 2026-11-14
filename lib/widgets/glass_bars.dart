@@ -95,16 +95,20 @@ class GlassBottomNav extends StatelessWidget {
     final accent = app.accentColor;
 
     return LiquidGlassContainer(
-      borderRadius: LiquidGlassContainer.capsuleRadius,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      borderRadius: BorderRadius.circular(24),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       blur: 22,
-      opacity: isLight ? 0.85 : 0.78,
+      opacity: isLight ? 0.92 : 0.82,
+      borderWidth: 1.1,
+      borderColor: isLight
+          ? Colors.black.withValues(alpha: 0.08)
+          : Colors.white.withValues(alpha: 0.15),
       child: Row(
         children: [
           for (var i = 0; i < items.length; i++)
             Expanded(
               child: PressableScale(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () {
                   if (i != index) {
                     HapticFeedback.selectionClick();
@@ -112,7 +116,7 @@ class GlassBottomNav extends StatelessWidget {
                   }
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -120,9 +124,10 @@ class GlassBottomNav extends StatelessWidget {
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        width: 46,
+                        height: 28,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(14),
                           color: i == index
                               ? accent.withValues(alpha: isLight ? 0.16 : 0.22)
                               : Colors.transparent,
@@ -133,12 +138,14 @@ class GlassBottomNav extends StatelessWidget {
                             width: 1.1,
                           ),
                         ),
-                        child: Icon(
-                          items[i].icon,
-                          size: 22,
-                          color: i == index
-                              ? accent
-                              : (isLight ? app.secondaryTextColor : Colors.white60),
+                        child: Center(
+                          child: Icon(
+                            items[i].icon,
+                            size: 20,
+                            color: i == index
+                                ? accent
+                                : (isLight ? const Color(0xFF4B5563) : Colors.white60),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -152,9 +159,9 @@ class GlassBottomNav extends StatelessWidget {
                             style: TextStyle(
                               color: i == index
                                   ? accent
-                                  : (isLight ? app.secondaryTextColor : Colors.white60),
+                                  : (isLight ? const Color(0xFF4B5563) : Colors.white60),
                               fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
-                              fontSize: 11,
+                              fontSize: 10.5,
                               letterSpacing: -0.2,
                             ),
                           ),

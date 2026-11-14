@@ -463,8 +463,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               // Bottom Nav: 5 items (Videos, Music Hub, FM Radio, Shows & Osho, Settings)
               Positioned(
-                left: 12,
-                right: 12,
+                left: 14,
+                right: 14,
                 bottom: pad.bottom + 12,
                 child: GlassBottomNav(
                   index: _tab,
