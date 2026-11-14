@@ -27,15 +27,14 @@ class _RadioScreenState extends State<RadioScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   final _categories = const [
-    {'id': 'All', 'label': '🌟 All Stations (392)'},
-    {'id': 'Artists', 'label': '🌸 Artists (लता, किशोर, रफ़ी...)'},
-    {'id': 'Top FM', 'label': '📻 Live FM (Mirchi, Big, Red...)'},
-    {'id': 'Akashvani AIR', 'label': '🎙️ आकाशवाणी AIR'},
-    {'id': 'Retro & 90s', 'label': '📼 Retro & 90s'},
-    {'id': 'News', 'label': '📰 News (आज तक, BBC)'},
-    {'id': 'Rajasthan', 'label': '🏜️ Rajasthan'},
-    {'id': 'Bhakti', 'label': '🙏 Bhakti'},
+    {'id': 'All', 'label': '🌟 All Stations (208)'},
+    {'id': 'Rajasthan', 'label': '🏜️ Rajasthan (AIR & Regional)'},
+    {'id': 'Top FM', 'label': '📻 Live Bollywood FM'},
     {'id': 'Bollywood & Hindi', 'label': '🎵 Bollywood & Hindi'},
+    {'id': 'Retro & 90s', 'label': '📼 Retro & 90s'},
+    {'id': 'Artists', 'label': '🌸 Artists (लता, किशोर, रफ़ी...)'},
+    {'id': 'Bhakti', 'label': '🙏 Bhakti'},
+    {'id': 'News', 'label': '📰 News (आज तक, BBC)'},
   ];
 
   @override

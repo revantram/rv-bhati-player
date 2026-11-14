@@ -24,7 +24,7 @@ class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
-  static const String currentVersion = '1.3.8';
+  static const String currentVersion = '1.3.9';
   static const int currentBuildNumber = 63;
 
   static const String _releasesUrl =

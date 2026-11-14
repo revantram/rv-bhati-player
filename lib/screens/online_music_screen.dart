@@ -19,6 +19,8 @@ import '../widgets/artist_songs_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
 import '../widgets/youtube_music_sheet.dart';
+import '../widgets/jiosaavn_login_sheet.dart';
+import '../services/jiosaavn_auth_service.dart';
 import 'artists_hub_screen.dart';
 import 'audio_player_screen.dart';
 import 'downloads_screen.dart';
@@ -216,6 +218,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         SizedBox(height: widget.topOffset),
         _buildBitMusicHeader(accent),
         _buildExtensionSelector(accent),
+        _buildJioSaavnAccountBar(accent),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: _buildSearchBar(accent),
@@ -311,6 +314,182 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildJioSaavnAccountBar(Color accent) {
+    final auth = JioSaavnAuthService.instance;
+    return AnimatedBuilder(
+      animation: auth,
+      builder: (context, _) {
+        if (!auth.isLoggedIn) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => JioSaavnLoginSheet.show(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF2EA043).withValues(alpha: 0.18),
+                      const Color(0xFF238636).withValues(alpha: 0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2EA043).withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2EA043).withValues(alpha: 0.25),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.phone_android_rounded, color: Color(0xFF2EA043), size: 16),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'JioSaavn Mobile Login (OTP)',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Sync Liked Songs & Playlists • 100% Ad-Free',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.white.withValues(alpha: 0.65),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2EA043), Color(0xFF238636)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2EA043).withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF2EA043).withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: const Color(0xFF2EA043),
+                  backgroundImage: (auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty)
+                      ? NetworkImage(auth.avatarUrl!)
+                      : null,
+                  child: (auth.avatarUrl == null || auth.avatarUrl!.isEmpty)
+                      ? const Icon(Icons.person_rounded, size: 16, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              auth.displayName,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.check_circle_rounded, color: Color(0xFF2EA043), size: 13),
+                        ],
+                      ),
+                      Text(
+                        auth.isSyncing
+                            ? 'Syncing library...'
+                            : (auth.lastSyncMessage ?? 'JioSaavn Synced (Ad-Free)'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: auth.isSyncing
+                              ? const Color(0xFF2EA043)
+                              : Colors.white.withValues(alpha: 0.65),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (auth.isSyncing)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2EA043)),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.sync_rounded, size: 18, color: Color(0xFF2EA043)),
+                    tooltip: 'Sync Playlists & Liked Songs',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => auth.syncUserLibrary(),
+                  ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.logout_rounded, size: 16, color: Colors.white.withValues(alpha: 0.5)),
+                  tooltip: 'Logout JioSaavn',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => auth.logout(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

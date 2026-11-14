@@ -12,6 +12,8 @@ import '../widgets/equalizer_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/jiosaavn_login_sheet.dart';
+import '../services/jiosaavn_auth_service.dart';
 import 'albums_browser_screen.dart';
 import 'artists_hub_screen.dart';
 import 'downloads_screen.dart';
@@ -156,6 +158,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
+
+                    // Section: JioSaavn Account (Mobile OTP)
+                    _buildJioSaavnAccountSection(context, textColor, secondaryTextColor, accent, isLight),
 
                     // Section 1: Streaming Quality
                     _buildSectionHeader('AUDIO STREAMING QUALITY', textColor),
@@ -904,6 +909,176 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildJioSaavnAccountSection(
+    BuildContext context,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+    bool isLight,
+  ) {
+    final auth = JioSaavnAuthService.instance;
+    return AnimatedBuilder(
+      animation: auth,
+      builder: (context, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('JIOSAAVN ACCOUNT / जियोसावन खाता (OTP)', textColor),
+            LiquidGlassContainer(
+              borderRadius: BorderRadius.circular(22),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              blur: 0,
+              child: auth.isLoggedIn
+                  ? Column(
+                      children: [
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                          leading: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: const Color(0xFF2EA043),
+                            backgroundImage: (auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty)
+                                ? NetworkImage(auth.avatarUrl!)
+                                : null,
+                            child: (auth.avatarUrl == null || auth.avatarUrl!.isEmpty)
+                                ? const Icon(Icons.person_rounded, color: Colors.white)
+                                : null,
+                          ),
+                          title: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  auth.displayName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.check_circle_rounded, color: Color(0xFF2EA043), size: 16),
+                            ],
+                          ),
+                          subtitle: Text(
+                            auth.isSyncing
+                                ? 'Syncing playlists & liked songs...'
+                                : (auth.lastSyncMessage ?? '100% Ad-Free • Lossless FLAC / 320kbps'),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: auth.isSyncing ? const Color(0xFF2EA043) : secondaryTextColor,
+                            ),
+                          ),
+                          trailing: auth.isSyncing
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2EA043)),
+                                )
+                              : IosBounceButton(
+                                  onPressed: () => auth.syncUserLibrary(),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2EA043).withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: const Color(0xFF2EA043).withValues(alpha: 0.4)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.sync_rounded, size: 16, color: Color(0xFF2EA043)),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Sync',
+                                          style: TextStyle(
+                                            color: Color(0xFF2EA043),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        _buildDivider(isLight),
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                          leading: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+                          title: const Text(
+                            'Disconnect JioSaavn',
+                            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            'Logout from current session',
+                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                          ),
+                          onTap: () => auth.logout(),
+                        ),
+                      ],
+                    )
+                  : ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2EA043).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.phone_android_rounded,
+                          color: Color(0xFF2EA043),
+                          size: 24,
+                        ),
+                      ),
+                      title: Text(
+                        'Login with JioSaavn (Mobile OTP)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Mobile Number + SMS OTP • Sync Liked Songs & Playlists (Ad-Free)',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                      trailing: IosBounceButton(
+                        onPressed: () => JioSaavnLoginSheet.show(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF2EA043), Color(0xFF238636)],
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2EA043).withValues(alpha: 0.35),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            'Connect',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 

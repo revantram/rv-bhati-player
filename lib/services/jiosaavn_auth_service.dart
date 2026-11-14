@@ -1,0 +1,290 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/online_song.dart';
+import '../models/playlist_item.dart';
+import 'app_state.dart';
+import 'saavn_api_service.dart';
+
+class JioSaavnAuthService extends ChangeNotifier {
+  JioSaavnAuthService._();
+  static final JioSaavnAuthService instance = JioSaavnAuthService._();
+
+  static const String _kLoggedIn = 'jiosaavn_is_logged_in';
+  static const String _kPhone = 'jiosaavn_phone';
+  static const String _kUserId = 'jiosaavn_user_id';
+  static const String _kUserName = 'jiosaavn_user_name';
+  static const String _kAvatar = 'jiosaavn_avatar';
+  static const String _kCookies = 'jiosaavn_cookies';
+
+  bool _isLoggedIn = false;
+  String? _phoneNumber;
+  String? _userId;
+  String? _userName;
+  String? _avatarUrl;
+  String? _cookies;
+
+  bool _isSyncing = false;
+  int _syncedSongsCount = 0;
+  int _syncedPlaylistsCount = 0;
+  String? _lastSyncMessage;
+
+  bool get isLoggedIn => _isLoggedIn;
+  String? get phoneNumber => _phoneNumber;
+  String? get userId => _userId;
+  String? get userName => _userName;
+  String? get avatarUrl => _avatarUrl;
+  String? get cookies => _cookies;
+  bool get isSyncing => _isSyncing;
+  int get syncedSongsCount => _syncedSongsCount;
+  int get syncedPlaylistsCount => _syncedPlaylistsCount;
+  String? get lastSyncMessage => _lastSyncMessage;
+
+  String get displayName {
+    if (_userName != null && _userName!.trim().isNotEmpty) {
+      return _userName!.trim();
+    }
+    if (_phoneNumber != null && _phoneNumber!.trim().isNotEmpty) {
+      return _phoneNumber!.trim();
+    }
+    return 'JioSaavn User';
+  }
+
+  Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _isLoggedIn = prefs.getBool(_kLoggedIn) ?? false;
+      _phoneNumber = prefs.getString(_kPhone);
+      _userId = prefs.getString(_kUserId);
+      _userName = prefs.getString(_kUserName);
+      _avatarUrl = prefs.getString(_kAvatar);
+      _cookies = prefs.getString(_kCookies);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[JioSaavnAuth] Init error: $e');
+    }
+  }
+
+  Future<void> saveLoginSession({
+    required String cookies,
+    String? phoneNumber,
+    String? userId,
+    String? userName,
+    String? avatarUrl,
+  }) async {
+    _isLoggedIn = true;
+    _cookies = cookies;
+    if (phoneNumber != null && phoneNumber.isNotEmpty) _phoneNumber = phoneNumber;
+    if (userId != null && userId.isNotEmpty) _userId = userId;
+    if (userName != null && userName.isNotEmpty) _userName = userName;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) _avatarUrl = avatarUrl;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kLoggedIn, true);
+      await prefs.setString(_kCookies, _cookies ?? '');
+      if (_phoneNumber != null) await prefs.setString(_kPhone, _phoneNumber!);
+      if (_userId != null) await prefs.setString(_kUserId, _userId!);
+      if (_userName != null) await prefs.setString(_kUserName, _userName!);
+      if (_avatarUrl != null) await prefs.setString(_kAvatar, _avatarUrl!);
+    } catch (e) {
+      debugPrint('[JioSaavnAuth] Error saving session: $e');
+    }
+
+    notifyListeners();
+    // Trigger automatic background sync of library
+    syncUserLibrary();
+  }
+
+  Future<void> logout() async {
+    _isLoggedIn = false;
+    _phoneNumber = null;
+    _userId = null;
+    _userName = null;
+    _avatarUrl = null;
+    _cookies = null;
+    _syncedSongsCount = 0;
+    _syncedPlaylistsCount = 0;
+    _lastSyncMessage = null;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kLoggedIn);
+      await prefs.remove(_kPhone);
+      await prefs.remove(_kUserId);
+      await prefs.remove(_kUserName);
+      await prefs.remove(_kAvatar);
+      await prefs.remove(_kCookies);
+
+      // Clear webview cookies
+      try {
+        final cookieManager = CookieManager.instance();
+        await cookieManager.deleteAllCookies();
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('[JioSaavnAuth] Logout error: $e');
+    }
+
+    notifyListeners();
+  }
+
+  /// Syncs Liked Songs and Personal Playlists from JioSaavn
+  Future<bool> syncUserLibrary() async {
+    if (!_isLoggedIn || _isSyncing) return false;
+
+    _isSyncing = true;
+    _lastSyncMessage = 'Connecting to JioSaavn Library...';
+    notifyListeners();
+
+    try {
+      final appState = AppState.instance;
+      int newLikedCount = 0;
+      int newPlaylistsCount = 0;
+
+      // 1. Fetch library overview via library.getAll
+      final libraryData = await _callApi('library.getAll', {
+        'api_version': '4',
+        '_format': 'json',
+        '_marker': '0',
+        'ctx': 'web6dot0',
+      });
+
+      List<String> songPids = [];
+      List<String> playlistIds = [];
+
+      if (libraryData != null) {
+        if (libraryData['song'] is List) {
+          songPids = (libraryData['song'] as List).map((e) => e.toString()).toList();
+        } else if (libraryData['data'] is Map && libraryData['data']['song'] is List) {
+          songPids = (libraryData['data']['song'] as List).map((e) => e.toString()).toList();
+        }
+
+        if (libraryData['playlist'] is List) {
+          playlistIds = (libraryData['playlist'] as List).map((e) => e.toString()).toList();
+        } else if (libraryData['data'] is Map && libraryData['data']['playlist'] is List) {
+          playlistIds = (libraryData['data']['playlist'] as List).map((e) => e.toString()).toList();
+        }
+      }
+
+      // Also try fetching playlists via user.getUserPlaylists if userId is available
+      if (_userId != null && _userId!.isNotEmpty) {
+        try {
+          final plData = await _callApi('user.getUserPlaylists', {
+            'api_version': '4',
+            '_format': 'json',
+            '_marker': '0',
+            'ctx': 'web6dot0',
+            'uid': _userId!,
+            'type': 'public',
+            'n': '50',
+            'p': '1',
+          });
+
+          if (plData != null) {
+            dynamic listNode = plData;
+            if (plData is Map && plData['data'] != null) listNode = plData['data'];
+            if (listNode is List) {
+              for (final pl in listNode) {
+                if (pl is Map && pl['id'] != null) {
+                  final pid = pl['id'].toString();
+                  if (!playlistIds.contains(pid)) {
+                    playlistIds.add(pid);
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('[JioSaavnAuth] getUserPlaylists error: $e');
+        }
+      }
+
+      // 2. Fetch Liked Songs details
+      if (songPids.isNotEmpty) {
+        _lastSyncMessage = 'Syncing ${songPids.length} Liked Songs...';
+        notifyListeners();
+
+        final songs = await SaavnApiService.instance.fetchSongsByPids(songPids);
+        for (final song in songs) {
+          final item = PlaylistItem.fromOnlineSong(song);
+          if (!appState.isFavorite(item.id)) {
+            appState.addFavoriteItem(item);
+            newLikedCount++;
+          }
+        }
+      }
+
+      // 3. Fetch and sync Playlists
+      if (playlistIds.isNotEmpty) {
+        _lastSyncMessage = 'Syncing ${playlistIds.length} Playlists...';
+        notifyListeners();
+
+        for (final plId in playlistIds) {
+          try {
+            final plResult = await SaavnApiService.instance.fetchPlaylist(plId);
+            if (plResult.songs.isNotEmpty) {
+              final plName = plResult.title.isNotEmpty ? plResult.title : 'JioSaavn Playlist';
+              final appPlaylistName = 'JioSaavn: $plName';
+
+              appState.createPlaylist(appPlaylistName);
+              for (final song in plResult.songs) {
+                appState.addToCustomPlaylist(appPlaylistName, PlaylistItem.fromOnlineSong(song));
+              }
+              newPlaylistsCount++;
+            }
+          } catch (e) {
+            debugPrint('[JioSaavnAuth] Error syncing playlist $plId: $e');
+          }
+        }
+      }
+
+      appState.saveState();
+
+      _syncedSongsCount = songPids.length;
+      _syncedPlaylistsCount = playlistIds.length;
+      _lastSyncMessage = 'Synced ${_syncedSongsCount} songs & ${_syncedPlaylistsCount} playlists';
+      _isSyncing = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('[JioSaavnAuth] syncUserLibrary error: $e');
+      _lastSyncMessage = 'Sync error: $e';
+      _isSyncing = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<dynamic> _callApi(String callName, Map<String, String> params) async {
+    try {
+      final queryParams = <String, String>{
+        '__call': callName,
+        ...params,
+      };
+
+      final uri = Uri.https('www.jiosaavn.com', '/api.php', queryParams);
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+      final request = await client.getUrl(uri);
+
+      request.headers.set('User-Agent', 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36');
+      request.headers.set('Accept', 'application/json, text/plain, */*');
+      request.headers.set('Referer', 'https://www.jiosaavn.com/');
+
+      if (_cookies != null && _cookies!.isNotEmpty) {
+        request.headers.set('Cookie', _cookies!);
+      }
+
+      final response = await request.close();
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final body = await response.transform(utf8.decoder).join();
+        return jsonDecode(body);
+      }
+    } catch (e) {
+      debugPrint('[JioSaavnAuth] API $callName failed: $e');
+    }
+    return null;
+  }
+}
