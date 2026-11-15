@@ -135,7 +135,7 @@ class AudioController {
   void _initLazyQueuePrefetch() {
     player.currentIndexStream.listen((idx) {
       if (idx == null || onlineQueue.isEmpty || _pendingOnlineSongs.isEmpty) return;
-      if (idx >= onlineQueue.length - 1) {
+      if (idx >= onlineQueue.length - 2 || onlineQueue.length < 3) {
         _appendNextPendingTrack(_queueSessionGen);
       }
     });
@@ -164,11 +164,11 @@ class AudioController {
         try {
           await player.setVolume(ratio);
         } catch (_) {}
-        if (remainingMs <= 650 && player.hasNext) {
+        if (remainingMs <= 650) {
           _isAutoMixing = true;
           _wasFaded = false;
           try {
-            await player.seekToNext();
+            await next();
             await player.setVolume(1.0);
           } catch (_) {}
           Future.delayed(const Duration(milliseconds: 900), () {
@@ -189,31 +189,31 @@ class AudioController {
       player.setLoopMode(LoopMode.all);
     } catch (_) {}
 
-    player.playerStateStream.listen((state) {
+    player.playerStateStream.listen((state) async {
       if (state.processingState == ProcessingState.completed) {
         if (AppState.instance.isSleepEndOfSong) {
-          player.pause();
+          await player.pause();
           AppState.instance.cancelSleepTimer();
           return;
         }
-        if (player.hasNext) {
-          player.seekToNext();
-          player.play();
-        } else if (queue.isNotEmpty || onlineQueue.isNotEmpty || hybridQueue.isNotEmpty) {
-          player.seek(Duration.zero, index: 0);
-          player.play();
-        }
+
+        debugPrint('[AudioController] Song completed -> Auto-advancing to next song');
+        await next();
+        try {
+          await player.play();
+        } catch (_) {}
       }
     });
 
     player.playbackEventStream.listen(
       (_) {},
-      onError: (Object e, StackTrace st) {
-        debugPrint('[AudioController] Playback error: $e');
-        if (player.hasNext) {
-          player.seekToNext();
-          player.play();
-        }
+      onError: (Object e, StackTrace st) async {
+        debugPrint('[AudioController] Playback error: $e -> Auto-skipping to next song');
+        if (AppState.instance.isSleepEndOfSong) return;
+        await next();
+        try {
+          await player.play();
+        } catch (_) {}
       },
     );
   }
@@ -367,37 +367,46 @@ class AudioController {
     final safeStart = startIndex.clamp(0, items.length - 1);
     final target = items[safeStart];
 
-    // Fast-path for direct/decryptable streams (e.g. JioSaavn / BitMusic):
-    // Build full ConcatenatingAudioSource upfront so Next and Prev controls
-    // are immediately active and functional in the system notification and lock screen.
+    // Direct/decryptable streams prebuild (JioSaavn / BitMusic / Playlists):
+    // Construct full ConcatenatingAudioSource upfront so Next and Prev controls
+    // are immediately active and functional on lock screen and notification shade,
+    // and songs advance continuously without ever stopping in the background.
     final kbps = SettingsService.instance.audioQuality.kbps;
-    final bool allDirect = items.every((s) =>
-        s.encryptedMediaUrl.isNotEmpty ||
-        (s.streamUrl.isNotEmpty && s.streamUrl.startsWith('http')));
+    final children = <AudioSource>[];
+    final allResolved = <OnlineSong>[];
+    int effectiveStartIndex = -1;
 
-    if (allDirect) {
-      try {
-        final children = <AudioSource>[];
-        final allResolved = <OnlineSong>[];
-        for (final s in items) {
-          final stream = s.getStreamUrlForBitrate(kbps);
-          final resolved = s.copyWith(streamUrl: stream);
-          allResolved.add(resolved);
-          children.add(
-            AudioSource.uri(
-              Uri.parse(stream),
-              tag: MediaItem(
-                id: resolved.id,
-                title: resolved.title,
-                artist: resolved.artist,
-                album: resolved.album.isNotEmpty ? resolved.album : 'BitMusic',
-                duration: resolved.duration,
-                artUri: resolved.imageUrl.isNotEmpty ? Uri.tryParse(resolved.imageUrl) : null,
-              ),
-            ),
-          );
+    for (int i = 0; i < items.length; i++) {
+      final s = items[i];
+      var stream = s.getStreamUrlForBitrate(kbps).trim();
+      if (stream.isEmpty || !stream.startsWith('http')) {
+        stream = s.streamUrl.trim();
+      }
+
+      if (stream.isNotEmpty && stream.startsWith('http')) {
+        final resolved = s.copyWith(streamUrl: stream);
+        if (i == safeStart) {
+          effectiveStartIndex = children.length;
         }
+        allResolved.add(resolved);
+        children.add(
+          AudioSource.uri(
+            Uri.parse(stream),
+            tag: MediaItem(
+              id: resolved.id,
+              title: resolved.title,
+              artist: resolved.artist,
+              album: resolved.album.isNotEmpty ? resolved.album : 'BitMusic',
+              duration: resolved.duration,
+              artUri: resolved.imageUrl.isNotEmpty ? Uri.tryParse(resolved.imageUrl) : null,
+            ),
+          ),
+        );
+      }
+    }
 
+    if (children.isNotEmpty && effectiveStartIndex >= 0) {
+      try {
         final concatSource = ConcatenatingAudioSource(children: children);
 
         try {
@@ -405,10 +414,10 @@ class AudioController {
         } catch (_) {}
 
         await player.setVolume(1.0);
-        await player.setAudioSource(concatSource, initialIndex: safeStart);
+        await player.setAudioSource(concatSource, initialIndex: effectiveStartIndex);
         onlineQueue = allResolved;
         _activeOnlineConcat = concatSource;
-        _lastPlayedIndex = safeStart;
+        _lastPlayedIndex = effectiveStartIndex;
         _pendingOnlineSongs = const [];
 
         if (shuffle) {
@@ -427,7 +436,7 @@ class AudioController {
 
         return null;
       } catch (e) {
-        debugPrint('[AudioController] allDirect play error: $e');
+        debugPrint('[AudioController] direct queue play error: $e');
       }
     }
 
@@ -609,6 +618,11 @@ class AudioController {
           if (gen != _queueSessionGen) return;
           onlineQueue = [...onlineQueue, resolved];
           await concat.add(src);
+          // Keep at least 2 songs buffered ahead so Next button is active on lock screen & background
+          final curIdx = player.currentIndex ?? 0;
+          if (onlineQueue.length - curIdx < 3 && _pendingNextRawIdx < _pendingOnlineSongs.length) {
+            continue;
+          }
           return;
         }
       }
@@ -772,10 +786,21 @@ class AudioController {
       return;
     }
 
+    if (player.hasNext) {
+      await player.seekToNext();
+      try {
+        await player.play();
+      } catch (_) {}
+      return;
+    }
+
     if (onlineQueue.isNotEmpty) {
       final cur = player.currentIndex ?? 0;
       if (cur < onlineQueue.length - 1) {
-        await player.seekToNext();
+        await player.seek(Duration.zero, index: cur + 1);
+        try {
+          await player.play();
+        } catch (_) {}
         return;
       }
       if (_pendingNextRawIdx < _pendingOnlineSongs.length) {
@@ -783,31 +808,44 @@ class AudioController {
         await _appendNextPendingTrack(_queueSessionGen);
         if (onlineQueue.length > beforeLen) {
           await player.seek(Duration.zero, index: onlineQueue.length - 1);
-          player.play();
+          try {
+            await player.play();
+          } catch (_) {}
           return;
         }
       }
+      // Never stop: loop back to index 0 and continue playing!
       await player.seek(Duration.zero, index: 0);
+      try {
+        await player.play();
+      } catch (_) {}
       return;
     }
 
-    if (player.hasNext) {
-      await player.seekToNext();
-    } else if (queue.isNotEmpty || hybridQueue.isNotEmpty) {
+    if (queue.isNotEmpty || hybridQueue.isNotEmpty) {
       await player.seek(Duration.zero, index: 0);
+      try {
+        await player.play();
+      } catch (_) {}
     }
   }
 
-  void previous() {
+  Future<void> previous() async {
     if (RadioController.instance.currentStation != null) {
-      RadioController.instance.previousStation();
+      await RadioController.instance.previousStation();
       return;
     }
 
     if (player.position > const Duration(seconds: 3) || !player.hasPrevious) {
-      player.seek(Duration.zero);
+      await player.seek(Duration.zero);
+      try {
+        await player.play();
+      } catch (_) {}
     } else {
-      player.seekToPrevious();
+      await player.seekToPrevious();
+      try {
+        await player.play();
+      } catch (_) {}
     }
   }
 }
