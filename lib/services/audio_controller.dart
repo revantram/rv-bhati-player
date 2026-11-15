@@ -99,11 +99,13 @@ class AudioController {
   bool get isPlayingHybrid => hybridQueue.isNotEmpty;
 
   int? _lastPlayedIndex;
+  int? _handledAutoAdvanceIndex;
   bool _isAutoMixing = false;
   bool _wasFaded = false;
 
   void _initSleepListener() {
     player.currentIndexStream.listen((idx) {
+      _handledAutoAdvanceIndex = null;
       if (_lastPlayedIndex != null && idx != null && idx != _lastPlayedIndex) {
         if (AppState.instance.isSleepEndOfSong) {
           player.pause();
@@ -165,13 +167,16 @@ class AudioController {
           await player.setVolume(ratio);
         } catch (_) {}
         if (remainingMs <= 650) {
+          final curIdx = player.currentIndex;
+          if (_handledAutoAdvanceIndex == curIdx) return;
+          _handledAutoAdvanceIndex = curIdx;
           _isAutoMixing = true;
           _wasFaded = false;
           try {
             await next();
             await player.setVolume(1.0);
           } catch (_) {}
-          Future.delayed(const Duration(milliseconds: 900), () {
+          Future.delayed(const Duration(milliseconds: 1200), () {
             _isAutoMixing = false;
           });
         }
@@ -197,6 +202,10 @@ class AudioController {
           return;
         }
 
+        final curIdx = player.currentIndex;
+        if (_handledAutoAdvanceIndex == curIdx) return;
+        _handledAutoAdvanceIndex = curIdx;
+
         debugPrint('[AudioController] Song completed -> Auto-advancing to next song');
         await next();
         try {
@@ -205,11 +214,19 @@ class AudioController {
       }
     });
 
+    int lastErrorSkipTime = 0;
     player.playbackEventStream.listen(
       (_) {},
       onError: (Object e, StackTrace st) async {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now - lastErrorSkipTime < 3500) {
+          debugPrint('[AudioController] Debouncing rapid error skip: $e');
+          return;
+        }
+        lastErrorSkipTime = now;
         debugPrint('[AudioController] Playback error: $e -> Auto-skipping to next song');
         if (AppState.instance.isSleepEndOfSong) return;
+        await Future.delayed(const Duration(milliseconds: 600));
         await next();
         try {
           await player.play();
@@ -358,6 +375,9 @@ class AudioController {
     if (items.isEmpty) return 'Empty song queue';
     final gen = ++_queueSessionGen;
     ensureNotificationPermission();
+    try {
+      SettingsService.instance.requestIgnoreBatteryOptimizations();
+    } catch (_) {}
     RadioController.instance.clear();
     queue = const [];
     hybridQueue = const [];

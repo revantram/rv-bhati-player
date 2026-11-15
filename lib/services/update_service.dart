@@ -24,8 +24,8 @@ class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
-  static const String currentVersion = '1.4.8';
-  static const int currentBuildNumber = 73;
+  static const String currentVersion = '1.4.9';
+  static const int currentBuildNumber = 74;
 
   static const String _releasesUrl =
       'https://api.github.com/repos/revantram/rv-bhati-player/releases/latest';

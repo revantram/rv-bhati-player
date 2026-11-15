@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 enum AudioQuality {
   hd320('320 kbps Hi-Res', 'Studio high bitrate audio (Wi-Fi recommended)', 320),
@@ -14,7 +15,6 @@ enum AudioQuality {
 }
 
 enum MusicEngine {
-  youtube('YouTube Music', 'Regional, Folk, DJ Remix & Trending', 'YouTube Music'),
   jiosaavn('JioSaavn HD', 'Lossless 320kbps High Fidelity Audio', 'JioSaavn'),
   spotify('Spotify Music', 'Spotify Top Charts, Hot Hits & Viral Engine', 'Spotify');
 
@@ -52,7 +52,7 @@ class SettingsService extends ChangeNotifier {
   AudioQuality _audioQuality = AudioQuality.hd320;
   AudioQuality get audioQuality => _audioQuality;
 
-  MusicEngine _musicEngine = MusicEngine.youtube;
+  MusicEngine _musicEngine = MusicEngine.jiosaavn;
   MusicEngine get musicEngine => _musicEngine;
 
   bool _autoQuality = true;
@@ -102,7 +102,7 @@ class SettingsService extends ChangeNotifier {
         if (map['musicEngine'] != null) {
           _musicEngine = MusicEngine.values.firstWhere(
             (e) => e.name == map['musicEngine'],
-            orElse: () => MusicEngine.youtube,
+            orElse: () => MusicEngine.jiosaavn,
           );
         }
         if (map['autoQuality'] != null) {
@@ -200,6 +200,26 @@ class SettingsService extends ChangeNotifier {
     _skipSilence = enabled;
     _save();
     notifyListeners();
+  }
+
+  static const MethodChannel _mediaChannel = MethodChannel('com.rvbhati.player/media_manager');
+
+  Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      final res = await _mediaChannel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return res ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<bool> requestIgnoreBatteryOptimizations() async {
+    try {
+      final res = await _mediaChannel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   void setThemeMode(AppThemeMode mode) {

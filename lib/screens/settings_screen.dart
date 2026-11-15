@@ -810,10 +810,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isSelected = SettingsService.instance.musicEngine == engine;
     Color engineColor;
     IconData engineIcon;
-    if (engine == MusicEngine.youtube) {
-      engineColor = const Color(0xFFFA2D48);
-      engineIcon = Icons.play_circle_fill_rounded;
-    } else if (engine == MusicEngine.spotify) {
+    if (engine == MusicEngine.spotify) {
       engineColor = const Color(0xFF1DB954);
       engineIcon = Icons.graphic_eq_rounded;
     } else {

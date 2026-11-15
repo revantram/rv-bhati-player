@@ -1,6 +1,7 @@
 package com.rvbhati.player
 
 import android.app.PictureInPictureParams
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
@@ -11,7 +12,9 @@ import android.media.audiofx.Virtualizer
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.MediaStore
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -585,6 +588,37 @@ class MainActivity : AudioServiceActivity() {
                         } catch (ignored: Exception) {}
                         runOnUiThread { result.success(items) }
                     }.start()
+                }
+                "isIgnoringBatteryOptimizations" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+                        result.success(pm?.isIgnoringBatteryOptimizations(packageName) ?: true)
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "requestIgnoreBatteryOptimizations" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        try {
+                            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+                            if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:$packageName")
+                                }
+                                startActivity(intent)
+                                result.success(true)
+                                return@setMethodCallHandler
+                            }
+                        } catch (e: Exception) {
+                            try {
+                                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                startActivity(intent)
+                                result.success(true)
+                                return@setMethodCallHandler
+                            } catch (_: Exception) {}
+                        }
+                    }
+                    result.success(false)
                 }
                 else -> result.notImplemented()
             }
