@@ -181,245 +181,244 @@ class _VideoFolderScreenState extends State<VideoFolderScreen> {
 
     final folders = VideoFolder.groupVideos(widget.videos, sortType: _sortType);
 
+    Widget bodyWidget;
     if (folders.isEmpty) {
       final deniedVideos = !MediaScanner.lastVideoGranted;
-      return LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(24, 16, 24, widget.bottomOffset),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: (constraints.maxHeight - widget.bottomOffset - 16).clamp(0.0, double.infinity),
-            ),
-            child: Center(
-              child: LiquidGlassContainer(
-                borderRadius: BorderRadius.circular(28),
-                padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      deniedVideos ? Icons.lock_outline_rounded : Icons.video_library_outlined,
-                      size: 52,
-                      color: accent,
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      deniedVideos
-                          ? 'Allow Video Access / वीडियो अनुमति दें'
-                          : 'No Video Folders Found / कोई वीडियो नहीं मिला',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      deniedVideos
-                          ? 'Please allow Videos permission to view your local .mp4 and .mkv files.'
-                          : 'Tap Rescan Storage or Grant All Files Access to detect videos in Downloads, Movies & WhatsApp.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: secondaryTextColor, fontSize: 13, height: 1.4),
-                    ),
-                    const SizedBox(height: 18),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            HapticFeedback.lightImpact();
-                            if (deniedVideos) {
-                              final granted = await MediaScanner.requestVideoPermission();
-                              if (!granted && await MediaScanner.isVideoPermissionPermanentlyDenied()) {
+      bodyWidget = LayoutBuilder(
+        builder: (context, constraints) {
+          final safeMinHeight = constraints.hasBoundedHeight
+              ? (constraints.maxHeight - widget.bottomOffset - 80).clamp(0.0, 1000.0)
+              : 360.0;
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(24, 76, 24, widget.bottomOffset),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: safeMinHeight),
+              child: Center(
+                child: LiquidGlassContainer(
+                  borderRadius: BorderRadius.circular(28),
+                  padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        deniedVideos ? Icons.lock_outline_rounded : Icons.video_library_outlined,
+                        size: 52,
+                        color: accent,
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        deniedVideos
+                            ? 'Allow Video Access / वीडियो अनुमति दें'
+                            : 'No Video Folders Found / कोई वीडियो नहीं मिला',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        deniedVideos
+                            ? 'Please allow Videos permission (READ_MEDIA_VIDEO) to view your local videos.'
+                            : 'Tap Rescan Storage or Grant All Files Access to detect videos in Downloads, Movies & WhatsApp.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: secondaryTextColor, fontSize: 13, height: 1.4),
+                      ),
+                      const SizedBox(height: 18),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              HapticFeedback.lightImpact();
+                              if (deniedVideos) {
+                                final granted = await MediaScanner.requestVideoPermission();
+                                if (!granted && await MediaScanner.isVideoPermissionPermanentlyDenied()) {
+                                  await openAppSettings();
+                                }
+                              }
+                              widget.onRescan?.call();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: Icon(deniedVideos ? Icons.lock_open_rounded : Icons.refresh_rounded, size: 19),
+                            label: Text(
+                              deniedVideos ? 'Allow & Scan' : 'Rescan Storage',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              HapticFeedback.lightImpact();
+                              try {
+                                await Permission.manageExternalStorage.request();
+                              } catch (_) {
                                 await openAppSettings();
                               }
-                            }
-                            widget.onRescan?.call();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: accent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              widget.onRescan?.call();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: textColor,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: const Icon(Icons.folder_open_rounded, size: 18),
+                            label: const Text('All Files Access'),
                           ),
-                          icon: Icon(deniedVideos ? Icons.lock_open_rounded : Icons.refresh_rounded, size: 19),
-                          label: Text(
-                            deniedVideos ? 'Allow & Scan' : 'Rescan Storage',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            HapticFeedback.lightImpact();
-                            try {
-                              await Permission.manageExternalStorage.request();
-                            } catch (_) {
-                              await openAppSettings();
-                            }
-                            widget.onRescan?.call();
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: textColor,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          icon: const Icon(Icons.folder_open_rounded, size: 18),
-                          label: const Text('All Files Access'),
-                        ),
-                        if (deniedVideos)
-                          TextButton.icon(
-                            onPressed: openAppSettings,
-                            icon: const Icon(Icons.settings_rounded, size: 17),
-                            label: const Text('App Settings'),
-                          ),
-                      ],
+                          if (deniedVideos)
+                            TextButton.icon(
+                              onPressed: openAppSettings,
+                              icon: const Icon(Icons.settings_rounded, size: 17),
+                              label: const Text('App Settings'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      bodyWidget = ListView.builder(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, 68, 16, widget.bottomOffset),
+        itemCount: folders.length,
+        itemBuilder: (context, i) {
+          final folder = folders[i];
+          final displayName = VideoFolderScreen.cleanFolderName(folder.name);
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: PressableScale(
+              pressedScale: 0.96,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (_) => FolderVideosListScreen(
+                      folder: folder,
+                      onVideoDeleted: (deleted) {
+                        setState(() {
+                          try {
+                            widget.videos.removeWhere(
+                              (v) => v.id == deleted.id || v.path == deleted.path,
+                            );
+                          } catch (_) {}
+                        });
+                        widget.onVideoDeleted?.call(deleted);
+                      },
                     ),
+                  ),
+                );
+              },
+              child: LiquidGlassContainer(
+                borderRadius: BorderRadius.circular(20),
+                padding: const EdgeInsets.all(10),
+                blur: 0,
+                borderWidth: 1,
+                glow: true,
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: SizedBox(
+                        width: 84,
+                        height: 72,
+                        child: folder.coverVideo != null
+                            ? VideoThumbnailWidget(
+                                video: folder.coverVideo!,
+                                borderRadius: BorderRadius.circular(16),
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                color: accent.withValues(alpha: 0.14),
+                                child: Icon(Icons.folder_rounded, color: accent, size: 30),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: accent.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${folder.videoCount} Videos',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: accent,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                formatBytes(folder.totalSizeBytes),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: secondaryTextColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isLight
+                            ? Colors.black.withValues(alpha: 0.05)
+                            : Colors.white.withValues(alpha: 0.08),
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 13,
+                        color: app.secondaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                   ],
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       );
     }
 
     return Stack(
       children: [
-        // Folders List
-        ListView.builder(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(16, 68, 16, widget.bottomOffset),
-          itemCount: folders.length,
-          itemBuilder: (context, i) {
-            final folder = folders[i];
-            final displayName = VideoFolderScreen.cleanFolderName(folder.name);
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: PressableScale(
-                pressedScale: 0.96,
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.of(context).push(
-                    CupertinoPageRoute(
-                      builder: (_) => FolderVideosListScreen(
-                        folder: folder,
-                        onVideoDeleted: (deleted) {
-                          setState(() {
-                            try {
-                              widget.videos.removeWhere(
-                                (v) => v.id == deleted.id || v.path == deleted.path,
-                              );
-                            } catch (_) {}
-                          });
-                          widget.onVideoDeleted?.call(deleted);
-                        },
-                      ),
-                    ),
-                  );
-                },
-                // 5. Liquid Glass Card Styling: crisp border & theme-aware surface
-                child: LiquidGlassContainer(
-                  borderRadius: BorderRadius.circular(20),
-                  padding: const EdgeInsets.all(10),
-                  blur: 0,
-                  borderWidth: 1,
-                  glow: true,
-                  child: Row(
-                    children: [
-                      // 2. Thumbnail Fallback & Overlay Cleanup: Clean thumbnail preview without covering badge
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SizedBox(
-                          width: 84,
-                          height: 72,
-                          child: folder.coverVideo != null
-                              ? VideoThumbnailWidget(
-                                  video: folder.coverVideo!,
-                                  borderRadius: BorderRadius.circular(16),
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(
-                                  color: accent.withValues(alpha: 0.14),
-                                  child: Icon(Icons.folder_rounded, color: accent, size: 30),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-
-                      // Middle: Smart cleaned folder name & metadata badge
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: accent.withValues(alpha: 0.14),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${folder.videoCount} Videos',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: accent,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  formatBytes(folder.totalSizeBytes),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: secondaryTextColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Right: Smooth iOS chevron arrow (>) with subtle background
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isLight
-                              ? Colors.black.withValues(alpha: 0.05)
-                              : Colors.white.withValues(alpha: 0.08),
-                        ),
-                        child: Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 13,
-                          color: app.secondaryTextColor,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
+        bodyWidget,
 
         // Studio Header (Title, Subtitle & Sort Action)
         Positioned(

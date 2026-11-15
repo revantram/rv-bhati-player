@@ -6,6 +6,7 @@ import 'screens/home_screen.dart';
 import 'services/app_state.dart';
 import 'services/download_service.dart';
 import 'services/jiosaavn_auth_service.dart';
+import 'services/yt_auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,11 +14,12 @@ Future<void> main() async {
   await AppState.instance.init();
   await DownloadService.instance.init();
   await JioSaavnAuthService.instance.init();
+  await YouTubeAuthService.instance.init();
 
   // Background audio: notification + lock-screen controls.
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.rvbhati.player.channel.audio',
-    androidNotificationChannelName: 'RV Bhati Player',
+    androidNotificationChannelName: 'RV Bhati Audio Playback',
     androidNotificationChannelDescription: 'BitMusic & Media playback controls',
     androidNotificationIcon: 'mipmap/ic_launcher',
     androidNotificationOngoing: true,

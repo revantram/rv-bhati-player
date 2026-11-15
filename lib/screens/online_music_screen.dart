@@ -20,7 +20,9 @@ import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
 import '../widgets/youtube_music_sheet.dart';
 import '../widgets/jiosaavn_login_sheet.dart';
+import '../widgets/yt_login_sheet.dart';
 import '../services/jiosaavn_auth_service.dart';
+import '../services/yt_auth_service.dart';
 import 'artists_hub_screen.dart';
 import 'audio_player_screen.dart';
 import 'downloads_screen.dart';
@@ -103,7 +105,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   Future<void> _loadTrending({bool force = false}) async {
     setState(() => _isLoadingTrending = true);
     List<OnlineSong> songs;
-    if (_engine == MusicEngine.spotify) {
+    if (_engine == MusicEngine.youtube) {
+      songs = await YtMusicService.instance.getTrendingSongs(forceRefresh: force);
+    } else if (_engine == MusicEngine.spotify) {
       songs = await SpotifyService.instance.getTrendingSongs();
     } else {
       songs = await SaavnApiService.instance.getTrendingSongs(forceRefresh: force);
@@ -134,7 +138,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     });
     _debounce = Timer(const Duration(milliseconds: 380), () async {
       List<OnlineSong> songs;
-      if (_engine == MusicEngine.spotify) {
+      if (_engine == MusicEngine.youtube) {
+        songs = await YtMusicService.instance.search(clean);
+      } else if (_engine == MusicEngine.spotify) {
         songs = await SpotifyService.instance.search(clean);
       } else {
         songs = await SaavnApiService.instance.searchSongs(clean);
@@ -156,7 +162,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
       _customSongs = [];
     });
     List<OnlineSong> songs;
-    if (_engine == MusicEngine.spotify) {
+    if (_engine == MusicEngine.youtube) {
+      songs = await YtMusicService.instance.search(query);
+    } else if (_engine == MusicEngine.spotify) {
       songs = await SpotifyService.instance.search(query);
     } else {
       songs = await SaavnApiService.instance.searchSongs(query, limit: 100);
@@ -209,16 +217,20 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = _engine == MusicEngine.spotify
-        ? const Color(0xFF1DB954)
-        : const Color(0xFF10B981);
+    final accent = _engine == MusicEngine.youtube
+        ? const Color(0xFFFA2D48)
+        : (_engine == MusicEngine.spotify ? const Color(0xFF1DB954) : const Color(0xFF10B981));
 
     return Column(
       children: [
         SizedBox(height: widget.topOffset),
         _buildBitMusicHeader(accent),
         _buildExtensionSelector(accent),
-        _buildJioSaavnAccountBar(accent),
+        if (_engine == MusicEngine.youtube) _buildYouTubeAccountBar(accent),
+        if (_engine == MusicEngine.jiosaavn) ...[
+          _buildJioSaavnAccountBar(accent),
+          _buildJioSaavnLanguageChips(accent),
+        ],
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: _buildSearchBar(accent),
@@ -229,9 +241,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
               ? _buildSongList(
                   _searchResults,
                   _isLoadingResults,
-                  _engine == MusicEngine.spotify
-                      ? 'No songs found on Spotify'
-                      : 'No songs found on JioSaavn HD',
+                  _engine == MusicEngine.youtube
+                      ? 'No songs found on YouTube Music'
+                      : (_engine == MusicEngine.spotify
+                          ? 'No songs found on Spotify'
+                          : 'No songs found on JioSaavn HD'),
                   accent,
                 )
               : _buildHomeView(accent),
@@ -241,10 +255,22 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildBitMusicHeader(Color accent) {
-    final isSpotify = _engine == MusicEngine.spotify;
-    final title = isSpotify ? 'Spotify Music' : 'JioSaavn HD';
-    final subtitle = isSpotify ? 'Top Charts, Playlists & Viral Hits' : '320kbps Studio Audio • Lossless FLAC';
-    final icon = isSpotify ? Icons.graphic_eq_rounded : Icons.music_note_rounded;
+    final String title;
+    final String subtitle;
+    final IconData icon;
+    if (_engine == MusicEngine.youtube) {
+      title = 'YouTube Music';
+      subtitle = 'Regional, Folk, DJ Remix & Trending';
+      icon = Icons.play_circle_fill_rounded;
+    } else if (_engine == MusicEngine.spotify) {
+      title = 'Spotify Music';
+      subtitle = 'Top Charts, Playlists & Viral Hits';
+      icon = Icons.graphic_eq_rounded;
+    } else {
+      title = 'JioSaavn HD';
+      subtitle = '320kbps Studio Audio • Lossless FLAC';
+      icon = Icons.music_note_rounded;
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -335,6 +361,226 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildYouTubeAccountBar(Color accent) {
+    if (_engine != MusicEngine.youtube) return const SizedBox.shrink();
+    final auth = YouTubeAuthService.instance;
+    final isLight = app.isLight;
+    final cardTextColor = isLight ? const Color(0xFF111827) : Colors.white;
+    final cardSubTextColor = isLight ? const Color(0xFF4B5563) : Colors.white.withValues(alpha: 0.65);
+
+    return AnimatedBuilder(
+      animation: auth,
+      builder: (context, _) {
+        if (!auth.isLoggedIn) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => YouTubeLoginSheet.show(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isLight
+                        ? [Colors.white, const Color(0xFFF3F4F6)]
+                        : [
+                            const Color(0xFFFA2D48).withValues(alpha: 0.18),
+                            const Color(0xFFFA2D48).withValues(alpha: 0.08),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isLight
+                        ? const Color(0xFFFA2D48).withValues(alpha: 0.45)
+                        : const Color(0xFFFA2D48).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFA2D48).withValues(alpha: 0.25),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.account_circle_rounded, color: Color(0xFFFA2D48), size: 16),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'YouTube / Google Account',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: cardTextColor,
+                            ),
+                          ),
+                          Text(
+                            'Sync Liked Songs & Playlists • 100% Ad-Free',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: cardSubTextColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFA2D48), Color(0xFFD61834)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text(
+                        'Connect',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isLight ? Colors.white : Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty
+                      ? Image.network(
+                          auth.avatarUrl!,
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFFFA2D48),
+                            size: 18,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_rounded, color: Color(0xFFFA2D48), size: 18),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${auth.displayName} (Synced)',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: cardTextColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (auth.isSyncing)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFA2D48)),
+                  )
+                else
+                  InkWell(
+                    onTap: () => auth.syncUserLibrary(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      child: Row(
+                        children: [
+                          Icon(Icons.sync_rounded, color: accent, size: 14),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Sync',
+                            style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => auth.logout(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.logout_rounded, size: 14, color: app.secondaryTextColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildJioSaavnLanguageChips(Color accent) {
+    const languages = ['Hindi', 'Rajasthani', 'Punjabi', 'English', 'Marathi'];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+      child: SizedBox(
+        height: 32,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: languages.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final lang = languages[i];
+            final isSelected = _customDisplayTitle == '🎵 $lang Top Hits (JioSaavn)';
+            return InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _loadSongsByQuery('$lang top hits', '🎵 $lang Top Hits (JioSaavn)');
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? accent
+                      : (app.isLight ? Colors.white : Colors.white.withValues(alpha: 0.07)),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected ? accent : app.cardBorderColor,
+                  ),
+                ),
+                child: Text(
+                  lang,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    color: isSelected ? Colors.white : app.textColor,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -551,7 +797,10 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
             final isSel = _engine == eng;
             Color col;
             IconData ic;
-            if (eng == MusicEngine.spotify) {
+            if (eng == MusicEngine.youtube) {
+              col = const Color(0xFFFA2D48);
+              ic = Icons.play_circle_fill_rounded;
+            } else if (eng == MusicEngine.spotify) {
               col = const Color(0xFF1DB954);
               ic = Icons.graphic_eq_rounded;
             } else {
@@ -617,9 +866,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildSearchBar(Color accent) {
-    String hint = _engine == MusicEngine.spotify
-        ? 'Spotify Top Hits, Playlist ya gaana khojein...'
-        : 'JioSaavn 320kbps HD gane ya gayak khojein...';
+    String hint = _engine == MusicEngine.youtube
+        ? 'Rajasthani DJ, Marwadi, Hindi ya gaana khojein...'
+        : (_engine == MusicEngine.spotify
+            ? 'Spotify Top Hits, Playlist ya gaana khojein...'
+            : 'JioSaavn 320kbps HD gane ya gayak khojein...');
 
     return LiquidGlassContainer(
       borderRadius: BorderRadius.circular(18),
@@ -1261,12 +1512,29 @@ class _BitMusicSongTile extends StatelessWidget {
                     width: 54,
                     height: 54,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 54,
-                      height: 54,
-                      color: accent.withValues(alpha: 0.16),
-                      child: Icon(Icons.music_note_rounded, color: accent, size: 24),
-                    ),
+                    errorBuilder: (_, __, ___) {
+                      if (song.id.startsWith('yt_') || song.id.length == 11) {
+                        final ytid = song.id.replaceFirst('yt_', '');
+                        return Image.network(
+                          'https://i.ytimg.com/vi/$ytid/hqdefault.jpg',
+                          width: 54,
+                          height: 54,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 54,
+                            height: 54,
+                            color: accent.withValues(alpha: 0.16),
+                            child: Icon(Icons.music_note_rounded, color: accent, size: 24),
+                          ),
+                        );
+                      }
+                      return Container(
+                        width: 54,
+                        height: 54,
+                        color: accent.withValues(alpha: 0.16),
+                        child: Icon(Icons.music_note_rounded, color: accent, size: 24),
+                      );
+                    },
                   ),
                   if (isResolving)
                     Container(

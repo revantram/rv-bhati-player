@@ -306,16 +306,9 @@ class YtAudioResolver {
 
     final allFastYtDone = Future.wait(ytTasks);
 
-    final Future<void> catalogTask;
-    if (fallbackTitle != null && fallbackTitle.trim().isNotEmpty) {
-      catalogTask = _resolveViaCatalogCdn(
-        title: fallbackTitle,
-        artist: fallbackArtist ?? '',
-        quality: quality,
-      ).then((l) => probeBatch(l, isFallback: true));
-    } else {
-      catalogTask = Future.value();
-    }
+    // Strict Isolation: Regional Rajasthani, Marwadi & Folk exist only on YouTube
+    // NEVER substitute YouTube tracks with catalog CDN.
+    final Future<void> catalogTask = Future.value();
 
     // Race fast YouTube progressive vs Catalog CDN; wait at most ~1.8s when YT is slow
     await Future.any<void>([
@@ -487,12 +480,7 @@ class YtAudioResolver {
           'utcOffsetMinutes': 0,
         },
       ).then(probeAndAdd),
-      if (fallbackTitle != null && fallbackTitle.trim().isNotEmpty)
-        _resolveViaCatalogCdn(
-          title: fallbackTitle,
-          artist: fallbackArtist ?? '',
-          quality: quality,
-        ).then(probeAndAdd),
+      // Strict Isolation: Keep YouTube audio purely on YouTube engine (no cross-substitution)
       YtWebViewExtractor.extractAudioStreams(cleanId).then(probeAndAdd),
     ];
 

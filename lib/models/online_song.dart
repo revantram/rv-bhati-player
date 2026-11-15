@@ -37,7 +37,11 @@ class OnlineSong {
         .trim();
   }
 
-  static String upgradeImageUrl(String? raw) {
+  static String upgradeImageUrl(String? raw, {String? fallbackYtId}) {
+    if (fallbackYtId != null && fallbackYtId.isNotEmpty && (raw == null || raw.isEmpty)) {
+      final clean = fallbackYtId.replaceFirst('yt_', '');
+      return 'https://i.ytimg.com/vi/$clean/hqdefault.jpg';
+    }
     if (raw == null || raw.isEmpty) return 'https://c.saavncdn.com/default_song_500x500.jpg';
     return raw
         .replaceAll('http://', 'https://')

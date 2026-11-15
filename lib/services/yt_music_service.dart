@@ -538,7 +538,7 @@ class YtMusicService {
           'client': {
             'clientName': 'WEB_REMIX',
             'clientVersion': '1.20241120.01.00',
-            'hl': 'en',
+            'hl': 'hi',
             'gl': 'IN',
           }
         }
