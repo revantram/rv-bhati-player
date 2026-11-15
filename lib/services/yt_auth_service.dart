@@ -156,7 +156,7 @@ class YouTubeAuthService extends ChangeNotifier {
       final likedTracks = await _fetchBrowsePlaylist('FEmusic_liked_videos');
       if (likedTracks.isNotEmpty) {
         for (final s in likedTracks) {
-          appState.toggleFavorite(s.id, item: PlaylistItem.fromOnline(s));
+          appState.toggleFavorite(s.id, item: PlaylistItem.fromOnlineSong(s));
           newLikedCount++;
         }
       }
@@ -168,18 +168,13 @@ class YouTubeAuthService extends ChangeNotifier {
       final userPlaylists = await _fetchUserPlaylists();
       for (final pl in userPlaylists) {
         final plTitle = pl['title']?.toString() ?? 'YouTube Playlist';
-        final plId = pl['id']?.toString() ?? '';
         final plItems = pl['items'] as List<OnlineSong>? ?? [];
 
         if (plItems.isNotEmpty) {
           final playlistName = 'YT • $plTitle';
           appState.createPlaylist(playlistName);
-          final playlist = appState.playlists.firstWhere(
-            (p) => p.name == playlistName,
-            orElse: () => appState.playlists.last,
-          );
           for (final song in plItems) {
-            appState.addToPlaylist(playlist.id, PlaylistItem.fromOnline(song));
+            appState.addToPlaylist(playlistName, song.id);
           }
           newPlaylistsCount++;
         }
