@@ -43,9 +43,11 @@ jobs:
       # android/ folder yahin generate hota hai (PC ki zarurat nahi).
       - name: Generate android platform folder
         run: |
-          if [ ! -d android ]; then
+          if [ ! -f android/settings.gradle ] && [ ! -f android/settings.gradle.kts ]; then
+            rm -rf /tmp/gen
             flutter create --platforms=android --org com.rvbhati --project-name rv_bhati_player /tmp/gen
-            cp -r /tmp/gen/android ./android
+            mkdir -p android
+            cp -r /tmp/gen/android/* ./android/
           fi
 
       - name: Apply manifest, MainActivity, package name and permanent release signing
