@@ -130,7 +130,7 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
           id: track.id,
           url: track.path.startsWith('/') ? 'file://${track.path}' : track.path,
           title: track.displayTitle,
-          artist: track.artist,
+          artist: track.artist ?? 'RV Bhati Player',
           album: track.album ?? 'Trim Preview',
         );
         await _player.setAudioSource(src);
