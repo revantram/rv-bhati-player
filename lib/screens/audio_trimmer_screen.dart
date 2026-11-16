@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models/media_file.dart';
 import '../services/app_state.dart';
 import '../services/audio_controller.dart';
+import '../services/global_audio_service.dart';
 import '../services/media_scanner.dart';
 import '../utils/format.dart';
 import '../widgets/art_box.dart';
@@ -31,7 +32,7 @@ class AudioTrimmerScreen extends StatefulWidget {
 }
 
 class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
-  final AudioPlayer _player = AudioPlayer();
+  AudioPlayer get _player => GlobalAudioService.instance.player;
   MediaFile? _selectedTrack;
   List<MediaFile> _allAudios = [];
 
@@ -110,7 +111,9 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
   void dispose() {
     _posSub?.cancel();
     _stateSub?.cancel();
-    _player.dispose();
+    try {
+      _player.pause();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -123,7 +126,15 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
       });
 
       if (File(track.path).existsSync()) {
-        final dur = await _player.setFilePath(track.path);
+        final src = GlobalAudioService.createMediaSource(
+          id: track.id,
+          url: track.path.startsWith('/') ? 'file://${track.path}' : track.path,
+          title: track.displayTitle,
+          artist: track.artist,
+          album: track.album ?? 'Trim Preview',
+        );
+        await _player.setAudioSource(src);
+        final dur = _player.duration;
         final total = (dur?.inMilliseconds ?? 60000) / 1000.0;
         setState(() {
           _totalDurationSec = math.max(total, 5.0);

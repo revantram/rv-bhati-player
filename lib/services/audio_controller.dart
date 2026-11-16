@@ -12,6 +12,7 @@ import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import 'app_state.dart';
 import 'equalizer_service.dart';
+import 'global_audio_service.dart';
 import 'local_stream_proxy.dart';
 import 'radio_controller.dart';
 import 'settings_service.dart';
@@ -69,7 +70,7 @@ class AudioController {
     }
   }
 
-  final AudioPlayer player = AudioPlayer();
+  AudioPlayer get player => GlobalAudioService.instance.player;
   List<MediaFile> queue = const [];
   List<OnlineSong> onlineQueue = const [];
   List<PlaylistItem> hybridQueue = const [];

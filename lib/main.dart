@@ -13,7 +13,7 @@ Future<void> main() async {
 
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.rvbhati.player.channel.audio',
-    androidNotificationChannelName: 'RV Bhati Media Playback',
+    androidNotificationChannelName: 'RV Bhati Audio Playback',
     androidNotificationOngoing: true,
     androidStopForegroundOnPause: false,
   );
