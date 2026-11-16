@@ -11,22 +11,17 @@ import 'services/yt_auth_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.rvbhati.player.channel.audio',
+    androidNotificationChannelName: 'RV Bhati Media Playback',
+    androidNotificationOngoing: true,
+    androidStopForegroundOnPause: false,
+  );
+
   await AppState.instance.init();
   await DownloadService.instance.init();
   await JioSaavnAuthService.instance.init();
   await YouTubeAuthService.instance.init();
-
-  // Background audio: notification + lock-screen controls.
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.rvbhati.player.channel.audio',
-    androidNotificationChannelName: 'RV Bhati Audio Playback',
-    androidNotificationChannelDescription: 'BitMusic & Media playback controls',
-    androidNotificationIcon: 'mipmap/ic_launcher',
-    androidNotificationOngoing: true,
-    androidStopForegroundOnPause: false,
-    androidShowNotificationBadge: true,
-    notificationColor: AppState.instance.accentColor,
-  );
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
