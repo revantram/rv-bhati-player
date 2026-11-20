@@ -392,60 +392,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                           const SizedBox(height: 16),
                           Divider(color: _app.dividerColor, height: 1),
-                          const SizedBox(height: 14),
-
-                          // Accent Color Swatches
-                          Text(
-                            'BitChord Accent Color',
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 11,
-                            runSpacing: 11,
-                            children: AppState.accentOptions.map((c) {
-                              final selected = _app.staticAccentColor == c;
-                              return GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  _app.setAccentColor(c);
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: c,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: selected
-                                          ? (isLight ? Colors.black87 : Colors.white)
-                                          : Colors.transparent,
-                                      width: 2.5,
-                                    ),
-                                    boxShadow: selected
-                                        ? [
-                                            BoxShadow(
-                                              color: c.withValues(alpha: 0.55),
-                                              blurRadius: 10,
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: selected
-                                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
-                                      : null,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-
-                          const SizedBox(height: 16),
-                          Divider(color: _app.dividerColor, height: 1),
                           const SizedBox(height: 6),
 
                           _buildSwitchTile(
@@ -807,31 +753,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildThemeIndicator(AppThemeMode mode) {
     final Decoration decoration;
     switch (mode) {
-      case AppThemeMode.cyberpunk:
-        decoration = const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [Color(0xFF00F0FF), Color(0xFFFF007F)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        );
-        break;
       case AppThemeMode.royalGold:
         decoration = const BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
             colors: [Color(0xFFFFD700), Color(0xFFB8860B)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        );
-        break;
-      case AppThemeMode.aurora:
-        decoration = const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [Color(0xFFA855F7), Color(0xFF06B6D4)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -854,25 +780,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           border: Border.all(color: const Color(0xFFFA2D48), width: 1.8),
         );
         break;
-      case AppThemeMode.dark:
-        decoration = BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color(0xFF1E2230),
-          border: Border.all(color: Colors.white24, width: 1.2),
-        );
-        break;
       case AppThemeMode.light:
         decoration = BoxDecoration(
           shape: BoxShape.circle,
           color: const Color(0xFFF1F5F9),
           border: Border.all(color: const Color(0xFF94A3B8), width: 1.2),
-        );
-        break;
-      case AppThemeMode.system:
-        decoration = BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.15),
-          border: Border.all(color: Colors.white38, width: 1.2),
         );
         break;
     }

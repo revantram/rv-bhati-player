@@ -328,23 +328,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  bool get isLight {
-    final mode = SettingsService.instance.themeMode;
-    if (mode == AppThemeMode.light) return true;
-    if (mode == AppThemeMode.system) {
-      return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-          Brightness.light;
-    }
-    return false;
-  }
+  bool get isLight => SettingsService.instance.themeMode == AppThemeMode.light;
 
   bool get isDark => !isLight;
 
-  bool get isOled {
-    if (isLight) return false;
-    final mode = SettingsService.instance.themeMode;
-    return mode == AppThemeMode.oled || mode == AppThemeMode.system;
-  }
+  bool get isOled => SettingsService.instance.themeMode == AppThemeMode.oled;
 
   // BitChord Apple Music color palette tokens with multi-theme engine
   Color get backgroundColor {
@@ -352,18 +340,10 @@ class AppState extends ChangeNotifier {
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF000000);
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF060814);
       case AppThemeMode.royalGold:
         return const Color(0xFF080705);
-      case AppThemeMode.aurora:
-        return const Color(0xFF070517);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFF0E0612);
-      case AppThemeMode.dark:
-        return const Color(0xFF0B0C10);
-      case AppThemeMode.system:
-        return isLight ? const Color(0xFFF5F7FA) : const Color(0xFF000000);
       case AppThemeMode.light:
         return const Color(0xFFF5F7FA);
     }
@@ -374,18 +354,10 @@ class AppState extends ChangeNotifier {
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF101116);
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF0D1224);
       case AppThemeMode.royalGold:
         return const Color(0xFF14120D);
-      case AppThemeMode.aurora:
-        return const Color(0xFF120E2C);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFF1A0E21);
-      case AppThemeMode.dark:
-        return const Color(0xFF151822);
-      case AppThemeMode.system:
-        return isLight ? Colors.white : const Color(0xFF101116);
       case AppThemeMode.light:
         return Colors.white;
     }
@@ -396,18 +368,10 @@ class AppState extends ChangeNotifier {
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF181A22);
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF141B34);
       case AppThemeMode.royalGold:
         return const Color(0xFF201C15);
-      case AppThemeMode.aurora:
-        return const Color(0xFF1C1642);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFF271530);
-      case AppThemeMode.dark:
-        return const Color(0xFF1E2230);
-      case AppThemeMode.system:
-        return isLight ? const Color(0xFFEFF2F7) : const Color(0xFF181A22);
       case AppThemeMode.light:
         return const Color(0xFFEFF2F7);
     }
@@ -418,17 +382,11 @@ class AppState extends ChangeNotifier {
   Color get secondaryTextColor {
     if (isLight) return const Color(0xFF64748B);
     switch (SettingsService.instance.themeMode) {
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF8E9CB8);
       case AppThemeMode.royalGold:
         return const Color(0xFFB8AFA2);
-      case AppThemeMode.aurora:
-        return const Color(0xFFA8A3C4);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFFB89CA8);
       case AppThemeMode.oled:
-      case AppThemeMode.dark:
-      case AppThemeMode.system:
       case AppThemeMode.light:
         return const Color(0xFFA1A7B5);
     }
@@ -439,19 +397,11 @@ class AppState extends ChangeNotifier {
   Color get cardBorderColor {
     if (isLight) return const Color(0xFFE2E8F0);
     switch (SettingsService.instance.themeMode) {
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF00F0FF).withValues(alpha: 0.22);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.24);
-      case AppThemeMode.aurora:
-        return const Color(0xFFA855F7).withValues(alpha: 0.22);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFFFF5E62).withValues(alpha: 0.22);
       case AppThemeMode.oled:
-        return Colors.white.withValues(alpha: 0.10);
-      case AppThemeMode.dark:
-        return Colors.white.withValues(alpha: 0.13);
-      case AppThemeMode.system:
         return Colors.white.withValues(alpha: 0.10);
       case AppThemeMode.light:
         return const Color(0xFFE2E8F0);
@@ -461,17 +411,11 @@ class AppState extends ChangeNotifier {
   Color get dividerColor {
     if (isLight) return const Color(0xFFE2E8F0);
     switch (SettingsService.instance.themeMode) {
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF00F0FF).withValues(alpha: 0.12);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.12);
-      case AppThemeMode.aurora:
-        return const Color(0xFFA855F7).withValues(alpha: 0.12);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFFFF5E62).withValues(alpha: 0.12);
       case AppThemeMode.oled:
-      case AppThemeMode.dark:
-      case AppThemeMode.system:
       case AppThemeMode.light:
         return Colors.white.withValues(alpha: 0.08);
     }
@@ -480,36 +424,24 @@ class AppState extends ChangeNotifier {
   Color get themeGlowColor {
     final mode = SettingsService.instance.themeMode;
     switch (mode) {
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF00F0FF);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
-      case AppThemeMode.aurora:
-        return const Color(0xFFA855F7);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFFFF5E62);
       case AppThemeMode.oled:
-      case AppThemeMode.dark:
       case AppThemeMode.light:
-      case AppThemeMode.system:
         return accentColor;
     }
   }
 
   static Color recommendedAccent(AppThemeMode mode) {
     switch (mode) {
-      case AppThemeMode.cyberpunk:
-        return const Color(0xFF00F0FF);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
-      case AppThemeMode.aurora:
-        return const Color(0xFF9D4EDD);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFFFF5E62);
       case AppThemeMode.oled:
-      case AppThemeMode.dark:
       case AppThemeMode.light:
-      case AppThemeMode.system:
         return const Color(0xFFFA2D48);
     }
   }

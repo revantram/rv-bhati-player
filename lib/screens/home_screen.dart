@@ -373,57 +373,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       }).toList(),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Divider(color: app.dividerColor, height: 1),
-                  const SizedBox(height: 16),
-                  Text(
-                    app.tr('theme_color'),
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: app.textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    alignment: WrapAlignment.center,
-                    children: AppState.accentOptions.map((c) {
-                      final active = app.staticAccentColor == c;
-                      return GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          app.setAccentColor(c);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: c,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: active
-                                  ? (app.isLight ? Colors.black87 : Colors.white)
-                                  : Colors.transparent,
-                              width: 3,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: c.withValues(alpha: active ? 0.6 : 0.25),
-                                blurRadius: active ? 12 : 6,
-                                spreadRadius: active ? 1 : 0,
-                              ),
-                            ],
-                          ),
-                          child: active
-                              ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
-                              : null,
-                        ),
-                      );
-                    }).toList(),
-                  ),
                 ],
               ),
             );
