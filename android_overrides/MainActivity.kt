@@ -43,17 +43,6 @@ class MainActivity : AudioServiceActivity() {
         return com.ryanheise.audioservice.AudioServicePlugin.getFlutterEngine(context)
     }
 
-    override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        super.onCreate(savedInstanceState)
-        try {
-            window.setFlags(
-                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-            )
-            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-        } catch (ignored: Exception) {}
-    }
-
     override fun onResume() {
         super.onResume()
         try {
