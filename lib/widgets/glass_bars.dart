@@ -95,8 +95,8 @@ class GlassBottomNav extends StatelessWidget {
     final accent = app.accentColor;
 
     return LiquidGlassContainer(
-      borderRadius: BorderRadius.circular(22),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      borderRadius: LiquidGlassContainer.capsuleRadius,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       blur: 22,
       opacity: isLight ? 0.92 : 0.82,
       borderWidth: 1.1,

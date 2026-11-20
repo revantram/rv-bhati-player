@@ -55,6 +55,8 @@ jobs:
           cp android_overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/res/xml
           cp android_overrides/res/xml/filepaths.xml android/app/src/main/res/xml/filepaths.xml
+          mkdir -p android/app/src/main/res/drawable
+          cp -r android_overrides/res/drawable/* android/app/src/main/res/drawable/ || true
           rm -rf android/app/src/main/kotlin android/app/src/main/java
           mkdir -p android/app/src/main/kotlin/com/rvbhati/player
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/com/rvbhati/player/MainActivity.kt
