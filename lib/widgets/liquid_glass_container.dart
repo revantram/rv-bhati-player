@@ -50,13 +50,13 @@ class LiquidGlassContainer extends StatelessWidget {
     final settings = SettingsService.instance;
     final isLight = app.isLight;
     final isIosLiquid = app.isIosLiquid;
-    final useBlur = (settings.glassBlurEnabled || isIosLiquid) && (blur > 0 || isIosLiquid);
+    final useBlur = settings.glassBlurEnabled && blur > 0;
 
     final Color defaultBg;
     if (tint != null) {
       defaultBg = tint!;
     } else if (isIosLiquid) {
-      defaultBg = Colors.white.withValues(alpha: opacity < 1.0 ? opacity : 0.90);
+      defaultBg = opacity < 1.0 ? Colors.white.withValues(alpha: opacity) : Colors.white;
     } else if (useBlur) {
       defaultBg = isLight
           ? Colors.white.withValues(alpha: opacity < 1.0 ? opacity : 0.78)
@@ -81,7 +81,7 @@ class LiquidGlassContainer extends StatelessWidget {
     );
 
     if (useBlur) {
-      final double sigma = isIosLiquid && blur == 0 ? 14.0 : blur.clamp(2.0, 16.0);
+      final double sigma = blur.clamp(2.0, 16.0);
       inner = BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: sigma,
@@ -104,8 +104,8 @@ class LiquidGlassContainer extends StatelessWidget {
                       color: isIosLiquid
                           ? const Color(0xFF0284C7).withValues(alpha: 0.08)
                           : const Color(0xFF0F172A).withValues(alpha: 0.04),
-                      blurRadius: isIosLiquid ? 12 : 10,
-                      offset: const Offset(0, 3),
+                      blurRadius: isIosLiquid ? 8 : 10,
+                      offset: const Offset(0, 2),
                     ),
                   ]
                 : [
