@@ -12,7 +12,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.rvbhati.player.channel.audio',
+    androidNotificationChannelId: 'com.rvbhati.player.audio.v2',
     androidNotificationChannelName: 'RV Bhati Audio Playback',
     androidNotificationChannelDescription: 'RV Bhati Player background audio playback',
     androidNotificationIcon: 'drawable/ic_stat_music',
@@ -20,6 +20,7 @@ Future<void> main() async {
     androidNotificationOngoing: true,
     androidStopForegroundOnPause: false,
     androidNotificationClickStartsActivity: true,
+    preloadArtwork: true,
   );
 
   await AppState.instance.init();

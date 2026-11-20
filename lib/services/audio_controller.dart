@@ -282,10 +282,10 @@ class AudioController {
           AudioSource.uri(
             Uri.file(m.path),
             tag: MediaItem(
-              id: m.id,
-              title: m.displayTitle,
-              artist: m.artist,
-              album: m.album ?? 'RV Bhati Player',
+              id: m.id.isNotEmpty ? m.id : m.path,
+              title: m.displayTitle.isNotEmpty ? m.displayTitle : 'Audio Track',
+              artist: (m.artist != null && m.artist!.isNotEmpty) ? m.artist! : 'RV Bhati Player',
+              album: (m.album != null && m.album!.isNotEmpty) ? m.album! : 'Local Audio',
               duration: m.duration,
             ),
           ),

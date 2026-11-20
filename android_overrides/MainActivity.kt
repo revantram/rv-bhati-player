@@ -39,6 +39,10 @@ class MainActivity : AudioServiceActivity() {
     private var currentBass: Short = 0
     private var currentVirtualizer: Short = 0
 
+    override fun provideFlutterEngine(context: Context): FlutterEngine? {
+        return com.ryanheise.audioservice.AudioServicePlugin.getFlutterEngine(context)
+    }
+
     override fun onResume() {
         super.onResume()
         try {
