@@ -56,7 +56,9 @@ class LiquidGlassContainer extends StatelessWidget {
     if (tint != null) {
       defaultBg = tint!;
     } else if (isIosLiquid) {
-      defaultBg = Color.fromRGBO(255, 255, 255, (opacity * 0.12).clamp(0.05, 0.25));
+      defaultBg = opacity < 1.0
+          ? Colors.white.withValues(alpha: opacity)
+          : Colors.white.withValues(alpha: 0.92);
     } else if (useBlur) {
       defaultBg = isLight
           ? Colors.white.withValues(alpha: opacity < 1.0 ? opacity : 0.78)
@@ -65,7 +67,10 @@ class LiquidGlassContainer extends StatelessWidget {
       defaultBg = isLight ? Colors.white : app.surfaceColor;
     }
 
-    final borderCol = borderColor ?? (isIosLiquid ? const Color(0x4D38BDF8) : app.cardBorderColor);
+    final borderCol = borderColor ??
+        (isIosLiquid
+            ? const Color(0xFF38BDF8).withValues(alpha: 0.35)
+            : app.cardBorderColor);
 
     Widget inner = Container(
       padding: padding,
@@ -81,7 +86,7 @@ class LiquidGlassContainer extends StatelessWidget {
     );
 
     if (useBlur) {
-      final double sigma = blur.clamp(2.0, 16.0);
+      final double sigma = isIosLiquid ? (blur * 0.4).clamp(3.0, 8.0) : blur.clamp(2.0, 16.0);
       inner = BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: sigma,
@@ -101,36 +106,25 @@ class LiquidGlassContainer extends StatelessWidget {
             ? (isLight
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+                      color: isIosLiquid
+                          ? const Color(0xFF0284C7).withValues(alpha: 0.08)
+                          : const Color(0xFF0F172A).withValues(alpha: 0.04),
+                      blurRadius: isIosLiquid ? 12 : 10,
+                      offset: const Offset(0, 3),
                     ),
                   ]
-                : (isIosLiquid
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.28),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                        BoxShadow(
-                          color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                          blurRadius: 8,
-                          offset: const Offset(0, 1),
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.36),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                        BoxShadow(
-                          color: app.themeGlowColor.withValues(alpha: 0.04),
-                          blurRadius: 16,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]))
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.36),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: app.themeGlowColor.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 2),
+                    ),
+                  ])
             : null,
       ),
       child: ClipRRect(

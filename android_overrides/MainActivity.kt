@@ -39,17 +39,6 @@ class MainActivity : AudioServiceActivity() {
     private var currentBass: Short = 0
     private var currentVirtualizer: Short = 0
 
-    override fun getBackgroundMode(): io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode {
-        return io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode.transparent
-    }
-
-    override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        super.onCreate(savedInstanceState)
-        try {
-            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-        } catch (ignored: Exception) {}
-    }
-
     override fun provideFlutterEngine(context: Context): FlutterEngine? {
         return com.ryanheise.audioservice.AudioServicePlugin.getFlutterEngine(context)
     }

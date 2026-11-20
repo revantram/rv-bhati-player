@@ -23,13 +23,19 @@ class LiquidBackground extends StatelessWidget {
     final isLight = app.isLight;
     final glowColor = accent ?? app.accentColor;
 
-    if (mode == AppThemeMode.iosLiquid) {
-      // 100% Transparent: Let phone wallpaper show behind app
-      return child ?? const SizedBox.expand();
-    }
-
     final Gradient gradient;
-    if (isLight) {
+    if (mode == AppThemeMode.iosLiquid) {
+      gradient = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFE0F2FE), // Soft ice blue
+          Color(0xFFFFFFFF), // Pure white
+          Color(0xFFF0F9FF), // Light sky mist
+        ],
+        stops: [0.0, 0.45, 1.0],
+      );
+    } else if (isLight) {
       gradient = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,

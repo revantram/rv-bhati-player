@@ -332,7 +332,9 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  bool get isLight => SettingsService.instance.themeMode == AppThemeMode.light;
+  bool get isLight =>
+      SettingsService.instance.themeMode == AppThemeMode.light ||
+      SettingsService.instance.themeMode == AppThemeMode.iosLiquid;
 
   bool get isDark => !isLight;
 
@@ -348,7 +350,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFF080705);
       case AppThemeMode.iosLiquid:
-        return Colors.transparent;
+        return const Color(0xFFFFFFFF);
       case AppThemeMode.light:
         return const Color(0xFFF5F7FA);
     }
@@ -361,7 +363,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFF14120D);
       case AppThemeMode.iosLiquid:
-        return const Color(0x1AFFFFFF);
+        return Colors.white;
       case AppThemeMode.light:
         return Colors.white;
     }
@@ -374,7 +376,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFF201C15);
       case AppThemeMode.iosLiquid:
-        return const Color(0x2BFFFFFF);
+        return const Color(0xFFF0F9FF);
       case AppThemeMode.light:
         return const Color(0xFFEFF2F7);
     }
@@ -385,8 +387,6 @@ class AppState extends ChangeNotifier {
   Color get secondaryTextColor {
     if (isLight) return const Color(0xFF64748B);
     switch (SettingsService.instance.themeMode) {
-      case AppThemeMode.iosLiquid:
-        return const Color(0xFFE2E8F0);
       case AppThemeMode.royalGold:
         return const Color(0xFFB8AFA2);
       case AppThemeMode.oled:
@@ -402,7 +402,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.24);
       case AppThemeMode.iosLiquid:
-        return const Color(0x4D38BDF8);
+        return const Color(0xFF38BDF8).withValues(alpha: 0.40);
       case AppThemeMode.oled:
         return Colors.white.withValues(alpha: 0.10);
       case AppThemeMode.light:
@@ -415,7 +415,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.12);
       case AppThemeMode.iosLiquid:
-        return const Color(0x26FFFFFF);
+        return const Color(0xFF38BDF8).withValues(alpha: 0.22);
       case AppThemeMode.oled:
         return Colors.white.withValues(alpha: 0.08);
       case AppThemeMode.light:
@@ -429,7 +429,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF38BDF8);
+        return const Color(0xFF0284C7);
       case AppThemeMode.oled:
       case AppThemeMode.light:
         return accentColor;
@@ -441,7 +441,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF38BDF8);
+        return const Color(0xFF0284C7);
       case AppThemeMode.oled:
       case AppThemeMode.light:
         return const Color(0xFFFA2D48);
