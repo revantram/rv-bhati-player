@@ -26,6 +26,10 @@ enum MusicEngine {
 
 enum AppThemeMode {
   oled('Pure OLED', 'True #000000 BitChord Apple Music Dark'),
+  cyberpunk('Cyberpunk Neon', 'Electric cyan, neon glow & futuristic cyber dark'),
+  royalGold('Royal Obsidian Gold', 'Deep luxury dark with gold & champagne sheen'),
+  aurora('Cosmic Aurora', 'Indigo nebula, ethereal violet & teal glow'),
+  sunsetBliss('Sunset Bliss', 'Warm plum, sunset coral & amber wash'),
   dark('Apple Dark', 'Deep elevated slate glass'),
   light('Apple Light', 'Crisp frosted porcelain white'),
   system('System', 'Follow device theme');
@@ -81,6 +85,10 @@ class SettingsService extends ChangeNotifier {
 
   bool get isLight => _themeMode == AppThemeMode.light;
   bool get isOled => _themeMode == AppThemeMode.oled;
+  bool get isCyberpunk => _themeMode == AppThemeMode.cyberpunk;
+  bool get isRoyalGold => _themeMode == AppThemeMode.royalGold;
+  bool get isAurora => _themeMode == AppThemeMode.aurora;
+  bool get isSunsetBliss => _themeMode == AppThemeMode.sunsetBliss;
 
   File? _settingsFile;
 

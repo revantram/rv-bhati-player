@@ -275,32 +275,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             physics: const NeverScrollableScrollPhysics(),
                             crossAxisSpacing: 8,
                             mainAxisSpacing: 8,
-                            childAspectRatio: 3.1,
+                            childAspectRatio: 2.4,
                             children: AppThemeMode.values.map((mode) {
                               final active = _settings.themeMode == mode;
+                              final themeAccent = AppState.recommendedAccent(mode);
                               return iOSBounceButton(
-                                onTap: () => _settings.setThemeMode(mode),
+                                onTap: () {
+                                  _settings.setThemeMode(mode);
+                                  _app.setAccentColor(themeAccent);
+                                  HapticFeedback.selectionClick();
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: active
                                         ? accent.withValues(alpha: 0.18)
-                                        : Colors.transparent,
+                                        : _app.surfaceColorSecondary.withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
                                       color: active ? accent : _app.cardBorderColor,
-                                      width: active ? 1.5 : 1.0,
+                                      width: active ? 1.6 : 1.0,
                                     ),
+                                    boxShadow: active
+                                        ? [
+                                            BoxShadow(
+                                              color: accent.withValues(alpha: 0.22),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      mode.label,
-                                      style: TextStyle(
-                                        color: active ? accent : textColor,
-                                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                                        fontSize: 13,
+                                  child: Row(
+                                    children: [
+                                      _buildThemeIndicator(mode),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          mode.label,
+                                          style: TextStyle(
+                                            color: active ? accent : textColor,
+                                            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                            fontSize: 12,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
+                                      if (active) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(Icons.check_circle_rounded, color: accent, size: 16),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               );
@@ -377,8 +404,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Wrap(
+                            spacing: 11,
+                            runSpacing: 11,
                             children: AppState.accentOptions.map((c) {
                               final selected = _app.staticAccentColor == c;
                               return GestureDetector(
@@ -775,6 +803,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ),
   );
 }
+
+  Widget _buildThemeIndicator(AppThemeMode mode) {
+    final Decoration decoration;
+    switch (mode) {
+      case AppThemeMode.cyberpunk:
+        decoration = const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [Color(0xFF00F0FF), Color(0xFFFF007F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        );
+        break;
+      case AppThemeMode.royalGold:
+        decoration = const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [Color(0xFFFFD700), Color(0xFFB8860B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        );
+        break;
+      case AppThemeMode.aurora:
+        decoration = const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [Color(0xFFA855F7), Color(0xFF06B6D4)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        );
+        break;
+      case AppThemeMode.sunsetBliss:
+        decoration = const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [Color(0xFFFF5E62), Color(0xFFFFA07A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        );
+        break;
+      case AppThemeMode.oled:
+        decoration = BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF000000),
+          border: Border.all(color: const Color(0xFFFA2D48), width: 1.8),
+        );
+        break;
+      case AppThemeMode.dark:
+        decoration = BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF1E2230),
+          border: Border.all(color: Colors.white24, width: 1.2),
+        );
+        break;
+      case AppThemeMode.light:
+        decoration = BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFFF1F5F9),
+          border: Border.all(color: const Color(0xFF94A3B8), width: 1.2),
+        );
+        break;
+      case AppThemeMode.system:
+        decoration = BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.15),
+          border: Border.all(color: Colors.white38, width: 1.2),
+        );
+        break;
+    }
+    return Container(
+      width: 15,
+      height: 15,
+      decoration: decoration,
+    );
+  }
 
   Widget _buildSectionHeader(String text, Color textColor) {
     return Padding(

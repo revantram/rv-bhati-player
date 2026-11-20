@@ -62,10 +62,7 @@ class LiquidGlassContainer extends StatelessWidget {
       defaultBg = isLight ? Colors.white : app.surfaceColor;
     }
 
-    final borderCol = borderColor ??
-        (isLight
-            ? const Color(0xFFE2E8F0)
-            : Colors.white.withValues(alpha: app.isOled ? 0.11 : 0.13));
+    final borderCol = borderColor ?? app.cardBorderColor;
 
     Widget inner = Container(
       padding: padding,
@@ -110,6 +107,11 @@ class LiquidGlassContainer extends StatelessWidget {
                       color: Colors.black.withValues(alpha: 0.36),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: app.themeGlowColor.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 2),
                     ),
                   ])
             : null,

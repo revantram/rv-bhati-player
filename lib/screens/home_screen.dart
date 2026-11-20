@@ -12,6 +12,7 @@ import '../models/media_file.dart';
 import '../models/playlist_item.dart';
 import '../models/radio_station.dart';
 import '../services/app_state.dart';
+import '../services/settings_service.dart';
 import '../services/audio_controller.dart';
 import '../services/radio_controller.dart';
 import '../services/media_scanner.dart';
@@ -288,70 +289,145 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // --- Accent Palette Sheet ---
   void _openPaletteSheet() {
     final app = AppState.instance;
+    final settings = SettingsService.instance;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) {
-        return LiquidGlassContainer(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: app.isLight ? Colors.black12 : Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                app.tr('theme_color'),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: app.textColor,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                alignment: WrapAlignment.center,
-                children: AppState.accentOptions.map((c) {
-                  final active = app.accentColor == c;
-                  return GestureDetector(
-                    onTap: () {
-                      app.setAccentColor(c);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: active ? (app.isLight ? Colors.black87 : Colors.white) : Colors.transparent,
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: c.withValues(alpha: 0.5),
-                            blurRadius: 10,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: active ? const Icon(Icons.check_rounded, color: Colors.white, size: 26) : null,
+        return ListenableBuilder(
+          listenable: Listenable.merge([app, settings]),
+          builder: (context, _) {
+            final activeAccent = app.accentColor;
+            return LiquidGlassContainer(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: app.isLight ? Colors.black12 : Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    app.tr('preset_themes'),
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: app.textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: AppThemeMode.values.map((mode) {
+                        final active = settings.themeMode == mode;
+                        final themeAccent = AppState.recommendedAccent(mode);
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              settings.setThemeMode(mode);
+                              app.setAccentColor(themeAccent);
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? activeAccent.withValues(alpha: 0.18)
+                                    : app.surfaceColorSecondary,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: active ? activeAccent : app.cardBorderColor,
+                                  width: active ? 1.6 : 1.0,
+                                ),
+                                boxShadow: active
+                                    ? [
+                                        BoxShadow(
+                                          color: activeAccent.withValues(alpha: 0.25),
+                                          blurRadius: 8,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Text(
+                                mode.label,
+                                style: TextStyle(
+                                  color: active ? activeAccent : app.textColor,
+                                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Divider(color: app.dividerColor, height: 1),
+                  const SizedBox(height: 16),
+                  Text(
+                    app.tr('theme_color'),
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: app.textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: AppState.accentOptions.map((c) {
+                      final active = app.staticAccentColor == c;
+                      return GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          app.setAccentColor(c);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: c,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: active
+                                  ? (app.isLight ? Colors.black87 : Colors.white)
+                                  : Colors.transparent,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: c.withValues(alpha: active ? 0.6 : 0.25),
+                                blurRadius: active ? 12 : 6,
+                                spreadRadius: active ? 1 : 0,
+                              ),
+                            ],
+                          ),
+                          child: active
+                              ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
