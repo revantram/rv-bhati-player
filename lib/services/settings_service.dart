@@ -27,7 +27,7 @@ enum MusicEngine {
 enum AppThemeMode {
   oled('Pure OLED', 'True #000000 BitChord Dark'),
   royalGold('Royal Obsidian Gold', 'Deep luxury dark with gold sheen'),
-  iosLiquid('iOS 18 Liquid Glass', 'Full transparent liquid frosted glass'),
+  iosLiquid('iOS 18 Liquid Glass', 'Crisp white & light blue liquid glass'),
   light('Apple Light', 'Crisp frosted porcelain white');
 
   const AppThemeMode(this.label, this.description);

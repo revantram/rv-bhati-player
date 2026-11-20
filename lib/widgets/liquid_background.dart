@@ -24,7 +24,18 @@ class LiquidBackground extends StatelessWidget {
     final glowColor = accent ?? app.accentColor;
 
     final Gradient gradient;
-    if (isLight) {
+    if (mode == AppThemeMode.iosLiquid) {
+      gradient = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFE0F2FE),
+          Color(0xFFFFFFFF),
+          Color(0xFFF0F9FF),
+        ],
+        stops: [0.0, 0.45, 1.0],
+      );
+    } else if (isLight) {
       gradient = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -48,18 +59,6 @@ class LiquidBackground extends StatelessWidget {
               const Color(0xFF080705),
             ],
             stops: const [0.0, 0.35, 0.70, 1.0],
-          );
-          break;
-        case AppThemeMode.iosLiquid:
-          gradient = LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              glowColor.withValues(alpha: 0.10),
-              Colors.white.withValues(alpha: 0.02),
-              Colors.transparent,
-            ],
-            stops: const [0.0, 0.45, 1.0],
           );
           break;
         case AppThemeMode.oled:

@@ -56,7 +56,7 @@ class LiquidGlassContainer extends StatelessWidget {
     if (tint != null) {
       defaultBg = tint!;
     } else if (isIosLiquid) {
-      defaultBg = Colors.white.withValues(alpha: opacity < 1.0 ? (opacity * 0.05) : 0.04);
+      defaultBg = Colors.white.withValues(alpha: opacity < 1.0 ? opacity : 0.90);
     } else if (useBlur) {
       defaultBg = isLight
           ? Colors.white.withValues(alpha: opacity < 1.0 ? opacity : 0.78)
@@ -101,8 +101,10 @@ class LiquidGlassContainer extends StatelessWidget {
             ? (isLight
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                      blurRadius: 10,
+                      color: isIosLiquid
+                          ? const Color(0xFF0284C7).withValues(alpha: 0.08)
+                          : const Color(0xFF0F172A).withValues(alpha: 0.04),
+                      blurRadius: isIosLiquid ? 12 : 10,
                       offset: const Offset(0, 3),
                     ),
                   ]

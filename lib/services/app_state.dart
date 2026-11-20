@@ -332,7 +332,9 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  bool get isLight => SettingsService.instance.themeMode == AppThemeMode.light;
+  bool get isLight =>
+      SettingsService.instance.themeMode == AppThemeMode.light ||
+      SettingsService.instance.themeMode == AppThemeMode.iosLiquid;
 
   bool get isDark => !isLight;
 
@@ -342,42 +344,39 @@ class AppState extends ChangeNotifier {
 
   // BitChord Apple Music color palette tokens with multi-theme engine
   Color get backgroundColor {
-    if (isLight) return const Color(0xFFF5F7FA);
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF000000);
       case AppThemeMode.royalGold:
         return const Color(0xFF080705);
       case AppThemeMode.iosLiquid:
-        return Colors.transparent;
+        return const Color(0xFFFFFFFF);
       case AppThemeMode.light:
         return const Color(0xFFF5F7FA);
     }
   }
 
   Color get surfaceColor {
-    if (isLight) return Colors.white;
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF101116);
       case AppThemeMode.royalGold:
         return const Color(0xFF14120D);
       case AppThemeMode.iosLiquid:
-        return Colors.white.withValues(alpha: 0.08);
+        return Colors.white;
       case AppThemeMode.light:
         return Colors.white;
     }
   }
 
   Color get surfaceColorSecondary {
-    if (isLight) return const Color(0xFFEFF2F7);
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF181A22);
       case AppThemeMode.royalGold:
         return const Color(0xFF201C15);
       case AppThemeMode.iosLiquid:
-        return Colors.white.withValues(alpha: 0.12);
+        return const Color(0xFFF0F9FF);
       case AppThemeMode.light:
         return const Color(0xFFEFF2F7);
     }
@@ -390,10 +389,8 @@ class AppState extends ChangeNotifier {
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.royalGold:
         return const Color(0xFFB8AFA2);
-      case AppThemeMode.iosLiquid:
-        return const Color(0xFFE2E8F0);
       case AppThemeMode.oled:
-      case AppThemeMode.light:
+      default:
         return const Color(0xFFA1A7B5);
     }
   }
@@ -401,12 +398,11 @@ class AppState extends ChangeNotifier {
   Color get cardColor => surfaceColor;
 
   Color get cardBorderColor {
-    if (isLight) return const Color(0xFFE2E8F0);
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.24);
       case AppThemeMode.iosLiquid:
-        return Colors.white.withValues(alpha: 0.28);
+        return const Color(0xFF38BDF8).withValues(alpha: 0.40);
       case AppThemeMode.oled:
         return Colors.white.withValues(alpha: 0.10);
       case AppThemeMode.light:
@@ -415,15 +411,15 @@ class AppState extends ChangeNotifier {
   }
 
   Color get dividerColor {
-    if (isLight) return const Color(0xFFE2E8F0);
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.12);
       case AppThemeMode.iosLiquid:
-        return Colors.white.withValues(alpha: 0.18);
+        return const Color(0xFF38BDF8).withValues(alpha: 0.22);
       case AppThemeMode.oled:
-      case AppThemeMode.light:
         return Colors.white.withValues(alpha: 0.08);
+      case AppThemeMode.light:
+        return const Color(0xFFE2E8F0);
     }
   }
 
@@ -433,7 +429,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF00E5FF);
+        return const Color(0xFF0284C7);
       case AppThemeMode.oled:
       case AppThemeMode.light:
         return accentColor;
@@ -445,7 +441,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF00E5FF);
+        return const Color(0xFF0284C7);
       case AppThemeMode.oled:
       case AppThemeMode.light:
         return const Color(0xFFFA2D48);
