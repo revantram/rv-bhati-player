@@ -50,17 +50,16 @@ class LiquidBackground extends StatelessWidget {
             stops: const [0.0, 0.35, 0.70, 1.0],
           );
           break;
-        case AppThemeMode.sunsetBliss:
-          gradient = RadialGradient(
-            center: const Alignment(0.0, -0.85),
-            radius: 1.35,
+        case AppThemeMode.iosLiquid:
+          gradient = LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              const Color(0xFFFF5E62).withValues(alpha: 0.22),
-              const Color(0xFFFFA07A).withValues(alpha: 0.12),
-              const Color(0xFF180B1E),
-              const Color(0xFF0E0612),
+              glowColor.withValues(alpha: 0.10),
+              Colors.white.withValues(alpha: 0.02),
+              Colors.transparent,
             ],
-            stops: const [0.0, 0.35, 0.70, 1.0],
+            stops: const [0.0, 0.45, 1.0],
           );
           break;
         case AppThemeMode.oled:

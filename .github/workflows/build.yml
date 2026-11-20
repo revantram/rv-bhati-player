@@ -57,6 +57,8 @@ jobs:
           cp android_overrides/res/xml/filepaths.xml android/app/src/main/res/xml/filepaths.xml
           mkdir -p android/app/src/main/res/drawable
           cp -r android_overrides/res/drawable/* android/app/src/main/res/drawable/ || true
+          mkdir -p android/app/src/main/res/values
+          cp -r android_overrides/res/values/* android/app/src/main/res/values/ || true
           cp android_overrides/proguard-rules.pro android/app/proguard-rules.pro || true
           rm -rf android/app/src/main/kotlin android/app/src/main/java
           mkdir -p android/app/src/main/kotlin/com/rvbhati/player

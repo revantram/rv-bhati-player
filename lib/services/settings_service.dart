@@ -27,7 +27,7 @@ enum MusicEngine {
 enum AppThemeMode {
   oled('Pure OLED', 'True #000000 BitChord Dark'),
   royalGold('Royal Obsidian Gold', 'Deep luxury dark with gold sheen'),
-  sunsetBliss('Sunset Bliss', 'Warm plum & crimson coral wash'),
+  iosLiquid('iOS 18 Liquid Glass', 'Full transparent liquid frosted glass'),
   light('Apple Light', 'Crisp frosted porcelain white');
 
   const AppThemeMode(this.label, this.description);
@@ -82,7 +82,7 @@ class SettingsService extends ChangeNotifier {
   bool get isLight => _themeMode == AppThemeMode.light;
   bool get isOled => _themeMode == AppThemeMode.oled;
   bool get isRoyalGold => _themeMode == AppThemeMode.royalGold;
-  bool get isSunsetBliss => _themeMode == AppThemeMode.sunsetBliss;
+  bool get isIosLiquid => _themeMode == AppThemeMode.iosLiquid;
 
   File? _settingsFile;
 

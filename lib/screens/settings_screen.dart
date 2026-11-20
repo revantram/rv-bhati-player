@@ -269,69 +269,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          GridView.count(
-                            crossAxisCount: 2,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                            childAspectRatio: 2.4,
-                            children: AppThemeMode.values.map((mode) {
-                              final active = _settings.themeMode == mode;
-                              final themeAccent = AppState.recommendedAccent(mode);
-                              return iOSBounceButton(
-                                onTap: () {
-                                  _settings.setThemeMode(mode);
-                                  _app.setAccentColor(themeAccent);
-                                  HapticFeedback.selectionClick();
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: active
-                                        ? accent.withValues(alpha: 0.18)
-                                        : _app.surfaceColorSecondary.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: active ? accent : _app.cardBorderColor,
-                                      width: active ? 1.6 : 1.0,
-                                    ),
-                                    boxShadow: active
-                                        ? [
-                                            BoxShadow(
-                                              color: accent.withValues(alpha: 0.22),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      _buildThemeIndicator(mode),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          mode.label,
-                                          style: TextStyle(
-                                            color: active ? accent : textColor,
-                                            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                                            fontSize: 12,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (active) ...[
-                                        const SizedBox(width: 4),
-                                        Icon(Icons.check_circle_rounded, color: accent, size: 16),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                          Row(
+                            children: [
+                              Expanded(child: _buildThemeTile(AppThemeMode.oled, accent, textColor)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildThemeTile(AppThemeMode.royalGold, accent, textColor)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(child: _buildThemeTile(AppThemeMode.iosLiquid, accent, textColor)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildThemeTile(AppThemeMode.light, accent, textColor)),
+                            ],
                           ),
 
                           const SizedBox(height: 18),
@@ -750,6 +701,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
   );
 }
 
+  Widget _buildThemeTile(AppThemeMode mode, Color accent, Color textColor) {
+    final active = _settings.themeMode == mode;
+    final themeAccent = AppState.recommendedAccent(mode);
+    return iOSBounceButton(
+      onTap: () {
+        _settings.setThemeMode(mode);
+        _app.setAccentColor(themeAccent);
+        HapticFeedback.selectionClick();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: active
+              ? accent.withValues(alpha: 0.18)
+              : _app.surfaceColorSecondary.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: active ? accent : _app.cardBorderColor,
+            width: active ? 1.6 : 1.0,
+          ),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.22),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            _buildThemeIndicator(mode),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                mode.label,
+                style: TextStyle(
+                  color: active ? accent : textColor,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (active) ...[
+              const SizedBox(width: 4),
+              Icon(Icons.check_circle_rounded, color: accent, size: 16),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildThemeIndicator(AppThemeMode mode) {
     final Decoration decoration;
     switch (mode) {
@@ -763,14 +772,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
         break;
-      case AppThemeMode.sunsetBliss:
-        decoration = const BoxDecoration(
+      case AppThemeMode.iosLiquid:
+        decoration = BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [Color(0xFFFF5E62), Color(0xFFFFA07A)],
+          gradient: const LinearGradient(
+            colors: [Color(0xFF00E5FF), Color(0xFFE0F7FA)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+          border: Border.all(color: Colors.white70, width: 1.2),
         );
         break;
       case AppThemeMode.oled:
