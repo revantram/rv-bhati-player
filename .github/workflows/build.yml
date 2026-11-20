@@ -61,6 +61,13 @@ jobs:
           rm -rf android/app/src/main/kotlin android/app/src/main/java
           mkdir -p android/app/src/main/kotlin/com/rvbhati/player
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/com/rvbhati/player/MainActivity.kt
+          mkdir -p android/app/src/main/res/values
+          cp android_overrides/res/values/styles.xml android/app/src/main/res/values/styles.xml
+          rm -f android/app/src/main/res/values/themes.xml
+          if [ -d android/app/src/main/res/values-night ]; then
+            cp android_overrides/res/values/styles.xml android/app/src/main/res/values-night/styles.xml
+            rm -f android/app/src/main/res/values-night/themes.xml
+          fi
           sed -i 's/com\.rvbhati\.rv_bhati_player/com.rvbhati.player/g' android/app/build.gradle* || true
 
           # Apply permanent release keystore so APK signature NEVER changes
