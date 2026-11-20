@@ -120,43 +120,36 @@ jobs:
             echo "Custom icon nahi mila, default icon use hoga"
           fi
 
-      - name: Build release APK (Universal + split per ABI)
+      - name: Build release APK (ARM64 ultra-optimized low MB)
         run: |
           mkdir -p build/app/outputs/symbols
-          # 1. Build Universal (Fat) APK containing ALL architectures (arm64, armeabi-v7a, x86_64)
-          flutter build apk --release --split-debug-info=build/app/outputs/symbols
-          # 2. Build Split per ABI APKs for optimized phone installs
-          flutter build apk --release --split-per-abi --split-debug-info=build/app/outputs/symbols
+          # Build ONLY ARM64-v8a architecture with stripped debug symbols for minimum file size
+          flutter build apk --release --target-platform android-arm64 --split-per-abi --split-debug-info=build/app/outputs/symbols
 
-      - name: Prepare APKs for release
+      - name: Prepare APK for release
         run: |
           cd build/app/outputs/flutter-apk
-          # Universal APK (Compatible with 100% of all Phones, Tablets & TVs)
-          cp app-release.apk RV-Bhati-Player.apk
-          cp app-release.apk RV-Bhati-Player-Universal.apk
-          cp app-release.apk RV-Bhati-Player-AndroidTV.apk
-          # Split APKs for phones & low storage devices
-          cp app-arm64-v8a-release.apk RV-Bhati-Player-arm64.apk
-          cp app-armeabi-v7a-release.apk RV-Bhati-Player-armv7-32bit.apk
+          ARM64_FILE=$(ls app*arm64*.apk app-release.apk 2>/dev/null | head -n1)
+          echo "Selected ARM64 APK: $ARM64_FILE"
+          ls -lh "$ARM64_FILE"
+          cp "$ARM64_FILE" RV-Bhati-Player-arm64.apk
+          cp "$ARM64_FILE" RV-Bhati-Player.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RV-Bhati-Player-APK
-          path: build/app/outputs/flutter-apk/RV-Bhati-Player-Universal.apk
+          name: RV-Bhati-Player-ARM64-APK
+          path: build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
           tag_name: ${{ github.ref_name }}
-          name: "RV Bhati Player ${{ github.ref_name }} (Universal Android TV & Phone Edition)"
+          name: "RV Bhati Player ${{ github.ref_name }} (ARM64 Optimized Edition)"
           make_latest: true
           files: |
-            build/app/outputs/flutter-apk/RV-Bhati-Player-Universal.apk
-            build/app/outputs/flutter-apk/RV-Bhati-Player-AndroidTV.apk
-            build/app/outputs/flutter-apk/RV-Bhati-Player.apk
             build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk
-            build/app/outputs/flutter-apk/RV-Bhati-Player-armv7-32bit.apk
+            build/app/outputs/flutter-apk/RV-Bhati-Player.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
