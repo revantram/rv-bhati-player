@@ -132,15 +132,31 @@ class GlassBottomNav extends StatelessWidget {
                         height: 28,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          color: i == index
-                              ? accent.withValues(alpha: isLight ? 0.16 : 0.22)
-                              : Colors.transparent,
+                          gradient: i == index
+                              ? LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    accent.withValues(alpha: isLight ? 0.22 : 0.28),
+                                    accent.withValues(alpha: isLight ? 0.12 : 0.18),
+                                  ],
+                                )
+                              : null,
                           border: Border.all(
                             color: i == index
-                                ? accent.withValues(alpha: 0.45)
+                                ? accent.withValues(alpha: 0.55)
                                 : Colors.transparent,
-                            width: 1.1,
+                            width: 1.2,
                           ),
+                          boxShadow: i == index
+                              ? [
+                                  BoxShadow(
+                                    color: accent.withValues(alpha: 0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Center(
                           child: Icon(

@@ -402,7 +402,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.24);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF38BDF8).withValues(alpha: 0.40);
+        return const Color(0xFF0088FF).withValues(alpha: 0.38);
       case AppThemeMode.oled:
         return Colors.white.withValues(alpha: 0.10);
       case AppThemeMode.light:
@@ -415,7 +415,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.12);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF38BDF8).withValues(alpha: 0.22);
+        return const Color(0xFF0088FF).withValues(alpha: 0.15);
       case AppThemeMode.oled:
         return Colors.white.withValues(alpha: 0.08);
       case AppThemeMode.light:
@@ -429,7 +429,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF0284C7);
+        return const Color(0xFF0088FF);
       case AppThemeMode.oled:
       case AppThemeMode.light:
         return accentColor;
@@ -441,7 +441,7 @@ class AppState extends ChangeNotifier {
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
       case AppThemeMode.iosLiquid:
-        return const Color(0xFF0284C7);
+        return const Color(0xFF0088FF);
       case AppThemeMode.oled:
       case AppThemeMode.light:
         return const Color(0xFFFA2D48);

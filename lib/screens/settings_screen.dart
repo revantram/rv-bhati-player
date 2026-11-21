@@ -776,11 +776,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         decoration = BoxDecoration(
           shape: BoxShape.circle,
           gradient: const LinearGradient(
-            colors: [Color(0xFF38BDF8), Color(0xFFE0F2FE)],
+            colors: [Color(0xFF0088FF), Color(0xFF60A5FA)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          border: Border.all(color: const Color(0xFF0284C7), width: 1.2),
+          border: Border.all(color: const Color(0xFF0088FF), width: 1.5),
         );
         break;
       case AppThemeMode.oled:

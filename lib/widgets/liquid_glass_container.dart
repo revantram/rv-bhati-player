@@ -69,20 +69,25 @@ class LiquidGlassContainer extends StatelessWidget {
 
     final borderCol = borderColor ??
         (isIosLiquid
-            ? const Color(0xFF38BDF8).withValues(alpha: 0.35)
+            ? const Color(0xFF0088FF).withValues(alpha: 0.38)
             : app.cardBorderColor);
 
-    Widget inner = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: defaultBg,
+    Widget inner = CustomPaint(
+      foregroundPainter: _KyantLiquidGlassPainter(
         borderRadius: borderRadius,
-        border: Border.all(
-          color: borderCol,
-          width: borderWidth,
-        ),
+        borderColor: borderCol,
+        borderWidth: borderWidth,
+        isIosLiquid: isIosLiquid,
+        isLight: isLight,
       ),
-      child: child,
+      child: Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          color: defaultBg,
+          borderRadius: borderRadius,
+        ),
+        child: child,
+      ),
     );
 
     if (useBlur) {
@@ -107,10 +112,15 @@ class LiquidGlassContainer extends StatelessWidget {
                 ? [
                     BoxShadow(
                       color: isIosLiquid
-                          ? const Color(0xFF0284C7).withValues(alpha: 0.08)
+                          ? const Color(0xFF0088FF).withValues(alpha: 0.10)
                           : const Color(0xFF0F172A).withValues(alpha: 0.04),
-                      blurRadius: isIosLiquid ? 12 : 10,
+                      blurRadius: isIosLiquid ? 14 : 10,
                       offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
                     ),
                   ]
                 : [
@@ -132,6 +142,96 @@ class LiquidGlassContainer extends StatelessWidget {
         child: inner,
       ),
     );
+  }
+}
+
+/// Kyant0 AndroidLiquidGlass Specular Highlight & Inner Refraction Rim Painter
+class _KyantLiquidGlassPainter extends CustomPainter {
+  final BorderRadius borderRadius;
+  final Color borderColor;
+  final double borderWidth;
+  final bool isIosLiquid;
+  final bool isLight;
+
+  _KyantLiquidGlassPainter({
+    required this.borderRadius,
+    required this.borderColor,
+    required this.borderWidth,
+    required this.isIosLiquid,
+    required this.isLight,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final rect = Offset.zero & size;
+    final rrect = borderRadius.toRRect(rect).deflate(borderWidth / 2);
+
+    // 1. Kyant0 45° Specular Gradient Rim
+    final borderGradient = LinearGradient(
+      begin: const Alignment(-0.8, -0.8),
+      end: const Alignment(0.8, 0.8),
+      colors: isIosLiquid
+          ? [
+              Colors.white,
+              const Color(0xFF0088FF).withValues(alpha: 0.60),
+              const Color(0xFF0088FF).withValues(alpha: 0.25),
+              Colors.white.withValues(alpha: 0.40),
+            ]
+          : [
+              borderColor.withValues(alpha: 0.85),
+              borderColor.withValues(alpha: 0.45),
+              borderColor.withValues(alpha: 0.18),
+              borderColor.withValues(alpha: 0.35),
+            ],
+      stops: const [0.0, 0.35, 0.70, 1.0],
+    );
+
+    final borderPaint = Paint()
+      ..shader = borderGradient.createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth;
+
+    canvas.drawRRect(rrect, borderPaint);
+
+    // 2. Kyant0 Inner Bevel Shine (1px top refraction light)
+    if (isIosLiquid || isLight) {
+      final innerRect = Rect.fromLTWH(
+        rect.left + borderWidth + 0.8,
+        rect.top + borderWidth + 0.5,
+        rect.width - (borderWidth + 0.8) * 2,
+        rect.height - (borderWidth + 0.5) * 2,
+      );
+      if (innerRect.width > 0 && innerRect.height > 0) {
+        final innerRRect = borderRadius.toRRect(innerRect);
+        final shineGradient = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withValues(alpha: isLight ? 0.75 : 0.40),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+          stops: const [0.0, 0.40],
+        );
+
+        final shinePaint = Paint()
+          ..shader = shineGradient.createShader(innerRect)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0;
+
+        canvas.drawRRect(innerRRect, shinePaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _KyantLiquidGlassPainter oldDelegate) {
+    return oldDelegate.borderRadius != borderRadius ||
+        oldDelegate.borderColor != borderColor ||
+        oldDelegate.borderWidth != borderWidth ||
+        oldDelegate.isIosLiquid != isIosLiquid ||
+        oldDelegate.isLight != isLight;
   }
 }
 
