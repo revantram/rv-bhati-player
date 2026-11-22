@@ -28,6 +28,7 @@ import '../widgets/add_to_playlist_dialog.dart';
 import '../widgets/art_box.dart';
 import '../widgets/artist_songs_sheet.dart';
 import '../widgets/equalizer_sheet.dart';
+import '../widgets/glass_bars.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
 import '../widgets/liquid_glass_play_pause_button.dart';
