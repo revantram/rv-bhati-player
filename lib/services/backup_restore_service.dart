@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import 'app_state.dart';
 import 'equalizer_service.dart';
@@ -95,9 +94,9 @@ class BackupRestoreService {
       },
       'settings': {
         'themeMode': settings.themeMode.name,
-        'playerStyle': settings.playerStyle.name,
-        'frostedCards': settings.frostedCards,
-        'dynamicGlow': settings.dynamicGlow,
+        'playerThemeStyle': settings.playerThemeStyle.name,
+        'glassBlurEnabled': settings.glassBlurEnabled,
+        'dynamicArtworkColors': settings.dynamicArtworkColors,
         'audioQuality': settings.audioQuality.name,
         'autoQuality': settings.autoQuality,
         'crossfadeSeconds': settings.crossfadeSeconds,
@@ -223,7 +222,7 @@ class BackupRestoreService {
       if (qStr != null) {
         final q = AudioQuality.values.firstWhere(
           (aq) => aq.name == qStr,
-          orElse: () => AudioQuality.high,
+          orElse: () => AudioQuality.hd320,
         );
         settings.setAudioQuality(q);
       }
@@ -231,7 +230,7 @@ class BackupRestoreService {
         settings.setAutoQuality(s['autoQuality'] as bool);
       }
       if (s['crossfadeSeconds'] is num) {
-        settings.setCrossfadeSeconds((s['crossfadeSeconds'] as num).toDouble());
+        settings.setCrossfadeSeconds((s['crossfadeSeconds'] as num).toInt());
       }
     }
 
@@ -290,8 +289,8 @@ class BackupRestoreService {
     if (decoded['favoriteItems'] is List) {
       for (final itemJson in decoded['favoriteItems'] as List) {
         try {
-          final song = OnlineSong.fromJson(itemJson as Map<String, dynamic>);
-          app.saveFavoriteSong(song);
+          final item = PlaylistItem.fromJson(itemJson as Map<String, dynamic>);
+          app.addFavoriteItem(item);
         } catch (_) {}
       }
     }

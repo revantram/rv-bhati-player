@@ -288,6 +288,14 @@ class AudioController {
     return null;
   }
 
+  MediaFile? get currentSong {
+    final idx = player.currentIndex ?? 0;
+    if (queue.isNotEmpty && idx >= 0 && idx < queue.length) {
+      return queue[idx];
+    }
+    return null;
+  }
+
   Future<void> playQueue(List<MediaFile> items, int startIndex, {bool shuffle = false}) async {
     _queueSessionGen++;
     ensureNotificationPermission();

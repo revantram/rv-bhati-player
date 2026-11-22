@@ -1007,7 +1007,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              StreamHealthBadge(compact: false, customAccent: accent),
+                                              StreamHealthBadge(compact: false, customAccent: appAccent),
                                               const SizedBox(height: 8),
                                               Text(
                                                 track.title,

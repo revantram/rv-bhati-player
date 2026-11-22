@@ -121,7 +121,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Future<void> _initAudioSession() async {
     try {
       final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.movie());
+      await session.configure(const AudioSessionConfiguration.music());
       _audioInterruptionSub = session.interruptionEventStream.listen((event) {
         if (event.begin) {
           switch (event.type) {
