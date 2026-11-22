@@ -59,4 +59,38 @@ class MediaFile {
     } catch (_) {}
     return 'Internal Storage';
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'path': path,
+        'kind': kind == MediaKind.video ? 'video' : 'audio',
+        'durationMs': duration.inMilliseconds,
+        'artist': artist,
+        'album': album,
+        'fileSize': fileSize,
+        'modifiedDate': modifiedDate?.millisecondsSinceEpoch,
+        'customFolderName': customFolderName,
+        if (qualityUrls != null) 'qualityUrls': qualityUrls,
+      };
+
+  factory MediaFile.fromJson(Map<String, dynamic> map) {
+    return MediaFile(
+      id: map['id']?.toString() ?? '',
+      title: map['title']?.toString() ?? '',
+      path: map['path']?.toString() ?? '',
+      kind: map['kind'] == 'audio' ? MediaKind.audio : MediaKind.video,
+      duration: Duration(milliseconds: (map['durationMs'] as num?)?.toInt() ?? 0),
+      artist: map['artist']?.toString(),
+      album: map['album']?.toString(),
+      fileSize: (map['fileSize'] as num?)?.toInt(),
+      modifiedDate: map['modifiedDate'] != null
+          ? DateTime.fromMillisecondsSinceEpoch((map['modifiedDate'] as num).toInt())
+          : null,
+      customFolderName: map['customFolderName']?.toString(),
+      qualityUrls: map['qualityUrls'] is Map
+          ? (map['qualityUrls'] as Map).map((k, v) => MapEntry(k.toString(), v.toString()))
+          : null,
+    );
+  }
 }

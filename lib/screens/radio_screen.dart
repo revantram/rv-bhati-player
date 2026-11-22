@@ -40,6 +40,14 @@ class _RadioScreenState extends State<RadioScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    RadioStation.loadStations().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
@@ -54,7 +62,7 @@ class _RadioScreenState extends State<RadioScreen> {
     final crossAxisCount = isTabletOrTv ? 4 : 2;
 
     final favIds = app.favoriteStations;
-    final allStations = RadioStation.stations;
+    final allStations = RadioStation.allStations;
     final filteredStations = allStations.where((s) {
       if (_selectedCategory == 'Favorites') {
         return favIds.contains(s.id);
@@ -83,12 +91,18 @@ class _RadioScreenState extends State<RadioScreen> {
       });
     }
 
-    return ListView(
-      padding: EdgeInsets.fromLTRB(16, widget.topOffset, 16, math.max(140.0, widget.bottomOffset)),
-      physics: const BouncingScrollPhysics(),
-      children: [
-        // 1. Header: Live FM Radio India Title, Search & Category Filter
-        _buildHeader(context, app, filteredStations.length),
+    return RefreshIndicator(
+      color: app.accentColor,
+      onRefresh: () async {
+        await RadioStation.loadStations(forceRefresh: true);
+        if (mounted) setState(() {});
+      },
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(16, widget.topOffset, 16, math.max(140.0, widget.bottomOffset)),
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        children: [
+          // 1. Header: Live FM Radio India Title, Search & Category Filter
+          _buildHeader(context, app, filteredStations.length),
 
         const SizedBox(height: 14),
 
@@ -156,13 +170,14 @@ class _RadioScreenState extends State<RadioScreen> {
             },
           ),
       ],
+    ),
     );
   }
 
   Widget _buildHeader(BuildContext context, AppState app, int stationCount) {
     final favCount = app.favoriteStations.length;
     final categories = [
-      {'id': 'All', 'label': '🌟 All Stations (${RadioStation.stations.length})'},
+      {'id': 'All', 'label': '🌟 All Stations (${RadioStation.allStations.length})'},
       if (favCount > 0)
         {'id': 'Favorites', 'label': '⭐ Favorites ($favCount)'},
       for (final c in _categories.where((c) => c['id'] != 'All'))

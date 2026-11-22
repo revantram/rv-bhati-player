@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/local_cache_service.dart';
+
 class RadioStation {
   const RadioStation({
     required this.id,
@@ -26,6 +28,81 @@ class RadioStation {
   final Color color;
   final String icon;
   final String? imageUrl;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'tagline': tagline,
+        'streamUrl': streamUrl,
+        'fallbackStreamUrl': fallbackStreamUrl,
+        'embedUrl': embedUrl,
+        'category': category,
+        'frequency': frequency,
+        'color': color.toARGB32(),
+        'icon': icon,
+        'imageUrl': imageUrl,
+      };
+
+  factory RadioStation.fromJson(Map<String, dynamic> json) {
+    return RadioStation(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      tagline: json['tagline']?.toString() ?? '',
+      streamUrl: json['streamUrl']?.toString() ?? '',
+      fallbackStreamUrl: json['fallbackStreamUrl']?.toString(),
+      embedUrl: json['embedUrl']?.toString() ?? '',
+      category: json['category']?.toString() ?? 'All',
+      frequency: json['frequency']?.toString() ?? 'Live',
+      color: Color((json['color'] as num?)?.toInt() ?? 0xFFFF9800),
+      icon: json['icon']?.toString() ?? '📻',
+      imageUrl: json['imageUrl']?.toString(),
+    );
+  }
+
+  // Tier 1 in-memory + Tier 2 persistent cache for instant loading without refetching
+  static List<RadioStation>? _cachedStations;
+
+  static List<RadioStation> get allStations => _cachedStations ?? stations;
+
+  /// Loads radio stations from in-memory cache first, then from local disk cache file.
+  /// If not cached yet, falls back to the 208 curated stations and persists them to the local cache file.
+  static Future<List<RadioStation>> loadStations({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedStations != null && _cachedStations!.isNotEmpty) {
+      return _cachedStations!;
+    }
+
+    if (!forceRefresh) {
+      // 1. In-memory fast check
+      final mem = LocalCacheService.instance.getMemory<List<RadioStation>>('radio_stations_v2');
+      if (mem != null && mem.isNotEmpty) {
+        _cachedStations = mem;
+        return mem;
+      }
+
+      // 2. Persistent disk cache check
+      final cached = await LocalCacheService.instance.get<List<RadioStation>>(
+        'radio_stations_v2',
+        maxAge: const Duration(days: 30),
+        fromJson: (raw) => (raw as List)
+            .map((m) => RadioStation.fromJson(m as Map<String, dynamic>))
+            .toList(),
+      );
+      if (cached != null && cached.isNotEmpty) {
+        _cachedStations = cached;
+        return cached;
+      }
+    }
+
+    // Default 208 stations saved to local cache file
+    _cachedStations = List<RadioStation>.from(stations);
+    await LocalCacheService.instance.set(
+      'radio_stations_v2',
+      stations,
+      ttl: const Duration(days: 30),
+      toJson: (list) => (list as List<RadioStation>).map((s) => s.toJson()).toList(),
+    );
+    return _cachedStations!;
+  }
 
   String get effectiveStreamUrl {
     final s = streamUrl.trim();

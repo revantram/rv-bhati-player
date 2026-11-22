@@ -25,6 +25,28 @@ class VideoFolder {
   int get totalSizeBytes => videos.fold<int>(0, (sum, v) => sum + (v.fileSize ?? 0));
   MediaFile? get coverVideo => videos.isNotEmpty ? videos.first : _initialCover;
 
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'path': path,
+        'videos': videos.map((v) => v.toJson()).toList(),
+        'totalSizeBytes': totalSizeBytes,
+      };
+
+  factory VideoFolder.fromJson(Map<String, dynamic> json) {
+    final rawVideos = json['videos'] is List ? (json['videos'] as List) : [];
+    final vList = rawVideos
+        .whereType<Map<String, dynamic>>()
+        .map((m) => MediaFile.fromJson(m))
+        .toList();
+    return VideoFolder(
+      name: json['name']?.toString() ?? '',
+      path: json['path']?.toString() ?? '',
+      videos: vList,
+      totalSizeBytes: (json['totalSizeBytes'] as num?)?.toInt(),
+      coverVideo: vList.isNotEmpty ? vList.first : null,
+    );
+  }
+
   static List<VideoFolder> groupVideos(
     List<MediaFile> allVideos, {
     FolderSortType sortType = FolderSortType.count,

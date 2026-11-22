@@ -16,6 +16,7 @@ import '../services/settings_service.dart';
 import '../services/audio_controller.dart';
 import '../services/radio_controller.dart';
 import '../services/media_scanner.dart';
+import '../services/local_cache_service.dart';
 import '../services/update_service.dart';
 import '../utils/format.dart';
 import '../utils/id3_parser.dart';
@@ -117,16 +118,58 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _init() async {
-    setState(() {
-      _loading = true;
-      _denied = false;
-      _error = null;
-    });
+  Future<void> _init({bool force = false}) async {
+    // 1. Cache-First Instant Display: Read from local cache files immediately
+    if (!force) {
+      final cachedVideos = LocalCacheService.instance.getMemory<List<MediaFile>>('local_videos_cache') ??
+          await LocalCacheService.instance.get<List<MediaFile>>(
+            'local_videos_cache',
+            maxAge: const Duration(days: 7),
+            fromJson: (raw) => (raw as List)
+                .map((m) => MediaFile.fromJson(m as Map<String, dynamic>))
+                .toList(),
+          );
+      final cachedAudios = LocalCacheService.instance.getMemory<List<MediaFile>>('local_audios_cache') ??
+          await LocalCacheService.instance.get<List<MediaFile>>(
+            'local_audios_cache',
+            maxAge: const Duration(days: 7),
+            fromJson: (raw) => (raw as List)
+                .map((m) => MediaFile.fromJson(m as Map<String, dynamic>))
+                .toList(),
+          );
+
+      if ((cachedVideos != null && cachedVideos.isNotEmpty) ||
+          (cachedAudios != null && cachedAudios.isNotEmpty)) {
+        if (mounted) {
+          setState(() {
+            if (cachedVideos != null) _videos = cachedVideos;
+            if (cachedAudios != null) _audios = cachedAudios;
+            _loading = false;
+            _denied = false;
+            _error = null;
+          });
+        }
+      } else {
+        setState(() {
+          _loading = true;
+          _denied = false;
+          _error = null;
+        });
+      }
+    } else {
+      if (_videos.isEmpty) {
+        setState(() {
+          _loading = true;
+          _denied = false;
+          _error = null;
+        });
+      }
+    }
+
     try {
       final granted = await MediaScanner.requestPermissions();
       if (!granted) {
-        if (mounted) {
+        if (_videos.isEmpty && mounted) {
           setState(() {
             _denied = true;
             _loading = false;
@@ -139,19 +182,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         MediaScanner.scan(MediaKind.audio),
       ]);
       if (!mounted) return;
+      final freshVideos = List<MediaFile>.from(results[0]);
+      final freshAudios = List<MediaFile>.from(results[1]);
       setState(() {
-        _videos = List<MediaFile>.from(results[0]);
-        _audios = List<MediaFile>.from(results[1]);
+        _videos = freshVideos;
+        _audios = freshAudios;
         _loading = false;
+        _denied = false;
+        _error = null;
       });
+
+      // Persist fresh scanned lists to local cache files
+      await LocalCacheService.instance.set(
+        'local_videos_cache',
+        freshVideos,
+        ttl: const Duration(days: 7),
+        toJson: (list) => (list as List<MediaFile>).map((v) => v.toJson()).toList(),
+      );
+      await LocalCacheService.instance.set(
+        'local_audios_cache',
+        freshAudios,
+        ttl: const Duration(days: 7),
+        toJson: (list) => (list as List<MediaFile>).map((a) => a.toJson()).toList(),
+      );
+
       // Auto-check for updates in background on app open
       UpdateService.instance.checkAndPromptUpdate(context);
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = '$e';
-        });
+        if (_videos.isEmpty) {
+          setState(() {
+            _loading = false;
+            _error = '$e';
+          });
+        }
       }
     }
   }
@@ -693,17 +757,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final topOffset = pad.top + 8;
     final bottomOffset = pad.bottom + 155;
 
-    return KeyedSubtree(
-      key: ValueKey('home_tab_$_tab'),
-      child: _tab == 0
-          ? _buildVideosSection(topOffset, bottomOffset)
-          : _tab == 1
-              ? OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset)
-              : _tab == 2
-                  ? RadioScreen(topOffset: topOffset, bottomOffset: bottomOffset)
-                  : _tab == 3
-                      ? ShowsHubScreen(isTab: true, bottomOffset: bottomOffset)
-                      : SettingsScreen(isTab: true, bottomOffset: bottomOffset),
+    return IndexedStack(
+      index: _tab,
+      children: [
+        _buildVideosSection(topOffset, bottomOffset),
+        OnlineMusicScreen(topOffset: topOffset, bottomOffset: bottomOffset),
+        RadioScreen(topOffset: topOffset, bottomOffset: bottomOffset),
+        ShowsHubScreen(isTab: true, bottomOffset: bottomOffset),
+        SettingsScreen(isTab: true, bottomOffset: bottomOffset),
+      ],
     );
   }
 
@@ -755,22 +817,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           icon: Icons.refresh_rounded,
                           label: 'Rescan',
                           size: 46,
-                          onTap: _init,
+                          onTap: () => _init(force: true),
                         ),
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
-                    itemCount: items.length,
-                    itemBuilder: (_, i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _MediaCard(
-                        item: items[i],
-                        onTap: () => _open(items, i),
-                        onVideoOptions: items[i].kind == MediaKind.video
-                            ? () => _showVideoOptions(items[i], items, i)
-                            : null,
+                : RefreshIndicator(
+                    color: app.accentColor,
+                    onRefresh: () => _init(force: true),
+                    child: ListView.builder(
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, bottomOffset),
+                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                      itemCount: items.length,
+                      itemBuilder: (_, i) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _MediaCard(
+                          item: items[i],
+                          onTap: () => _open(items, i),
+                          onVideoOptions: items[i].kind == MediaKind.video
+                              ? () => _showVideoOptions(items[i], items, i)
+                              : null,
+                        ),
                       ),
                     ),
                   ),
@@ -793,11 +860,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: VideoFolderScreen(
               videos: _videos,
               bottomOffset: bottomOffset + 68,
-              onRescan: _init,
+              onRescan: () => _init(force: true),
               onVideoDeleted: (deleted) {
                 setState(() {
                   _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
                 });
+                LocalCacheService.instance.set(
+                  'local_videos_cache',
+                  _videos,
+                  ttl: const Duration(days: 7),
+                  toJson: (list) => (list as List<MediaFile>).map((v) => v.toJson()).toList(),
+                );
                 AppState.instance.syncRemovedMedia(deleted.path);
               },
             ),

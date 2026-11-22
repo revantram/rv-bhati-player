@@ -82,6 +82,11 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   @override
   void initState() {
     super.initState();
+    final fast = SaavnApiService.instance.cachedTrendingFast;
+    if (fast != null && fast.isNotEmpty) {
+      _trendingSongs = fast;
+      _isLoadingTrending = false;
+    }
     _loadTrending();
     SettingsService.instance.addListener(_onSettingsChanged);
   }
@@ -101,7 +106,24 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   MusicEngine get _engine => SettingsService.instance.musicEngine;
 
   Future<void> _loadTrending({bool force = false}) async {
-    setState(() => _isLoadingTrending = true);
+    if (!force) {
+      if (_trendingSongs.isNotEmpty) {
+        _isLoadingTrending = false;
+      } else {
+        final fast = SaavnApiService.instance.cachedTrendingFast;
+        if (fast != null && fast.isNotEmpty) {
+          setState(() {
+            _trendingSongs = fast;
+            _isLoadingTrending = false;
+          });
+        } else {
+          setState(() => _isLoadingTrending = true);
+        }
+      }
+    } else {
+      setState(() => _isLoadingTrending = true);
+    }
+
     List<OnlineSong> songs;
     if (_engine == MusicEngine.spotify) {
       songs = await SpotifyService.instance.getTrendingSongs();
@@ -152,17 +174,18 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     });
   }
 
-  Future<void> _loadSongsByQuery(String query, String displayTitle) async {
+  Future<void> _loadSongsByQuery(String query, String displayTitle, {bool force = false}) async {
     setState(() {
       _customDisplayTitle = displayTitle;
-      _isLoadingCustomSongs = true;
-      _customSongs = [];
+      if (_customSongs == null || _customSongs!.isEmpty) {
+        _isLoadingCustomSongs = true;
+      }
     });
     List<OnlineSong> songs;
     if (_engine == MusicEngine.spotify) {
       songs = await SpotifyService.instance.search(query);
     } else {
-      songs = await SaavnApiService.instance.searchSongs(query, limit: 100);
+      songs = await SaavnApiService.instance.searchSongs(query, limit: 100, forceRefresh: force);
     }
     if (mounted) {
       setState(() {

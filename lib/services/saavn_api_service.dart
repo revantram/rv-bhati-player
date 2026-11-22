@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../models/online_song.dart';
+import 'local_cache_service.dart';
 
 class SaavnArtist {
   final String name;
@@ -33,6 +34,10 @@ class SaavnApiService {
   List<OnlineSong>? _cachedTrending;
   final Map<String, List<OnlineSong>> _cachedPlaylists = {};
   final Map<String, List<OnlineSong>> _cachedArtists = {};
+
+  /// Instant synchronous fast accessor for cached trending songs
+  List<OnlineSong>? get cachedTrendingFast => _cachedTrending ??
+      LocalCacheService.instance.getMemory<List<OnlineSong>>('jiosaavn_trending_v1');
 
   // Curated Artists Catalog as requested
   static const List<SaavnArtist> curatedArtists = [
@@ -692,15 +697,29 @@ class SaavnApiService {
     return t.replaceAll(RegExp(r'[^a-z0-9]'), '');
   }
 
-  Future<List<OnlineSong>> searchSongs(String query, {int page = 1, int limit = 30}) async {
+  Future<List<OnlineSong>> searchSongs(String query, {int page = 1, int limit = 30, bool forceRefresh = false}) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return const [];
 
     final cacheKey = '${cleanQuery.toLowerCase()}_${page}_$limit';
-    if (_cachedQueries.containsKey(cacheKey)) {
-      return _cachedQueries[cacheKey]!;
+    if (!forceRefresh) {
+      if (_cachedQueries.containsKey(cacheKey)) {
+        return _cachedQueries[cacheKey]!;
+      }
+      final fileCached = await LocalCacheService.instance.get<List<OnlineSong>>(
+        'saavn_query_$cacheKey',
+        maxAge: const Duration(days: 3),
+        fromJson: (raw) => (raw as List)
+            .map((m) => OnlineSong.fromMap(m as Map<String, dynamic>))
+            .toList(),
+      );
+      if (fileCached != null && fileCached.isNotEmpty) {
+        _cachedQueries[cacheKey] = fileCached;
+        return fileCached;
+      }
     }
 
+    List<OnlineSong> results;
     if (limit > 40) {
       final pagesNeeded = (limit / 50).ceil().clamp(1, 8);
       final futures = <Future<List<OnlineSong>>>[];
@@ -708,11 +727,11 @@ class SaavnApiService {
       for (int p = startP; p < startP + pagesNeeded; p++) {
         futures.add(_searchSinglePage(cleanQuery, page: p, limit: 50));
       }
-      final results = await Future.wait(futures);
+      final pageResults = await Future.wait(futures);
       final combined = <OnlineSong>[];
       final seenIds = <String>{};
       final seenTitles = <String>{};
-      for (final list in results) {
+      for (final list in pageResults) {
         for (final song in list) {
           if (!seenIds.add(song.id)) continue;
           final norm = _normalizeTitleForDedup(song.title);
@@ -720,17 +739,21 @@ class SaavnApiService {
           combined.add(song);
         }
       }
-      if (combined.isNotEmpty) {
-        _cachedQueries[cacheKey] = combined;
-      }
-      return combined;
+      results = combined;
+    } else {
+      results = await _searchSinglePage(cleanQuery, page: page, limit: limit);
     }
 
-    final single = await _searchSinglePage(cleanQuery, page: page, limit: limit);
-    if (single.isNotEmpty) {
-      _cachedQueries[cacheKey] = single;
+    if (results.isNotEmpty) {
+      _cachedQueries[cacheKey] = results;
+      await LocalCacheService.instance.set(
+        'saavn_query_$cacheKey',
+        results,
+        ttl: const Duration(days: 3),
+        toJson: (l) => (l as List<OnlineSong>).map((s) => s.toJson()).toList(),
+      );
     }
-    return single;
+    return results;
   }
 
   Future<List<OnlineSong>> _searchSinglePage(String cleanQuery, {required int page, required int limit}) async {
@@ -761,8 +784,21 @@ class SaavnApiService {
   /// 2. Trending / Top Charts:
   /// Most-played weekly chartbusters aur recommendation list fetch karna
   Future<List<OnlineSong>> getTrendingSongs({bool forceRefresh = false}) async {
-    if (!forceRefresh && _cachedTrending != null && _cachedTrending!.isNotEmpty) {
-      return _cachedTrending!;
+    if (!forceRefresh) {
+      if (_cachedTrending != null && _cachedTrending!.isNotEmpty) {
+        return _cachedTrending!;
+      }
+      final fileCached = await LocalCacheService.instance.get<List<OnlineSong>>(
+        'jiosaavn_trending_v1',
+        maxAge: const Duration(hours: 12),
+        fromJson: (raw) => (raw as List)
+            .map((m) => OnlineSong.fromMap(m as Map<String, dynamic>))
+            .toList(),
+      );
+      if (fileCached != null && fileCached.isNotEmpty) {
+        _cachedTrending = fileCached;
+        return fileCached;
+      }
     }
 
     try {
@@ -783,6 +819,12 @@ class SaavnApiService {
           }
           if (list.isNotEmpty) {
             _cachedTrending = list;
+            await LocalCacheService.instance.set(
+              'jiosaavn_trending_v1',
+              list,
+              ttl: const Duration(hours: 12),
+              toJson: (l) => (l as List<OnlineSong>).map((s) => s.toJson()).toList(),
+            );
             return list;
           }
         }
@@ -790,9 +832,15 @@ class SaavnApiService {
     } catch (_) {}
 
     // Fallback: search top trending
-    final fallback = await searchSongs('Hindi Trending Hits', limit: 25);
+    final fallback = await searchSongs('Hindi Trending Hits', limit: 25, forceRefresh: forceRefresh);
     if (fallback.isNotEmpty) {
       _cachedTrending = fallback;
+      await LocalCacheService.instance.set(
+        'jiosaavn_trending_v1',
+        fallback,
+        ttl: const Duration(hours: 12),
+        toJson: (l) => (l as List<OnlineSong>).map((s) => s.toJson()).toList(),
+      );
     }
     return fallback;
   }
@@ -800,9 +848,23 @@ class SaavnApiService {
   /// 3. Categorized Playlists:
   /// - 'New Bollywood Hits' (Latest releases)
   /// - 'Evergreen Classics' (70s, 80s, 90s Golden Hits)
-  Future<List<OnlineSong>> getCategorizedPlaylist(String category) async {
-    if (_cachedPlaylists.containsKey(category)) {
-      return _cachedPlaylists[category]!;
+  Future<List<OnlineSong>> getCategorizedPlaylist(String category, {bool forceRefresh = false}) async {
+    final cacheKey = 'saavn_playlist_${category.toLowerCase().replaceAll(' ', '_')}';
+    if (!forceRefresh) {
+      if (_cachedPlaylists.containsKey(category)) {
+        return _cachedPlaylists[category]!;
+      }
+      final fileCached = await LocalCacheService.instance.get<List<OnlineSong>>(
+        cacheKey,
+        maxAge: const Duration(hours: 24),
+        fromJson: (raw) => (raw as List)
+            .map((m) => OnlineSong.fromMap(m as Map<String, dynamic>))
+            .toList(),
+      );
+      if (fileCached != null && fileCached.isNotEmpty) {
+        _cachedPlaylists[category] = fileCached;
+        return fileCached;
+      }
     }
 
     final isNewHits = category == 'New Bollywood Hits';
@@ -814,7 +876,7 @@ class SaavnApiService {
     final seenIds = <String>{};
 
     for (final q in queries) {
-      final songs = await searchSongs(q, limit: 35);
+      final songs = await searchSongs(q, limit: 35, forceRefresh: forceRefresh);
       for (final s in songs) {
         if (seenIds.add(s.id)) {
           allSongs.add(s);
@@ -825,21 +887,47 @@ class SaavnApiService {
 
     if (allSongs.isNotEmpty) {
       _cachedPlaylists[category] = allSongs;
+      await LocalCacheService.instance.set(
+        cacheKey,
+        allSongs,
+        ttl: const Duration(hours: 24),
+        toJson: (l) => (l as List<OnlineSong>).map((s) => s.toJson()).toList(),
+      );
     }
     return allSongs;
   }
 
   /// 4. Comprehensive Artist Discography Fetcher:
   /// Fetch complete song catalog (up to hundreds of tracks) for any singer
-  Future<List<OnlineSong>> getArtistSongs(String artistName, {int page = 1, int limit = 250}) async {
+  Future<List<OnlineSong>> getArtistSongs(String artistName, {int page = 1, int limit = 250, bool forceRefresh = false}) async {
     final key = '${artistName.trim().toLowerCase()}_p${page}_l$limit';
-    if (_cachedArtists.containsKey(key)) {
-      return _cachedArtists[key]!;
+    final cacheKey = 'saavn_artist_$key';
+    if (!forceRefresh) {
+      if (_cachedArtists.containsKey(key)) {
+        return _cachedArtists[key]!;
+      }
+      final fileCached = await LocalCacheService.instance.get<List<OnlineSong>>(
+        cacheKey,
+        maxAge: const Duration(days: 7),
+        fromJson: (raw) => (raw as List)
+            .map((m) => OnlineSong.fromMap(m as Map<String, dynamic>))
+            .toList(),
+      );
+      if (fileCached != null && fileCached.isNotEmpty) {
+        _cachedArtists[key] = fileCached;
+        return fileCached;
+      }
     }
 
-    final songs = await searchSongs(artistName, page: page, limit: limit);
+    final songs = await searchSongs(artistName, page: page, limit: limit, forceRefresh: forceRefresh);
     if (songs.isNotEmpty) {
       _cachedArtists[key] = songs;
+      await LocalCacheService.instance.set(
+        cacheKey,
+        songs,
+        ttl: const Duration(days: 7),
+        toJson: (l) => (l as List<OnlineSong>).map((s) => s.toJson()).toList(),
+      );
     }
     return songs;
   }
