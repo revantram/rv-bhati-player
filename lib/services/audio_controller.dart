@@ -29,6 +29,7 @@ class AudioController {
     _initAutoAdvanceListener();
     _initAutoMixListener();
     _initLazyQueuePrefetch();
+    _initEpisodeProgressListener();
     SettingsService.instance.addListener(_applyPlaybackSettings);
     _applyPlaybackSettings();
   }
@@ -186,6 +187,27 @@ class AudioController {
         try {
           await player.setVolume(1.0);
         } catch (_) {}
+      }
+    });
+  }
+
+  int _lastEpisodeTrackSaveTime = 0;
+  void _initEpisodeProgressListener() {
+    player.positionStream.listen((pos) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _lastEpisodeTrackSaveTime < 4000) return;
+      _lastEpisodeTrackSaveTime = now;
+
+      final song = currentOnlineSong;
+      final dur = player.duration;
+      if (song != null && dur != null && dur.inSeconds > 45) {
+        final isEpisode = song.album.toLowerCase().contains('osho') ||
+            song.album.toLowerCase().contains('desi fm') ||
+            song.album.toLowerCase().contains('aawaz') ||
+            song.artist.toLowerCase().contains('osho');
+        if (isEpisode) {
+          AppState.instance.saveEpisodePosition(song.id, pos.inSeconds, dur.inSeconds);
+        }
       }
     });
   }

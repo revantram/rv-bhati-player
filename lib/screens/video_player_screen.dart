@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, FontFeature;
 
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:screen_brightness/screen_brightness.dart';
@@ -97,6 +98,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   Timer? _hideTimer;
   Timer? _hudTimer;
+  StreamSubscription<AudioInterruptionEvent>? _audioInterruptionSub;
 
   static const _pipChannel = MethodChannel('com.rvbhati.player/pip');
 
@@ -106,6 +108,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     WidgetsBinding.instance.addObserver(this);
     _index = widget.startIndex;
     AudioController.instance.player.pause(); // stop music
+    _initAudioSession();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     try {
       VolumeController.instance.showSystemUI = false;
@@ -115,9 +118,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _load(_index);
   }
 
+  Future<void> _initAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.movie());
+      _audioInterruptionSub = session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              _controller?.setVolume(0.25);
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              _saveCurrentPosition();
+              _controller?.pause();
+              if (mounted) setState(() => _showControls = true);
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              _controller?.setVolume(1.0);
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              break;
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _audioInterruptionSub?.cancel();
     _saveCurrentPosition();
     _hideTimer?.cancel();
     _hudTimer?.cancel();
@@ -130,7 +165,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     ScreenBrightness.instance.resetApplicationScreenBrightness().catchError((_) {});
+    AudioSession.instance.then((s) => s.configure(const AudioSessionConfiguration.music())).catchError((_) {});
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
@@ -383,6 +425,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     SystemChrome.setPreferredOrientations(_landscape
         ? [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]
         : [DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     setState(() {});
     _poke();
   }

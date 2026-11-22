@@ -551,6 +551,11 @@ class AppState extends ChangeNotifier {
   Map<String, int> get playCounts => Map.unmodifiable(_playCounts);
 
   final Map<String, int> _videoPositions = {}; // path -> seconds
+  final Map<String, int> _episodePositions = {}; // episode id/url -> seconds
+  final Map<String, int> _episodeDurations = {}; // episode id/url -> total seconds
+  Map<String, int> get videoPositions => Map.unmodifiable(_videoPositions);
+  Map<String, int> get episodePositions => Map.unmodifiable(_episodePositions);
+  Map<String, int> get episodeDurations => Map.unmodifiable(_episodeDurations);
 
   // Sleep Timer
   Timer? _sleepTimer;
@@ -647,6 +652,18 @@ class AppState extends ChangeNotifier {
             _videoPositions[e.key] = (e.value as num).toInt();
           }
         }
+        if (map['episodePositions'] is Map) {
+          final ep = map['episodePositions'] as Map<String, dynamic>;
+          for (final e in ep.entries) {
+            _episodePositions[e.key] = (e.value as num).toInt();
+          }
+        }
+        if (map['episodeDurations'] is Map) {
+          final ed = map['episodeDurations'] as Map<String, dynamic>;
+          for (final e in ed.entries) {
+            _episodeDurations[e.key] = (e.value as num).toInt();
+          }
+        }
         if (map['playCounts'] is Map) {
           final pc = map['playCounts'] as Map<String, dynamic>;
           for (final e in pc.entries) {
@@ -690,6 +707,8 @@ class AppState extends ChangeNotifier {
           (k, v) => MapEntry(k, v.map((item) => item.toJson()).toList()),
         ),
         'videoPositions': _videoPositions,
+        'episodePositions': _episodePositions,
+        'episodeDurations': _episodeDurations,
         'playCounts': _playCounts,
         'eq_enabled': eq.isEnabled,
         'eq_preset': eq.currentPreset,
@@ -871,6 +890,32 @@ class AppState extends ChangeNotifier {
       _videoPositions.remove(path);
     }
     _save();
+  }
+
+  int getEpisodePosition(String id) {
+    return _episodePositions[id] ?? 0;
+  }
+
+  int getEpisodeDuration(String id) {
+    return _episodeDurations[id] ?? 0;
+  }
+
+  void saveEpisodePosition(String id, int seconds, int totalSeconds) {
+    if (seconds > 5 && (totalSeconds - seconds > 10)) {
+      _episodePositions[id] = seconds;
+      _episodeDurations[id] = totalSeconds;
+    } else if (totalSeconds > 0 && totalSeconds - seconds <= 10) {
+      _episodePositions.remove(id);
+    }
+    _save();
+    notifyListeners();
+  }
+
+  void clearEpisodePosition(String id) {
+    _episodePositions.remove(id);
+    _episodeDurations.remove(id);
+    _save();
+    notifyListeners();
   }
 
   // --- Sleep timer ---

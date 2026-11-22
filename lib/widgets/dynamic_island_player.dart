@@ -12,6 +12,7 @@ import '../services/radio_controller.dart';
 import 'art_box.dart';
 import 'liquid_glass_container.dart';
 import 'liquid_glass_play_pause_button.dart';
+import 'stream_health_badge.dart';
 
 /// iPhone-style floating Dynamic Island player at the top of the screen.
 /// Automatically appears when music plays and smoothly slides away when stopped.
@@ -250,19 +251,27 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                                             ),
                                           ),
                                           const SizedBox(height: 1),
-                                          Text(
-                                            tag.artist ??
-                                                (isRadio
-                                                    ? 'Live Radio'
-                                                    : 'RV Bhati Player'),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Colors.white
-                                                  .withValues(alpha: 0.65),
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  tag.artist ??
+                                                      (isRadio
+                                                          ? 'Live Radio'
+                                                          : 'RV Bhati Player'),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.65),
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              StreamHealthBadge(compact: true, customAccent: accent),
+                                            ],
                                           ),
                                         ],
                                       ),

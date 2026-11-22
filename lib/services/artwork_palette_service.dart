@@ -87,4 +87,8 @@ class ArtworkPaletteService {
     } catch (_) {}
     return null;
   }
+
+  void clearCache() {
+    _colorCache.clear();
+  }
 }

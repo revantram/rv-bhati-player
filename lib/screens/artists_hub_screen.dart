@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/app_state.dart';
+import '../services/audio_controller.dart';
+import '../services/saavn_api_service.dart';
 import '../services/yt_music_service.dart';
 import '../widgets/artist_songs_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
@@ -270,6 +272,30 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
                 ),
               ),
 
+              // Top Artists & Quick Mix Playlists
+              Container(
+                height: 38,
+                margin: const EdgeInsets.only(top: 8, bottom: 4),
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    _buildQuickMixChip('Rajasthani Folk Top', 'Rajasthani Folk Best', Icons.music_note_rounded, accent, textColor, secondaryTextColor, isLight),
+                    const SizedBox(width: 8),
+                    _buildQuickMixChip('Arijit Singh Best', 'Arijit Singh', Icons.star_rounded, accent, textColor, secondaryTextColor, isLight),
+                    const SizedBox(width: 8),
+                    _buildQuickMixChip('Diljit Dosanjh Mix', 'Diljit Dosanjh', Icons.bolt_rounded, accent, textColor, secondaryTextColor, isLight),
+                    const SizedBox(width: 8),
+                    _buildQuickMixChip('Sidhu Moose Wala Top', 'Sidhu Moose Wala', Icons.whatshot_rounded, accent, textColor, secondaryTextColor, isLight),
+                    const SizedBox(width: 8),
+                    _buildQuickMixChip('90s Bollywood Hits', 'Kumar Sanu', Icons.radio_rounded, accent, textColor, secondaryTextColor, isLight),
+                    const SizedBox(width: 8),
+                    _buildQuickMixChip('Kishore Kumar Hits', 'Kishore Kumar', Icons.album_rounded, accent, textColor, secondaryTextColor, isLight),
+                  ],
+                ),
+              ),
+
               // Artists Grid
               Expanded(
                 child: artists.isEmpty
@@ -307,36 +333,75 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Container(
+                                SizedBox(
                                   width: 84,
                                   height: 84,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: accent.withValues(alpha: 0.65),
-                                      width: 2.2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: accent.withValues(alpha: 0.25),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipOval(
-                                    child: Image.network(
-                                      a.avatarUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        color: accent.withValues(alpha: 0.15),
-                                        child: Icon(
-                                          Icons.person_rounded,
-                                          size: 40,
-                                          color: accent,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Container(
+                                        width: 84,
+                                        height: 84,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: accent.withValues(alpha: 0.65),
+                                            width: 2.2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: accent.withValues(alpha: 0.25),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: Image.network(
+                                            a.avatarUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              color: accent.withValues(alpha: 0.15),
+                                              child: Icon(
+                                                Icons.person_rounded,
+                                                size: 40,
+                                                color: accent,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                      Positioned(
+                                        right: -2,
+                                        bottom: -2,
+                                        child: GestureDetector(
+                                          onTap: () => _quickPlayArtist(a.name, a.name),
+                                          child: Container(
+                                            width: 28,
+                                            height: 28,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: accent,
+                                              border: Border.all(
+                                                color: isLight ? Colors.white : const Color(0xFF0F172A),
+                                                width: 2,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: accent.withValues(alpha: 0.55),
+                                                  blurRadius: 8,
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.play_arrow_rounded,
+                                              color: Colors.white,
+                                              size: 17,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -373,5 +438,75 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildQuickMixChip(
+    String label,
+    String query,
+    IconData icon,
+    Color accent,
+    Color textColor,
+    Color secondaryTextColor,
+    bool isLight,
+  ) {
+    return iOSBounceButton(
+      onTap: () => _quickPlayArtist(query, label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: isLight ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF1E2638).withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.1),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: 0.12),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: accent),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.play_arrow_rounded, size: 14, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _quickPlayArtist(String query, String displayName) async {
+    HapticFeedback.mediumImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Starting $displayName Top Tracks... 🎶'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    try {
+      var songs = await YtMusicService.instance.getArtistSongs(query, limit: 35);
+      if (songs.isEmpty) {
+        songs = await SaavnApiService.instance.getArtistSongs(query, limit: 35);
+      }
+      if (songs.isEmpty) {
+        songs = await SaavnApiService.instance.searchSongs(query, limit: 35);
+      }
+      if (!mounted) return;
+      if (songs.isNotEmpty) {
+        await AudioController.instance.playOnlineQueue(songs, 0);
+      }
+    } catch (_) {}
   }
 }

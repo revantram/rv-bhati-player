@@ -32,6 +32,7 @@ import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
 import '../widgets/liquid_glass_play_pause_button.dart';
 import '../widgets/sleep_timer_sheet.dart';
+import '../widgets/stream_health_badge.dart';
 
 class AudioPlayerScreen extends StatefulWidget {
   const AudioPlayerScreen({
@@ -1006,6 +1007,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
+                                              StreamHealthBadge(compact: false, customAccent: accent),
+                                              const SizedBox(height: 8),
                                               Text(
                                                 track.title,
                                                 maxLines: 1,

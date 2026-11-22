@@ -1,13 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'audio_trimmer_screen.dart';
 import 'car_mode_screen.dart';
 import '../models/radio_station.dart';
 import '../services/app_state.dart';
+import '../services/backup_restore_service.dart';
+import '../services/cache_service.dart';
 import '../services/media_scanner.dart';
 import '../services/download_service.dart';
 import '../services/settings_service.dart';
 import '../services/update_service.dart';
+import '../utils/format.dart';
 import '../widgets/equalizer_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_background.dart';
@@ -506,6 +510,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Section: Storage & App Data Management
+                    _buildSectionHeader('STORAGE & APP DATA MANAGEMENT', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 0,
+                      child: Column(
+                        children: [
+                          _buildNavTile(
+                            icon: Icons.backup_rounded,
+                            title: 'App Data Backup & Restore',
+                            subtitle: 'Local JSON Export • Playlists, Favorites & Preferences',
+                            onTap: () => _showBackupRestoreSheet(context, textColor, secondaryTextColor, accent, isLight),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
+                          _buildNavTile(
+                            icon: Icons.cleaning_services_rounded,
+                            title: 'Safe Cache / Temp Cleanup',
+                            subtitle: 'Clear buffer & temporary image cache safely',
+                            onTap: () => _showCacheCleanupSheet(context, textColor, secondaryTextColor, accent, isLight),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
                           ),
                         ],
                       ),
@@ -1911,6 +1948,552 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showBackupRestoreSheet(
+    BuildContext context,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+    bool isLight,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          margin: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isLight ? Colors.white.withValues(alpha: 0.96) : const Color(0xFF141926).withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.backup_rounded, color: accent, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'App Data Backup & Restore',
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'Local JSON archive • 100% Offline & Private',
+                          style: TextStyle(
+                            color: secondaryTextColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, color: secondaryTextColor),
+                    onPressed: () => Navigator.pop(sheetContext),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              iOSBounceButton(
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  HapticFeedback.mediumImpact();
+                  try {
+                    final summary = await BackupRestoreService.instance.exportBackup();
+                    if (!context.mounted) return;
+                    _showBackupSummaryDialog(context, summary, isExport: true, textColor: textColor, secondaryTextColor: secondaryTextColor, accent: accent, isLight: isLight);
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Backup failed: $e'), behavior: SnackBarBehavior.floating),
+                    );
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: accent.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.file_upload_rounded, color: accent, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Export Backup (Save to Device)',
+                              style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 14),
+                            ),
+                            Text(
+                              'Saves playlists, favorites, radio & resume positions as JSON',
+                              style: TextStyle(color: secondaryTextColor, fontSize: 11.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded, color: accent, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FutureBuilder<List<File>>(
+                future: BackupRestoreService.instance.listBackups(),
+                builder: (context, snapshot) {
+                  final files = snapshot.data ?? [];
+                  if (files.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: secondaryTextColor, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'No existing backups found. Export a backup first to restore later.',
+                              style: TextStyle(color: secondaryTextColor, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'RESTORE FROM EXISTING BACKUP',
+                        style: TextStyle(
+                          color: secondaryTextColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: files.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 6),
+                          itemBuilder: (context, i) {
+                            final file = files[i];
+                            final name = file.path.split('/').last;
+                            final date = file.lastModifiedSync();
+                            final size = formatBytes(file.lengthSync());
+                            return iOSBounceButton(
+                              onTap: () async {
+                                Navigator.pop(sheetContext);
+                                HapticFeedback.mediumImpact();
+                                _confirmAndRestore(context, file, textColor, secondaryTextColor, accent, isLight);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isLight ? Colors.black.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.settings_backup_restore_rounded, color: accent, size: 20),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(color: textColor, fontSize: 12.5, fontWeight: FontWeight.w600),
+                                          ),
+                                          Text(
+                                            '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')} • $size',
+                                            style: TextStyle(color: secondaryTextColor, fontSize: 10.5),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      'Restore',
+                                      style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w700),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmAndRestore(
+    BuildContext context,
+    File file,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+    bool isLight,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dlgContext) {
+        return AlertDialog(
+          backgroundColor: isLight ? Colors.white : const Color(0xFF1E2433),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Restore Backup?', style: TextStyle(color: textColor, fontWeight: FontWeight.w700)),
+          content: Text(
+            'This will safely merge and restore your saved playlists, favorite songs, radio stations, and resume positions from "${file.path.split('/').last}".',
+            style: TextStyle(color: secondaryTextColor, fontSize: 13.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgContext),
+              child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                Navigator.pop(dlgContext);
+                try {
+                  final summary = await BackupRestoreService.instance.restoreBackup(file);
+                  if (!context.mounted) return;
+                  _showBackupSummaryDialog(context, summary, isExport: false, textColor: textColor, secondaryTextColor: secondaryTextColor, accent: accent, isLight: isLight);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Restore error: $e'),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Restore Now'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showBackupSummaryDialog(
+    BuildContext context,
+    BackupSummary summary, {
+    required bool isExport,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color accent,
+    required bool isLight,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: isLight ? Colors.white : const Color(0xFF161C2C),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: accent.withValues(alpha: 0.4), width: 1.4),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isExport ? Icons.check_circle_rounded : Icons.cloud_done_rounded,
+                        color: accent,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isExport ? 'Backup Export Complete! ✅' : 'Restore Successful! 🎉',
+                            style: TextStyle(color: textColor, fontSize: 16.5, fontWeight: FontWeight.w800),
+                          ),
+                          Text(
+                            summary.formattedDate,
+                            style: TextStyle(color: secondaryTextColor, fontSize: 11.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isLight ? Colors.black.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildSummaryRow('🎵 Playlists', '${summary.playlistsCount + summary.customPlaylistsCount}', textColor, secondaryTextColor),
+                      const SizedBox(height: 6),
+                      _buildSummaryRow('⭐ Favorite Songs', '${summary.favoriteSongsCount}', textColor, secondaryTextColor),
+                      const SizedBox(height: 6),
+                      _buildSummaryRow('📻 Favorite Radio Stations', '${summary.favoriteStationsCount}', textColor, secondaryTextColor),
+                      const SizedBox(height: 6),
+                      _buildSummaryRow('🎬 Video & Episode Resumes', '${summary.videoPositionsCount + summary.episodePositionsCount}', textColor, secondaryTextColor),
+                      const SizedBox(height: 6),
+                      _buildSummaryRow('🔍 Search Queries Saved', '${summary.searchHistoryCount}', textColor, secondaryTextColor),
+                      const SizedBox(height: 6),
+                      _buildSummaryRow('🎨 Active Theme', summary.themeMode, textColor, secondaryTextColor),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Saved to: ${summary.filePath.split('/').last}',
+                  style: TextStyle(color: secondaryTextColor, fontSize: 11, fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value, Color textColor, Color secondaryTextColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(color: secondaryTextColor, fontSize: 12.5)),
+        Text(value, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13)),
+      ],
+    );
+  }
+
+  void _showCacheCleanupSheet(
+    BuildContext context,
+    Color textColor,
+    Color secondaryTextColor,
+    Color accent,
+    bool isLight,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return FutureBuilder<CacheInfo>(
+          future: CacheService.instance.getCacheSize(),
+          builder: (context, snapshot) {
+            final info = snapshot.data;
+            final sizeStr = info != null ? info.formattedSize : 'Calculating...';
+
+            return Container(
+              margin: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: isLight ? Colors.white.withValues(alpha: 0.96) : const Color(0xFF141926).withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: accent.withValues(alpha: 0.35), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(Icons.cleaning_services_rounded, color: accent, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Safe Cache / Temp Cleanup',
+                              style: TextStyle(color: textColor, fontSize: 17, fontWeight: FontWeight.w700),
+                            ),
+                            Text(
+                              'Current Cache: $sizeStr',
+                              style: TextStyle(color: accent, fontSize: 12.5, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close_rounded, color: secondaryTextColor),
+                        onPressed: () => Navigator.pop(sheetContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isLight ? Colors.black.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.security_rounded, color: Colors.greenAccent.shade700, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Strict Safety Guarantee',
+                              style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Clears ONLY temporary network buffer images and stream temp files. Your playlists, favorites, offline downloads, backups, and resume timestamps will be strictly preserved.',
+                          style: TextStyle(color: secondaryTextColor, fontSize: 12, height: 1.35),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.delete_sweep_rounded, size: 20),
+                    label: Text(
+                      'Clear Temporary Cache ($sizeStr)',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      HapticFeedback.mediumImpact();
+                      final freed = await CacheService.instance.clearSafeCache();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Freed ${freed.formattedSize} temporary cache safely! ✅'),
+                          backgroundColor: Colors.green.shade700,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

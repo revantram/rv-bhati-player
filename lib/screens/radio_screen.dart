@@ -7,6 +7,7 @@ import '../services/app_state.dart';
 import '../services/radio_controller.dart';
 import '../widgets/liquid_glass_container.dart';
 import '../widgets/liquid_glass_play_pause_button.dart';
+import '../widgets/stream_health_badge.dart';
 
 class RadioScreen extends StatefulWidget {
   final double topOffset;
@@ -189,22 +190,7 @@ class _RadioScreenState extends State<RadioScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'LIVE',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFFEF4444),
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
+                    const StreamHealthBadge(compact: true),
                   ],
                 ),
                 const SizedBox(height: 4),

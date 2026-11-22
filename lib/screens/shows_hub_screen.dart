@@ -9,8 +9,10 @@ import '../services/desifm_service.dart';
 import '../services/download_service.dart';
 import '../services/osho_service.dart';
 import '../services/search_history_service.dart';
+import '../utils/format.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/stream_health_badge.dart';
 import 'audio_player_screen.dart';
 import 'settings_screen.dart';
 
@@ -155,7 +157,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     }
   }
 
-  Future<void> _playOshoTrack(int index) async {
+  Future<void> _playOshoTrack(int index, {int startSeconds = 0}) async {
     if (_selectedOshoSeries == null || _oshoTracks.isEmpty) return;
     final onlineSongs = _oshoTracks.map((t) => t.toOnlineSong(_selectedOshoSeries!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
@@ -167,6 +169,11 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
       );
       return;
     }
+    if (startSeconds > 0) {
+      try {
+        await AudioController.instance.player.seek(Duration(seconds: startSeconds));
+      } catch (_) {}
+    }
 
     Navigator.push(
       context,
@@ -176,7 +183,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  Future<void> _playDesiEpisode(int index) async {
+  Future<void> _playDesiEpisode(int index, {int startSeconds = 0}) async {
     if (_selectedDesiSeries == null || _desiEpisodes.isEmpty) return;
     final onlineSongs = _desiEpisodes.map((ep) => ep.toOnlineSong(_selectedDesiSeries!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
@@ -188,6 +195,11 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
       );
       return;
     }
+    if (startSeconds > 0) {
+      try {
+        await AudioController.instance.player.seek(Duration(seconds: startSeconds));
+      } catch (_) {}
+    }
 
     Navigator.push(
       context,
@@ -197,7 +209,7 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     );
   }
 
-  Future<void> _playAawazEpisode(int index) async {
+  Future<void> _playAawazEpisode(int index, {int startSeconds = 0}) async {
     if (_selectedAawazShow == null || _aawazEpisodes.isEmpty) return;
     final onlineSongs = _aawazEpisodes.map((ep) => ep.toOnlineSong(_selectedAawazShow!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
@@ -209,6 +221,11 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
       );
       return;
     }
+    if (startSeconds > 0) {
+      try {
+        await AudioController.instance.player.seek(Duration(seconds: startSeconds));
+      } catch (_) {}
+    }
 
     Navigator.push(
       context,
@@ -216,6 +233,113 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
         builder: (_) => const AudioPlayerScreen(startPlayback: false),
       ),
     );
+  }
+
+  void _handleEpisodeTap({
+    required String id,
+    required String title,
+    required int durationSeconds,
+    required VoidCallback onResume,
+    required VoidCallback onRestart,
+  }) {
+    final savedSec = app.getEpisodePosition(id);
+    if (savedSec > 10 && durationSeconds - savedSec > 10) {
+      final formattedPos = formatDuration(Duration(seconds: savedSec));
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) {
+          final isLight = app.isLight;
+          final textColor = app.textColor;
+          final accent = app.accentColor;
+          return Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isLight ? Colors.white.withValues(alpha: 0.95) : const Color(0xFF1E2433).withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Saved position at $formattedPos • Would you like to resume?',
+                  style: TextStyle(color: app.secondaryTextColor, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: iOSBounceButton(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          onRestart();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Start from Beginning',
+                              style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: iOSBounceButton(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          onResume();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: accent,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(color: accent.withValues(alpha: 0.4), blurRadius: 10),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Resume ($formattedPos)',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } else {
+      onRestart();
+    }
   }
 
   bool get _isInSubView => _selectedOshoSeries != null || _selectedDesiSeries != null || _selectedAawazShow != null;
@@ -696,17 +820,53 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                     Text('${s.count} Discourse Episodes', style: TextStyle(color: secondaryTextColor, fontSize: 12)),
                     const SizedBox(height: 8),
                     if (_oshoTracks.isNotEmpty)
-                      ElevatedButton.icon(
-                        onPressed: () => _playOshoTrack(0),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: const Text('Play All Discourses', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _playOshoTrack(0),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                            label: const Text('Play All', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                          ),
+                          Builder(
+                            builder: (context) {
+                              int resumeIdx = -1;
+                              int resumePos = 0;
+                              for (int i = 0; i < _oshoTracks.length; i++) {
+                                final os = _oshoTracks[i].toOnlineSong(s);
+                                final p = app.getEpisodePosition(os.id);
+                                if (p > 10) {
+                                  resumeIdx = i;
+                                  resumePos = p;
+                                  break;
+                                }
+                              }
+                              if (resumeIdx == -1) return const SizedBox.shrink();
+                              return OutlinedButton.icon(
+                                onPressed: () => _playOshoTrack(resumeIdx, startSeconds: resumePos),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: accent,
+                                  side: BorderSide(color: accent, width: 1.2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                icon: const Icon(Icons.history_rounded, size: 18),
+                                label: Text(
+                                  'Resume Ep ${resumeIdx + 1} (${formatDuration(Duration(seconds: resumePos))})',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -732,9 +892,18 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                             final onlineSong = track.toOnlineSong(s);
                             final isDl = DownloadService.instance.isDownloaded(onlineSong.id);
                             final isDownloading = DownloadService.instance.isDownloading(onlineSong.id);
+                            final savedSec = app.getEpisodePosition(onlineSong.id);
+                            final totalSec = track.duration.inSeconds;
+                            final hasProgress = savedSec > 5 && totalSec > 0;
 
                             return iOSBounceButton(
-                              onTap: () => _playOshoTrack(idx),
+                              onTap: () => _handleEpisodeTap(
+                                id: onlineSong.id,
+                                title: track.title,
+                                durationSeconds: totalSec,
+                                onResume: () => _playOshoTrack(idx, startSeconds: savedSec),
+                                onRestart: () => _playOshoTrack(idx, startSeconds: 0),
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 decoration: BoxDecoration(
@@ -762,6 +931,33 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                                           Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w600)),
                                           const SizedBox(height: 2),
                                           Text('${track.duration.inMinutes} mins • High Quality Audio', style: TextStyle(color: secondaryTextColor, fontSize: 11.5)),
+                                          if (hasProgress) ...[
+                                            const SizedBox(height: 5),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(2),
+                                                    child: LinearProgressIndicator(
+                                                      value: (savedSec / totalSec).clamp(0.0, 1.0),
+                                                      backgroundColor: isLight ? Colors.black12 : Colors.white12,
+                                                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                                                      minHeight: 3.5,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  '${(savedSec / totalSec * 100).round()}% (${formatDuration(Duration(seconds: savedSec))})',
+                                                  style: TextStyle(
+                                                    color: accent,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -1065,17 +1261,53 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                     ),
                     const SizedBox(height: 8),
                     if (_desiEpisodes.isNotEmpty)
-                      ElevatedButton.icon(
-                        onPressed: () => _playDesiEpisode(0),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: const Text('Play All Episodes', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _playDesiEpisode(0),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                            label: const Text('Play All', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                          ),
+                          Builder(
+                            builder: (context) {
+                              int resumeIdx = -1;
+                              int resumePos = 0;
+                              for (int i = 0; i < _desiEpisodes.length; i++) {
+                                final os = _desiEpisodes[i].toOnlineSong(s);
+                                final p = app.getEpisodePosition(os.id);
+                                if (p > 10) {
+                                  resumeIdx = i;
+                                  resumePos = p;
+                                  break;
+                                }
+                              }
+                              if (resumeIdx == -1) return const SizedBox.shrink();
+                              return OutlinedButton.icon(
+                                onPressed: () => _playDesiEpisode(resumeIdx, startSeconds: resumePos),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: accent,
+                                  side: BorderSide(color: accent, width: 1.2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                icon: const Icon(Icons.history_rounded, size: 18),
+                                label: Text(
+                                  'Resume Ep ${resumeIdx + 1} (${formatDuration(Duration(seconds: resumePos))})',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -1102,11 +1334,19 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                             final onlineSong = ep.toOnlineSong(s);
                             final isDl = DownloadService.instance.isDownloaded(onlineSong.id);
                             final isDownloading = DownloadService.instance.isDownloading(onlineSong.id);
-
+                            final savedSec = app.getEpisodePosition(onlineSong.id);
+                            final totalSec = ep.durationSeconds;
+                            final hasProgress = savedSec > 5 && totalSec > 0;
                             final durMin = (ep.durationSeconds / 60).ceil();
 
                             return iOSBounceButton(
-                              onTap: () => _playDesiEpisode(idx),
+                              onTap: () => _handleEpisodeTap(
+                                id: onlineSong.id,
+                                title: ep.title,
+                                durationSeconds: totalSec,
+                                onResume: () => _playDesiEpisode(idx, startSeconds: savedSec),
+                                onRestart: () => _playDesiEpisode(idx, startSeconds: 0),
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 decoration: BoxDecoration(
@@ -1142,6 +1382,33 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                                             '$durMin mins • Desi FM Audio',
                                             style: TextStyle(color: secondaryTextColor, fontSize: 11.5),
                                           ),
+                                          if (hasProgress) ...[
+                                            const SizedBox(height: 5),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(2),
+                                                    child: LinearProgressIndicator(
+                                                      value: (savedSec / totalSec).clamp(0.0, 1.0),
+                                                      backgroundColor: isLight ? Colors.black12 : Colors.white12,
+                                                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                                                      minHeight: 3.5,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  '${(savedSec / totalSec * 100).round()}% (${formatDuration(Duration(seconds: savedSec))})',
+                                                  style: TextStyle(
+                                                    color: accent,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -1449,17 +1716,53 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                     ),
                     const SizedBox(height: 8),
                     if (_aawazEpisodes.isNotEmpty)
-                      ElevatedButton.icon(
-                        onPressed: () => _playAawazEpisode(0),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: const Text('Play All Episodes', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _playAawazEpisode(0),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                            label: const Text('Play All', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                          ),
+                          Builder(
+                            builder: (context) {
+                              int resumeIdx = -1;
+                              int resumePos = 0;
+                              for (int i = 0; i < _aawazEpisodes.length; i++) {
+                                final os = _aawazEpisodes[i].toOnlineSong(s);
+                                final p = app.getEpisodePosition(os.id);
+                                if (p > 10) {
+                                  resumeIdx = i;
+                                  resumePos = p;
+                                  break;
+                                }
+                              }
+                              if (resumeIdx == -1) return const SizedBox.shrink();
+                              return OutlinedButton.icon(
+                                onPressed: () => _playAawazEpisode(resumeIdx, startSeconds: resumePos),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: accent,
+                                  side: BorderSide(color: accent, width: 1.2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                icon: const Icon(Icons.history_rounded, size: 18),
+                                label: Text(
+                                  'Resume Ep ${resumeIdx + 1} (${formatDuration(Duration(seconds: resumePos))})',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -1486,11 +1789,19 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                             final onlineSong = ep.toOnlineSong(s);
                             final isDl = DownloadService.instance.isDownloaded(onlineSong.id);
                             final isDownloading = DownloadService.instance.isDownloading(onlineSong.id);
-
+                            final savedSec = app.getEpisodePosition(onlineSong.id);
+                            final totalSec = ep.durationSeconds;
+                            final hasProgress = savedSec > 5 && totalSec > 0;
                             final durMin = ep.durationSeconds > 0 ? (ep.durationSeconds / 60).ceil() : null;
 
                             return iOSBounceButton(
-                              onTap: () => _playAawazEpisode(idx),
+                              onTap: () => _handleEpisodeTap(
+                                id: onlineSong.id,
+                                title: ep.title,
+                                durationSeconds: totalSec,
+                                onResume: () => _playAawazEpisode(idx, startSeconds: savedSec),
+                                onRestart: () => _playAawazEpisode(idx, startSeconds: 0),
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 decoration: BoxDecoration(
@@ -1523,9 +1834,36 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            durMin != null ? '$durMin mins • Aawaz Hindi' : 'Aawaz Hindi Audio',
+                                            durMin != null ? '$durMin mins • Aawaz Original' : 'Aawaz Original Audio',
                                             style: TextStyle(color: secondaryTextColor, fontSize: 11.5),
                                           ),
+                                          if (hasProgress) ...[
+                                            const SizedBox(height: 5),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(2),
+                                                    child: LinearProgressIndicator(
+                                                      value: (savedSec / totalSec).clamp(0.0, 1.0),
+                                                      backgroundColor: isLight ? Colors.black12 : Colors.white12,
+                                                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                                                      minHeight: 3.5,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  '${(savedSec / totalSec * 100).round()}% (${formatDuration(Duration(seconds: savedSec))})',
+                                                  style: TextStyle(
+                                                    color: accent,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
