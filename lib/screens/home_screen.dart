@@ -817,10 +817,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (recentVideo != null)
           Builder(
             builder: (context) {
-              final savedSec = app.getVideoPosition(recentVideo.path);
-              final totalSec = recentVideo.duration != null ? (recentVideo.duration! ~/ 1000) : 0;
-              final hasProgress = savedSec > 5;
-              final resumeStr = hasProgress
+              final int savedSec = app.getVideoPosition(recentVideo.path);
+              final int totalSec = recentVideo.duration.inSeconds;
+              final bool hasProgress = savedSec > 5;
+              final String resumeStr = hasProgress
                   ? 'Resume (${formatDuration(Duration(seconds: savedSec))})'
                   : 'Start Video';
 
