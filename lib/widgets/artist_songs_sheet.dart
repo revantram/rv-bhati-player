@@ -736,7 +736,7 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
                                           backgroundColor: accent.withValues(alpha: 0.12),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(16),
-                                            side: Border.all(color: accent.withValues(alpha: 0.3)),
+                                            side: BorderSide(color: accent.withValues(alpha: 0.3)),
                                           ),
                                         ),
                                       ),
@@ -930,10 +930,10 @@ class _ArtistSongTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (song.duration != null && song.duration! > 0) ...[
+                      if (song.duration.inSeconds > 0) ...[
                         const SizedBox(width: 6),
                         Text(
-                          formatDuration(Duration(seconds: song.duration!)),
+                          formatDuration(song.duration),
                           style: TextStyle(
                             fontSize: 11,
                             color: app.secondaryTextColor.withValues(alpha: 0.8),
