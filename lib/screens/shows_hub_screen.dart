@@ -162,10 +162,20 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     final onlineSongs = _oshoTracks.map((t) => t.toOnlineSong(_selectedOshoSeries!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
     if (!mounted) return;
-    if (err == AudioController.playbackCancelledToken) return;
+    if (err == AudioController.playbackCancelledToken || (err != null && err.toLowerCase().contains('cancel'))) return;
     if (err != null) {
+      final cleanMsg = err.contains('__exhausted__') || err.length > 60
+          ? 'Episode stream unavailable. Tap to retry.'
+          : err;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(cleanMsg),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _playOshoTrack(index, startSeconds: startSeconds),
+          ),
+        ),
       );
       return;
     }
@@ -188,10 +198,20 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     final onlineSongs = _desiEpisodes.map((ep) => ep.toOnlineSong(_selectedDesiSeries!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
     if (!mounted) return;
-    if (err == AudioController.playbackCancelledToken) return;
+    if (err == AudioController.playbackCancelledToken || (err != null && err.toLowerCase().contains('cancel'))) return;
     if (err != null) {
+      final cleanMsg = err.contains('__exhausted__') || err.length > 60
+          ? 'Episode stream unavailable. Tap to retry.'
+          : err;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(cleanMsg),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _playDesiEpisode(index, startSeconds: startSeconds),
+          ),
+        ),
       );
       return;
     }
@@ -214,10 +234,20 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
     final onlineSongs = _aawazEpisodes.map((ep) => ep.toOnlineSong(_selectedAawazShow!)).toList();
     final err = await AudioController.instance.playOnlineQueue(onlineSongs, index);
     if (!mounted) return;
-    if (err == AudioController.playbackCancelledToken) return;
+    if (err == AudioController.playbackCancelledToken || (err != null && err.toLowerCase().contains('cancel'))) return;
     if (err != null) {
+      final cleanMsg = err.contains('__exhausted__') || err.length > 60
+          ? 'Episode stream unavailable. Tap to retry.'
+          : err;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(cleanMsg),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _playAawazEpisode(index, startSeconds: startSeconds),
+          ),
+        ),
       );
       return;
     }

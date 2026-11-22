@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
@@ -11,7 +13,18 @@ import 'audio_controller.dart';
 class RadioController extends ChangeNotifier {
   RadioController._() {
     final p = AudioController.instance.player;
-    p.playerStateStream.listen((_) {
+    p.playerStateStream.listen((state) {
+      if (state.playing) {
+        _disarmWatchdog();
+        if (_isLoading) {
+          _isLoading = false;
+          _errorMessage = null;
+        }
+      }
+      if (state.processingState == ProcessingState.completed) {
+        _disarmWatchdog();
+        nextStation();
+      }
       notifyListeners();
     });
 
@@ -25,6 +38,7 @@ class RadioController extends ChangeNotifier {
           _currentStation = target;
           _isLoading = false;
           _errorMessage = null;
+          _disarmWatchdog();
           notifyListeners();
         }
       }
@@ -67,7 +81,29 @@ class RadioController extends ChangeNotifier {
     return _currentStation?.id == id;
   }
 
+  Timer? _watchdogTimer;
+
+  void _armWatchdog(String stationId) {
+    _watchdogTimer?.cancel();
+    _watchdogTimer = Timer(const Duration(seconds: 12), () {
+      final p = AudioController.instance.player;
+      if (_currentStation?.id == stationId && (_isLoading || p.processingState == ProcessingState.buffering || p.processingState == ProcessingState.loading)) {
+        if (!p.playing) {
+          _isLoading = false;
+          _errorMessage = 'Station stream is slow or unavailable. Tap to retry.';
+          notifyListeners();
+        }
+      }
+    });
+  }
+
+  void _disarmWatchdog() {
+    _watchdogTimer?.cancel();
+    _watchdogTimer = null;
+  }
+
   void clear() {
+    _disarmWatchdog();
     _currentStation = null;
     _isLoading = false;
     _errorMessage = null;
@@ -159,10 +195,12 @@ class RadioController extends ChangeNotifier {
   }
 
   Future<void> playStation(RadioStation station, {List<RadioStation>? customQueue}) async {
+    _disarmWatchdog();
     AudioController.instance.ensureNotificationPermission();
     _currentStation = station;
     _isLoading = true;
     _errorMessage = null;
+    _armWatchdog(station.id);
 
     if (station.imageUrl != null && station.imageUrl!.isNotEmpty) {
       ArtworkPaletteService.instance.extractAndApply(

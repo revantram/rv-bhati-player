@@ -95,14 +95,18 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
     if (_resolvingSongId == selected.id) {
       setState(() => _resolvingSongId = null);
     }
-    if (err == AudioController.playbackCancelledToken) return;
+    if (err == AudioController.playbackCancelledToken || (err != null && err.toLowerCase().contains('cancel'))) return;
 
     if (err != null) {
+      final isYt = selected.id.startsWith('yt_');
+      final cleanMsg = err.contains('__exhausted__') || err.length > 60
+          ? 'Could not stream audio. Tap to retry.'
+          : err;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(err),
+          content: Text(cleanMsg),
           behavior: SnackBarBehavior.floating,
-          action: selected.id.startsWith('yt_')
+          action: isYt
               ? SnackBarAction(
                   label: 'Play Web',
                   onPressed: () {
@@ -115,7 +119,10 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
                     );
                   },
                 )
-              : null,
+              : SnackBarAction(
+                  label: 'Retry',
+                  onPressed: () => _play(index),
+                ),
         ),
       );
       return;
@@ -141,14 +148,18 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
     if (_resolvingSongId == first.id) {
       setState(() => _resolvingSongId = null);
     }
-    if (err == AudioController.playbackCancelledToken) return;
+    if (err == AudioController.playbackCancelledToken || (err != null && err.toLowerCase().contains('cancel'))) return;
 
     if (err != null) {
+      final isYt = first.id.startsWith('yt_');
+      final cleanMsg = err.contains('__exhausted__') || err.length > 60
+          ? 'Could not stream playlist. Tap to retry.'
+          : err;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(err),
+          content: Text(cleanMsg),
           behavior: SnackBarBehavior.floating,
-          action: first.id.startsWith('yt_')
+          action: isYt
               ? SnackBarAction(
                   label: 'Play Web',
                   onPressed: () {
@@ -161,7 +172,10 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
                     );
                   },
                 )
-              : null,
+              : SnackBarAction(
+                  label: 'Retry',
+                  onPressed: () => _playAll(shuffle: shuffle),
+                ),
         ),
       );
       return;

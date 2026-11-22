@@ -147,9 +147,9 @@ class _RadioScreenState extends State<RadioScreen> {
             itemCount: filteredStations.length,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: isTabletOrTv ? 2.8 : 2.35,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+              childAspectRatio: isTabletOrTv ? 2.8 : 2.45,
             ),
             itemBuilder: (context, i) {
               return _RadioStationGridCard(station: filteredStations[i]);

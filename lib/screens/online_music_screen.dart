@@ -192,13 +192,20 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
     if (_resolvingSongId == selected.id) {
       setState(() => _resolvingSongId = null);
     }
-    if (error == AudioController.playbackCancelledToken) return;
+    if (error == AudioController.playbackCancelledToken || (error != null && error.toLowerCase().contains('cancel'))) return;
 
     if (error != null) {
+      final cleanMsg = error.contains('__exhausted__') || error.length > 60
+          ? 'Could not stream track. Tap to retry.'
+          : error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error),
+          content: Text(cleanMsg),
           behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _play(list, index),
+          ),
         ),
       );
       return;
