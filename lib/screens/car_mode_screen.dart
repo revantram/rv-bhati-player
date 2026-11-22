@@ -11,6 +11,8 @@ import '../services/audio_controller.dart';
 import '../services/radio_controller.dart';
 import '../widgets/art_box.dart';
 import '../widgets/equalizer_sheet.dart';
+import '../widgets/liquid_background.dart';
+import '../widgets/liquid_glass_container.dart';
 import '../widgets/liquid_glass_play_pause_button.dart';
 
 /// Full-screen, high-contrast, distraction-free Car / Driving Mode.
@@ -48,9 +50,11 @@ class _CarModeScreenState extends State<CarModeScreen> {
     return PopScope(
       canPop: true,
       child: Scaffold(
-        backgroundColor: const Color(0xFF07090E),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        backgroundColor: Colors.black,
+        body: LiquidBackground(
+          accent: accent,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
           if (details.primaryVelocity != null) {
             if (details.primaryVelocity! < -300) {
@@ -337,7 +341,8 @@ class _CarModeScreenState extends State<CarModeScreen> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 
   Widget _buildCircleButton({

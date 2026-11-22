@@ -70,12 +70,7 @@ class VideoOptionsSheet extends StatelessWidget {
 
   void _handleDelete(BuildContext context) async {
     HapticFeedback.mediumImpact();
-    final confirm = await VideoDeleteDialog.show(context, video: video);
-    if (!confirm) return;
-
-    if (!context.mounted) return;
-
-    // Execute Scoped Storage Deletion
+    // Direct video deletion without confirmation popup
     final deleted = await MediaActionService.deleteVideo(video);
 
     if (deleted) {
@@ -93,7 +88,7 @@ class VideoOptionsSheet extends StatelessWidget {
       if (context.mounted) {
         LiquidToast.show(
           context,
-          message: 'Deletion was cancelled or not permitted',
+          message: 'Deletion was not permitted',
           icon: Icons.info_outline_rounded,
         );
       }

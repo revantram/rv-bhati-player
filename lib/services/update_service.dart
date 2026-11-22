@@ -24,8 +24,8 @@ class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
-  static const String currentVersion = '1.4.30';
-  static const int currentBuildNumber = 95;
+  static const String currentVersion = '1.4.31';
+  static const int currentBuildNumber = 96;
 
   static const String _releasesListUrl =
       'https://api.github.com/repos/revantram/rv-bhati-player/releases?per_page=10';
@@ -121,7 +121,7 @@ class UpdateService {
                 version: 'v$remoteVer',
                 title: 'RV Bhati Player v$remoteVer (Latest Update)',
                 changelog: 'Latest stable release with performance upgrades, stream reliability, and iOS 18 Liquid Glass polish.',
-                apkUrl: 'https://github.com/revantram/rv-bhati-player/releases/download/main/RV-Bhati-Player-arm64.apk',
+                apkUrl: 'https://github.com/revantram/rv-bhati-player/releases/latest/download/RV-Bhati-Player-arm64.apk',
                 apkSize: 24000000,
               );
             }
@@ -249,18 +249,7 @@ class UpdateService {
     if (info != null) {
       UpdateDialog.show(context, info);
     } else if (showUpToDate) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Aapka RV Bhati Player latest version (v$currentVersion) par hai! ✅',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      UpdateDialog.showUpToDateSheet(context);
     }
   }
 }

@@ -289,8 +289,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             return LiquidGlassContainer(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-              blur: 30,
-              opacity: 0.16,
+              blur: 28,
+              tint: isLight ? Colors.white.withValues(alpha: 0.95) : const Color(0xFF14192B),
+              borderColor: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white24,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -915,12 +916,30 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             ],
                                           ),
                                         ),
-                                        // Right: Single glass Three-Dot action button
-                                        LiquidGlassButton(
-                                          icon: Icons.more_horiz_rounded,
-                                          size: 44,
-                                          iconSize: 22,
-                                          onTap: () => _openMoreOptionsSheet(context, track),
+                                        // Right: Car Mode button + Three-Dot action button
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            LiquidGlassButton(
+                                              icon: Icons.directions_car_rounded,
+                                              size: 44,
+                                              iconSize: 22,
+                                              onTap: () {
+                                                HapticFeedback.lightImpact();
+                                                Navigator.push(
+                                                  context,
+                                                  glassRoute(const CarModeScreen()),
+                                                );
+                                              },
+                                            ),
+                                            const SizedBox(width: 8),
+                                            LiquidGlassButton(
+                                              icon: Icons.more_horiz_rounded,
+                                              size: 44,
+                                              iconSize: 22,
+                                              onTap: () => _openMoreOptionsSheet(context, track),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -1129,6 +1148,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           position: p.data ?? Duration.zero,
                                           duration: d.data ?? track.duration,
                                           accent: appAccent,
+                                          isPlaying: isPlaying,
                                           onSeek: player.seek,
                                         ),
                                       ),
@@ -1262,17 +1282,17 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                               padding: const EdgeInsets.all(8),
                                               child: Icon(
                                                 Icons.skip_previous_rounded,
-                                                size: 34,
+                                                size: 38,
                                                 color: isLight ? const Color(0xFF0F172A) : Colors.white,
                                               ),
                                             ),
                                           ),
 
-                                          // Center Play/Pause button: 68px vibrant accent disc with smooth icon morphing & glass tactile feedback
+                                          // Center Play/Pause button: 74px vibrant accent disc with smooth icon morphing & glass tactile feedback
                                           LiquidGlassPlayPauseButton(
                                             isPlaying: isPlaying,
-                                            size: 68,
-                                            iconSize: 36,
+                                            size: 74,
+                                            iconSize: 40,
                                             color: appAccent,
                                             onToggle: () => _toggle(st),
                                           ),
@@ -1284,7 +1304,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                               padding: const EdgeInsets.all(8),
                                               child: Icon(
                                                 Icons.skip_next_rounded,
-                                                size: 34,
+                                                size: 38,
                                                 color: (player.hasNext ||
                                                         _ac.onlineQueue.isNotEmpty ||
                                                         _ac.queue.isNotEmpty ||
@@ -1566,26 +1586,60 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   }
 }
 
-/// 4. Modern interactive iOS capsule seek bar
+/// 4. Modern interactive iOS dynamic waveform seek bar
 class _IOSCapsuleSlider extends StatefulWidget {
   const _IOSCapsuleSlider({
     required this.position,
     required this.duration,
     required this.accent,
+    this.isPlaying = false,
     required this.onSeek,
   });
 
   final Duration position;
   final Duration duration;
   final Color accent;
+  final bool isPlaying;
   final ValueChanged<Duration> onSeek;
 
   @override
   State<_IOSCapsuleSlider> createState() => _IOSCapsuleSliderState();
 }
 
-class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
+class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _waveController;
   double? _dragFraction;
+
+  @override
+  void initState() {
+    super.initState();
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    if (widget.isPlaying) {
+      _waveController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _IOSCapsuleSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _waveController.repeat();
+      } else {
+        _waveController.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _waveController.dispose();
+    super.dispose();
+  }
 
   void _onSeekFromOffset(double localDx, double width) {
     if (width <= 0) return;
@@ -1636,42 +1690,28 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
                 _finalizeSeek(width);
               },
               child: Container(
-                height: 28,
+                height: 32,
                 alignment: Alignment.center,
                 child: Stack(
                   alignment: Alignment.centerLeft,
                   children: [
-                    // Base background capsule
-                    Container(
-                      height: 6,
-                      width: width,
-                      decoration: BoxDecoration(
-                        color: isLight ? const Color(0xFFE2E8F0) : Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                    // Active glowing progress track
-                    Container(
-                      height: 6,
-                      width: width * currentFraction,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(3),
-                        gradient: LinearGradient(
-                          colors: [
-                            widget.accent,
-                            widget.accent.withValues(alpha: 0.85),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: widget.accent.withValues(alpha: 0.55),
-                            blurRadius: 8,
-                            spreadRadius: 0.5,
+                    // Dynamic tactile audio waveform seek line
+                    AnimatedBuilder(
+                      animation: _waveController,
+                      builder: (context, _) {
+                        return CustomPaint(
+                          size: Size(width, 24),
+                          painter: _WaveformSeekPainter(
+                            progress: currentFraction,
+                            accent: widget.accent,
+                            isLight: isLight,
+                            wavePhase: _waveController.value * 2 * math.pi,
+                            isPlaying: widget.isPlaying,
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                    // Sleek thumb
+                    // Sleek glowing thumb
                     Positioned(
                       left: (width * currentFraction - (isDragging ? 9 : 7))
                           .clamp(0.0, width - (isDragging ? 18 : 14)),
@@ -1683,8 +1723,8 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
                           shape: BoxShape.circle,
                           color: Colors.white,
                           border: Border.all(
-                            color: widget.accent.withValues(alpha: 0.4),
-                            width: 1.5,
+                            color: widget.accent.withValues(alpha: 0.6),
+                            width: 2.0,
                           ),
                           boxShadow: [
                             BoxShadow(
@@ -1693,7 +1733,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
                               offset: const Offset(0, 2),
                             ),
                             BoxShadow(
-                              color: widget.accent.withValues(alpha: 0.5),
+                              color: widget.accent.withValues(alpha: 0.6),
                               blurRadius: 8,
                             ),
                           ],
@@ -1732,6 +1772,76 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider> {
         ),
       ],
     );
+  }
+}
+
+class _WaveformSeekPainter extends CustomPainter {
+  final double progress;
+  final Color accent;
+  final bool isLight;
+  final double wavePhase;
+  final bool isPlaying;
+
+  _WaveformSeekPainter({
+    required this.progress,
+    required this.accent,
+    required this.isLight,
+    required this.wavePhase,
+    required this.isPlaying,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const barWidth = 3.2;
+    const spacing = 3.0;
+    final step = barWidth + spacing;
+    final barCount = (size.width / step).floor();
+    if (barCount <= 0) return;
+
+    final progressX = size.width * progress.clamp(0.0, 1.0);
+
+    final activePaint = Paint()
+      ..color = accent
+      ..style = PaintingStyle.fill;
+
+    final inactiveColor = isLight
+        ? const Color(0xFF94A3B8).withValues(alpha: 0.45)
+        : Colors.white.withValues(alpha: 0.22);
+    final inactivePaint = Paint()
+      ..color = inactiveColor
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < barCount; i++) {
+      final x = i * step + spacing / 2;
+      double h;
+      if (isPlaying) {
+        final phase = (i * 0.42) + wavePhase;
+        final waveVal = (math.sin(phase) + math.cos(phase * 0.75)) / 2;
+        h = 5.0 + 15.0 * ((waveVal + 1) / 2);
+      } else {
+        final phase = i * 0.55;
+        h = 5.0 + 11.0 * (math.sin(phase).abs());
+      }
+      h = h.clamp(4.0, size.height);
+
+      final top = (size.height - h) / 2;
+      final rrect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, top, barWidth, h),
+        const Radius.circular(2.0),
+      );
+
+      final isPast = (x + barWidth / 2) <= progressX;
+      canvas.drawRRect(rrect, isPast ? activePaint : inactivePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WaveformSeekPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.accent != accent ||
+        oldDelegate.isLight != isLight ||
+        oldDelegate.wavePhase != wavePhase ||
+        oldDelegate.isPlaying != isPlaying;
   }
 }
 

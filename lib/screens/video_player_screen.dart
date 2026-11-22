@@ -1608,9 +1608,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
+                  color: Colors.white.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white24, width: 0.8),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 0.8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1651,9 +1651,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white24, width: 0.8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.20), width: 0.8),
                     ),
                     child: Text(
                       'Audio ${_audioTrackIndex + 1}',
@@ -1668,9 +1668,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
+                  color: Colors.white.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white24, width: 0.8),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 0.8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1724,19 +1724,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           decoration: BoxDecoration(
             color: isActive
                 ? accent.withValues(alpha: 0.35)
-                : Colors.black.withValues(alpha: 0.50),
+                : Colors.white.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(size / 2),
             border: Border.all(
               color: isActive ? accent : Colors.white.withValues(alpha: 0.22),
               width: isActive ? 1.5 : 0.8,
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black45,
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
           ),
           child: label != null
               ? Text(

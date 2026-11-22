@@ -364,42 +364,93 @@ class MainActivity : AudioServiceActivity() {
             }
         }
 
-        // Native Video / File Sharing (Intent.ACTION_SEND + FileProvider)
+        // Native Video / File & App APK Sharing (Intent.ACTION_SEND + FileProvider)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "shareFile") {
-                val path = call.argument<String>("path")
-                val title = call.argument<String>("title") ?: "Share Video"
-                if (path == null) {
-                    result.error("INVALID_PATH", "Path is null", null)
-                    return@setMethodCallHandler
+            when (call.method) {
+                "shareAppApk" -> {
+                    try {
+                        val appFile = File(applicationInfo.sourceDir)
+                        if (!appFile.exists()) {
+                            result.error("FILE_NOT_FOUND", "Installed APK file not found", null)
+                            return@setMethodCallHandler
+                        }
+                        val cacheFile = File(cacheDir, "RV-Bhati-Player.apk")
+                        appFile.inputStream().use { input ->
+                            cacheFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", cacheFile)
+                        } else {
+                            Uri.fromFile(cacheFile)
+                        }
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/vnd.android.package-archive"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            putExtra(Intent.EXTRA_SUBJECT, "RV Bhati Player APK")
+                            putExtra(Intent.EXTRA_TEXT, "RV Bhati Player APK: Android 4K Video, Music & FM Radio Player.\nDownload link: https://github.com/revantram/rv-bhati-player/releases/latest")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        val chooser = Intent.createChooser(intent, "Share RV Bhati Player APK")
+                        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(chooser)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SHARE_ERROR", e.message, null)
+                    }
                 }
-                try {
-                    val file = File(path)
-                    if (!file.exists()) {
-                        result.error("FILE_NOT_FOUND", "File not found: $path", null)
+                "shareText" -> {
+                    val text = call.argument<String>("text") ?: ""
+                    val subject = call.argument<String>("subject") ?: "RV Bhati Player"
+                    try {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, subject)
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        val chooser = Intent.createChooser(intent, "Share")
+                        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(chooser)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SHARE_ERROR", e.message, null)
+                    }
+                }
+                "shareFile" -> {
+                    val path = call.argument<String>("path")
+                    val title = call.argument<String>("title") ?: "Share Video"
+                    if (path == null) {
+                        result.error("INVALID_PATH", "Path is null", null)
                         return@setMethodCallHandler
                     }
-                    val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
-                    } else {
-                        Uri.fromFile(file)
+                    try {
+                        val file = File(path)
+                        if (!file.exists()) {
+                            result.error("FILE_NOT_FOUND", "File not found: $path", null)
+                            return@setMethodCallHandler
+                        }
+                        val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
+                        } else {
+                            Uri.fromFile(file)
+                        }
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "video/*"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            putExtra(Intent.EXTRA_SUBJECT, file.name)
+                            putExtra(Intent.EXTRA_TEXT, file.name)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        val chooser = Intent.createChooser(intent, title)
+                        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(chooser)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SHARE_ERROR", e.message, null)
                     }
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "video/*"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                        putExtra(Intent.EXTRA_SUBJECT, file.name)
-                        putExtra(Intent.EXTRA_TEXT, file.name)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    val chooser = Intent.createChooser(intent, title)
-                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(chooser)
-                    result.success(true)
-                } catch (e: Exception) {
-                    result.error("SHARE_ERROR", e.message, null)
                 }
-            } else {
-                result.notImplemented()
+                else -> result.notImplemented()
             }
         }
 

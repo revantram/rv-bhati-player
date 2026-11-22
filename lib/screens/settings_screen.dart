@@ -7,6 +7,7 @@ import '../models/radio_station.dart';
 import '../services/app_state.dart';
 import '../services/backup_restore_service.dart';
 import '../services/cache_service.dart';
+import '../services/media_action_service.dart';
 import '../services/media_scanner.dart';
 import '../services/download_service.dart';
 import '../services/settings_service.dart';
@@ -248,19 +249,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           _buildDivider(isLight),
                           _buildCrossfadeTile(textColor, secondaryTextColor, accent),
-                          _buildDivider(isLight),
-                          _buildNavTile(
-                            icon: Icons.directions_car_rounded,
-                            title: 'Car Mode / Driving Mode',
-                            subtitle: 'Extra-large touch controls for safe driving',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const CarModeScreen()),
-                            ),
-                            textColor: textColor,
-                            secondaryTextColor: secondaryTextColor,
-                            accent: accent,
-                          ),
                         ],
                       ),
                     ),
@@ -290,29 +278,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             children: [
                               Expanded(child: _buildThemeTile(AppThemeMode.oled, accent, textColor)),
                               const SizedBox(width: 8),
-                              Expanded(child: _buildThemeTile(AppThemeMode.cyberpunk, accent, textColor)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
                               Expanded(child: _buildThemeTile(AppThemeMode.royalGold, accent, textColor)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildThemeTile(AppThemeMode.aurora, accent, textColor)),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              Expanded(child: _buildThemeTile(AppThemeMode.sunsetBliss, accent, textColor)),
-                              const SizedBox(width: 8),
                               Expanded(child: _buildThemeTile(AppThemeMode.iosLiquid, accent, textColor)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(child: _buildThemeTile(AppThemeMode.dark, accent, textColor)),
                               const SizedBox(width: 8),
                               Expanded(child: _buildThemeTile(AppThemeMode.light, accent, textColor)),
                             ],
@@ -320,6 +292,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
+                              Expanded(child: _buildThemeTile(AppThemeMode.dark, accent, textColor)),
+                              const SizedBox(width: 8),
                               Expanded(child: _buildThemeTile(AppThemeMode.system, accent, textColor)),
                             ],
                           ),
@@ -540,6 +514,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: 'Safe Cache / Temp Cleanup',
                             subtitle: 'Clear buffer & temporary image cache safely',
                             onTap: () => _showCacheCleanupSheet(context, textColor, secondaryTextColor, accent, isLight),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Section: Share App
+                    _buildSectionHeader('SHARE RV BHATI PLAYER / ऐप शेयर करें', textColor),
+                    LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(22),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      blur: 0,
+                      child: Column(
+                        children: [
+                          _buildNavTile(
+                            icon: Icons.android_rounded,
+                            title: 'Share APK File (सीधी ऐप फाइल शेयर करें)',
+                            subtitle: 'Send full APK file via WhatsApp, Bluetooth, Nearby Share',
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              final ok = await MediaActionService.shareAppApk();
+                              if (!ok && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Could not open APK share sheet')),
+                                );
+                              }
+                            },
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
+                          _buildNavTile(
+                            icon: Icons.share_rounded,
+                            title: 'Share Download Link (डाउनलोड लिंक शेयर करें)',
+                            subtitle: 'Share official GitHub download link with friends',
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              MediaActionService.shareText(
+                                '🎵 RV Bhati Player - Android 4K Video, Music & FM Radio Player\n\n'
+                                '✨ iOS 18 Liquid Glass Design\n'
+                                '✨ JioSaavn, Spotify, FM Radio & Shows\n'
+                                '✨ 4K HDR Video with background PiP\n\n'
+                                'Download latest APK directly: https://github.com/revantram/rv-bhati-player/releases/latest',
+                                subject: 'Download RV Bhati Player',
+                              );
+                            },
                             textColor: textColor,
                             secondaryTextColor: secondaryTextColor,
                             accent: accent,

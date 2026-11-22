@@ -19,6 +19,173 @@ class UpdateDialog extends StatefulWidget {
     );
   }
 
+  /// Dedicated In-App Modal Bottom Sheet when app is already up to date or manual check
+  static Future<void> showUpToDateSheet(BuildContext context) {
+    final app = AppState.instance;
+    final isLight = app.isLight;
+    final textColor = app.textColor;
+    final secondaryTextColor = app.secondaryTextColor;
+    final accent = app.accentColor;
+
+    return showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => LiquidGlassContainer(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
+        tint: isLight ? Colors.white.withValues(alpha: 0.96) : const Color(0xFF14192B),
+        borderColor: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white24,
+        blur: 25,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isLight ? Colors.black26 : Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF10B981), width: 1.6),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 34),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Aapka App Latest Version Par Hai!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'RV Bhati Player • v${UpdateService.currentVersion} (Latest Official Build)',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: secondaryTextColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.verified_rounded, color: accent, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Up to Date & Fully Verified',
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '• iOS 18 Liquid Glass White/Frosted Theme\n'
+                    '• High-Contrast Legibility & Dark Status Bar\n'
+                    '• Dynamic Audio Waveform Progress Bar\n'
+                    '• 4K HDR Video Player with direct deletion\n'
+                    '• JioSaavn, Spotify, Live Radio & Shows',
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            iOSBounceButton(
+              onTap: () {
+                Navigator.pop(ctx);
+                show(
+                  context,
+                  UpdateInfo(
+                    version: 'v${UpdateService.currentVersion}',
+                    title: 'RV Bhati Player v${UpdateService.currentVersion}',
+                    changelog: 'Current stable release with ARM64 optimizations and iOS 18 Liquid Glass polish.',
+                    apkUrl: 'https://github.com/revantram/rv-bhati-player/releases/latest/download/RV-Bhati-Player-arm64.apk',
+                    apkSize: 23000000,
+                  ),
+                );
+              },
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isLight ? Colors.black.withValues(alpha: 0.07) : Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isLight ? Colors.black.withValues(alpha: 0.12) : Colors.white24,
+                  ),
+                ),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.download_rounded, color: textColor, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'APK दोबारा डाउनलोड / इंस्टॉल करें (Reinstall)',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'ठीक है (Close)',
+                style: TextStyle(
+                  color: secondaryTextColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   State<UpdateDialog> createState() => _UpdateDialogState();
 }

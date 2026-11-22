@@ -86,33 +86,7 @@ class _FolderVideosListScreenState extends State<FolderVideosListScreen> {
         .toList();
     if (selectedVideos.isEmpty) return;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: app.isDark ? const Color(0xFF1E2438) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Delete ${selectedVideos.length} Videos?',
-          style: TextStyle(color: app.textColor, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'This will permanently delete ${selectedVideos.length} selected video(s) from your storage.',
-          style: TextStyle(color: app.secondaryTextColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: app.secondaryTextColor)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true || !mounted) return;
+    HapticFeedback.mediumImpact();
 
     int deletedCount = 0;
     for (final v in List<MediaFile>.from(selectedVideos)) {

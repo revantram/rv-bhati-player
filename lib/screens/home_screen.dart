@@ -525,8 +525,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   right: 16,
                   child: _buildSearchBar(),
                 ),
-              // Dynamic Island: Floats above bottom nav when audio/radio is playing (hidden on Videos tab)
-              if (_tab != 0)
+              // Dynamic Island: Floats above bottom nav when audio/radio is playing (hidden on Videos & Settings tab)
+              if (_tab != 0 && _tab != 4)
                 Positioned(
                   left: 16,
                   right: 16,
@@ -537,15 +537,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onOpenOnline: _openNowPlaying,
                   ),
                 ),
-              // Top-right sleek Settings button (when not searching)
-              if (!_isSearching)
+              // Top-right sleek Settings button (when not searching and not already on Settings tab)
+              if (!_isSearching && _tab != 4)
                 Positioned(
                   top: pad.top + 8,
                   right: 16,
                   child: PressableScale(
                     onTap: () {
                       HapticFeedback.lightImpact();
-                      Navigator.push(context, glassRoute(const SettingsScreen()));
+                      setState(() => _tab = 4);
                     },
                     child: LiquidGlassContainer(
                       borderRadius: BorderRadius.circular(16),
@@ -556,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
 
-              // Bottom Nav: 4 tabs (Videos, Music Hub, FM Radio, Shows & Osho)
+              // Bottom Nav: 5 tabs (Videos, Music Hub, FM Radio, Shows, Settings)
               Positioned(
                 left: 14,
                 right: 14,
@@ -574,7 +574,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     GlassNavItem(Icons.movie_filter_rounded, app.tr('videos')),
                     GlassNavItem(Icons.graphic_eq_rounded, app.tr('bitmusic')),
                     GlassNavItem(Icons.radio_rounded, 'FM Radio'),
-                    GlassNavItem(Icons.podcasts_rounded, 'Shows & Osho'),
+                    GlassNavItem(Icons.podcasts_rounded, 'Shows'),
+                    GlassNavItem(Icons.settings_rounded, app.tr('settings')),
                   ],
                 ),
               ),

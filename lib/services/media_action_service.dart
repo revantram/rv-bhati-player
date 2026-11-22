@@ -46,6 +46,31 @@ class MediaActionService {
     }
   }
 
+  /// Share the installed RV Bhati Player APK file directly with other apps/devices
+  static Future<bool> shareAppApk() async {
+    try {
+      final res = await _shareChannel.invokeMethod<bool>('shareAppApk');
+      return res ?? false;
+    } catch (e) {
+      debugPrint('shareAppApk error: $e');
+      return false;
+    }
+  }
+
+  /// Share text / links via native Android share sheet
+  static Future<bool> shareText(String text, {String? subject}) async {
+    try {
+      final res = await _shareChannel.invokeMethod<bool>('shareText', {
+        'text': text,
+        'subject': subject ?? 'RV Bhati Player',
+      });
+      return res ?? false;
+    } catch (e) {
+      debugPrint('shareText error: $e');
+      return false;
+    }
+  }
+
   /// Delete video from Android Scoped Storage (Android 11, 12, 13, 14+)
   /// Triggers official Android MediaStore.createDeleteRequest prompt if required.
   static Future<bool> deleteVideo(MediaFile video) async {

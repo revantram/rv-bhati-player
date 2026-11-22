@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/app_state.dart';
 import '../services/settings_service.dart';
@@ -129,12 +130,24 @@ class LiquidBackground extends StatelessWidget {
       }
     }
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: app.backgroundColor,
-        gradient: gradient,
+    final overlay = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+      statusBarBrightness: isLight ? Brightness.light : Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+      systemNavigationBarContrastEnforced: false,
+    );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlay,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: app.backgroundColor,
+          gradient: gradient,
+        ),
+        child: child ?? const SizedBox.expand(),
       ),
-      child: child ?? const SizedBox.expand(),
     );
   }
 }

@@ -414,7 +414,10 @@ class AppState extends ChangeNotifier {
   Color get textColor => isLight ? const Color(0xFF0F172A) : const Color(0xFFFFFFFF);
 
   Color get secondaryTextColor {
-    if (isLight) return const Color(0xFF64748B);
+    if (SettingsService.instance.themeMode == AppThemeMode.iosLiquid) {
+      return const Color(0xFF0369A1);
+    }
+    if (isLight) return const Color(0xFF334155);
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.cyberpunk:
         return const Color(0xFF8E9CB8);
@@ -424,8 +427,6 @@ class AppState extends ChangeNotifier {
         return const Color(0xFFA8A3C4);
       case AppThemeMode.sunsetBliss:
         return const Color(0xFFB89CA8);
-      case AppThemeMode.iosLiquid:
-        return const Color(0xFF0284C7);
       case AppThemeMode.oled:
       case AppThemeMode.dark:
       case AppThemeMode.system:
@@ -579,16 +580,12 @@ class AppState extends ChangeNotifier {
   File? _storageFile;
 
   static const List<Color> accentOptions = [
-    Color(0xFFFA2D48), // Apple Music Crimson (BitChord Default)
-    Color(0xFF00F0FF), // Cyber Neon Cyan
-    Color(0xFFFF007F), // Neon Magenta
+    Color(0xFFFA2D48), // Apple Music Crimson (Default)
+    Color(0xFF0088FF), // iOS Liquid Sky Cyan
     Color(0xFFFFB800), // Imperial Gold
-    Color(0xFF9D4EDD), // Cosmic Violet
+    Color(0xFF10B981), // Emerald Mint
+    Color(0xFF8B5CF6), // Royal Violet
     Color(0xFFFF5E62), // Sunset Coral
-    Color(0xFF00D084), // Mint Emerald
-    Color(0xFF7C6CFF), // Electric Iris
-    Color(0xFF00D2FF), // Cyber Cyan
-    Color(0xFFFF6B4A), // Coral Sunset
   ];
 
   Future<void> init() async {

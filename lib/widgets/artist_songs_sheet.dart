@@ -196,20 +196,13 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
 
     final avatar = widget.avatarUrl ?? _fallbackAvatarUrl;
 
-    return Container(
+    return LiquidGlassContainer(
       height: MediaQuery.of(context).size.height * 0.86,
-      decoration: BoxDecoration(
-        color: app.backgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(color: app.cardBorderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 30,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      blur: 28,
+      tint: isLight ? Colors.white.withValues(alpha: 0.95) : const Color(0xFF14192B),
+      borderColor: isLight ? Colors.black.withValues(alpha: 0.08) : Colors.white24,
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
           const SizedBox(height: 12),

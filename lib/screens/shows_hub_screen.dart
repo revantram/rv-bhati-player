@@ -592,22 +592,19 @@ class _ShowsHubScreenState extends State<ShowsHubScreen> {
               ),
             ),
 
-            // Main Content Area
+            // Main Content Area (renders full height with internal list padding)
             Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: widget.bottomOffset),
-                child: _selectedOshoSeries != null
-                    ? _buildOshoSeriesDetail(textColor, secondaryTextColor, accent, isLight)
-                    : (_selectedDesiSeries != null
-                        ? _buildDesiSeriesDetail(textColor, secondaryTextColor, accent, isLight)
-                        : (_selectedAawazShow != null
-                            ? _buildAawazShowDetail(textColor, secondaryTextColor, accent, isLight)
-                            : (_selectedCategoryIndex == 0
-                                ? _buildOshoSection(textColor, secondaryTextColor, accent, isLight)
-                                : (_selectedCategoryIndex == 1
-                                    ? _buildDesiFmSection(textColor, secondaryTextColor, accent, isLight)
-                                    : _buildAawazSection(textColor, secondaryTextColor, accent, isLight))))),
-              ),
+              child: _selectedOshoSeries != null
+                  ? _buildOshoSeriesDetail(textColor, secondaryTextColor, accent, isLight)
+                  : (_selectedDesiSeries != null
+                      ? _buildDesiSeriesDetail(textColor, secondaryTextColor, accent, isLight)
+                      : (_selectedAawazShow != null
+                          ? _buildAawazShowDetail(textColor, secondaryTextColor, accent, isLight)
+                          : (_selectedCategoryIndex == 0
+                              ? _buildOshoSection(textColor, secondaryTextColor, accent, isLight)
+                              : (_selectedCategoryIndex == 1
+                                  ? _buildDesiFmSection(textColor, secondaryTextColor, accent, isLight)
+                                  : _buildAawazSection(textColor, secondaryTextColor, accent, isLight))))),
             ),
           ],
         ),
