@@ -48,6 +48,19 @@ class LiquidBackground extends StatelessWidget {
       );
     } else {
       switch (mode) {
+        case AppThemeMode.cyberpunk:
+          gradient = RadialGradient(
+            center: const Alignment(0.0, -0.85),
+            radius: 1.35,
+            colors: [
+              glowColor.withValues(alpha: 0.22),
+              const Color(0xFF00F0FF).withValues(alpha: 0.12),
+              const Color(0xFF0A0F22),
+              const Color(0xFF060814),
+            ],
+            stops: const [0.0, 0.35, 0.70, 1.0],
+          );
+          break;
         case AppThemeMode.royalGold:
           gradient = RadialGradient(
             center: const Alignment(0.0, -0.85),
@@ -61,8 +74,34 @@ class LiquidBackground extends StatelessWidget {
             stops: const [0.0, 0.35, 0.70, 1.0],
           );
           break;
+        case AppThemeMode.aurora:
+          gradient = RadialGradient(
+            center: const Alignment(0.0, -0.85),
+            radius: 1.35,
+            colors: [
+              const Color(0xFFA855F7).withValues(alpha: 0.22),
+              const Color(0xFF06B6D4).withValues(alpha: 0.12),
+              const Color(0xFF100B2B),
+              const Color(0xFF070517),
+            ],
+            stops: const [0.0, 0.35, 0.70, 1.0],
+          );
+          break;
+        case AppThemeMode.sunsetBliss:
+          gradient = RadialGradient(
+            center: const Alignment(0.0, -0.85),
+            radius: 1.35,
+            colors: [
+              const Color(0xFFFF5E62).withValues(alpha: 0.22),
+              const Color(0xFFFFA07A).withValues(alpha: 0.12),
+              const Color(0xFF180B1E),
+              const Color(0xFF0E0612),
+            ],
+            stops: const [0.0, 0.35, 0.70, 1.0],
+          );
+          break;
         case AppThemeMode.oled:
-        default:
+        case AppThemeMode.system:
           gradient = RadialGradient(
             center: const Alignment(0.0, -0.85),
             radius: 1.25,
@@ -72,6 +111,19 @@ class LiquidBackground extends StatelessWidget {
               const Color(0xFF000000),
             ],
             stops: const [0.0, 0.45, 1.0],
+          );
+          break;
+        case AppThemeMode.dark:
+        default:
+          gradient = RadialGradient(
+            center: const Alignment(0.0, -0.85),
+            radius: 1.25,
+            colors: [
+              glowColor.withValues(alpha: 0.16),
+              const Color(0xFF0E1017),
+              const Color(0xFF0B0C10),
+            ],
+            stops: const [0.0, 0.5, 1.0],
           );
           break;
       }

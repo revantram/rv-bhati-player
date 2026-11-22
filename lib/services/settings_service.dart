@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 enum AudioQuality {
   hd320('320 kbps Hi-Res', 'Studio high bitrate audio (Wi-Fi recommended)', 320),
@@ -26,9 +27,14 @@ enum MusicEngine {
 
 enum AppThemeMode {
   oled('Pure OLED', 'True #000000 BitChord Dark'),
+  cyberpunk('Cyberpunk Neon', 'Deep navy with neon cyan & magenta glow'),
   royalGold('Royal Obsidian Gold', 'Deep luxury dark with gold sheen'),
+  aurora('Cosmic Aurora', 'Deep galaxy violet with aurora teal glow'),
+  sunsetBliss('Sunset Bliss', 'Warm dusky purple with coral amber glow'),
   iosLiquid('iOS 18 Liquid Glass', 'Crisp white & light blue liquid glass'),
-  light('Apple Light', 'Crisp frosted porcelain white');
+  dark('Apple Dark', 'Apple Music sleek space gray dark'),
+  light('Apple Light', 'Crisp frosted porcelain white'),
+  system('System', 'Match system light/dark theme automatically');
 
   const AppThemeMode(this.label, this.description);
   final String label;
@@ -79,10 +85,23 @@ class SettingsService extends ChangeNotifier {
   bool _dynamicArtworkColors = true;
   bool get dynamicArtworkColors => _dynamicArtworkColors;
 
-  bool get isLight => _themeMode == AppThemeMode.light;
+  bool get isLight {
+    if (_themeMode == AppThemeMode.light || _themeMode == AppThemeMode.iosLiquid) {
+      return true;
+    }
+    if (_themeMode == AppThemeMode.system) {
+      return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+          Brightness.light;
+    }
+    return false;
+  }
+  bool get isDark => !isLight;
   bool get isOled => _themeMode == AppThemeMode.oled;
   bool get isRoyalGold => _themeMode == AppThemeMode.royalGold;
   bool get isIosLiquid => _themeMode == AppThemeMode.iosLiquid;
+  bool get isCyberpunk => _themeMode == AppThemeMode.cyberpunk;
+  bool get isAurora => _themeMode == AppThemeMode.aurora;
+  bool get isSunsetBliss => _themeMode == AppThemeMode.sunsetBliss;
 
   File? _settingsFile;
 

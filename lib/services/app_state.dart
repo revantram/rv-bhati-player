@@ -332,25 +332,33 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  bool get isLight =>
-      SettingsService.instance.themeMode == AppThemeMode.light ||
-      SettingsService.instance.themeMode == AppThemeMode.iosLiquid;
+  bool get isLight => SettingsService.instance.isLight;
 
   bool get isDark => !isLight;
 
-  bool get isOled => SettingsService.instance.themeMode == AppThemeMode.oled;
+  bool get isOled => SettingsService.instance.isOled;
 
-  bool get isIosLiquid => SettingsService.instance.themeMode == AppThemeMode.iosLiquid;
+  bool get isIosLiquid => SettingsService.instance.isIosLiquid;
 
   // BitChord Apple Music color palette tokens with multi-theme engine
   Color get backgroundColor {
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF000000);
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF060814);
       case AppThemeMode.royalGold:
         return const Color(0xFF080705);
+      case AppThemeMode.aurora:
+        return const Color(0xFF070517);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFF0E0612);
       case AppThemeMode.iosLiquid:
         return const Color(0xFFFFFFFF);
+      case AppThemeMode.dark:
+        return const Color(0xFF0B0C10);
+      case AppThemeMode.system:
+        return isLight ? const Color(0xFFF5F7FA) : const Color(0xFF000000);
       case AppThemeMode.light:
         return const Color(0xFFF5F7FA);
     }
@@ -360,10 +368,20 @@ class AppState extends ChangeNotifier {
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF101116);
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF0D1224);
       case AppThemeMode.royalGold:
         return const Color(0xFF14120D);
+      case AppThemeMode.aurora:
+        return const Color(0xFF120E2C);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFF1A0E21);
       case AppThemeMode.iosLiquid:
         return Colors.white;
+      case AppThemeMode.dark:
+        return const Color(0xFF151822);
+      case AppThemeMode.system:
+        return isLight ? Colors.white : const Color(0xFF101116);
       case AppThemeMode.light:
         return Colors.white;
     }
@@ -373,10 +391,20 @@ class AppState extends ChangeNotifier {
     switch (SettingsService.instance.themeMode) {
       case AppThemeMode.oled:
         return const Color(0xFF181A22);
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF141B34);
       case AppThemeMode.royalGold:
         return const Color(0xFF201C15);
+      case AppThemeMode.aurora:
+        return const Color(0xFF1C1642);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFF271530);
       case AppThemeMode.iosLiquid:
         return const Color(0xFFF0F9FF);
+      case AppThemeMode.dark:
+        return const Color(0xFF1E2230);
+      case AppThemeMode.system:
+        return isLight ? const Color(0xFFEFF2F7) : const Color(0xFF181A22);
       case AppThemeMode.light:
         return const Color(0xFFEFF2F7);
     }
@@ -387,9 +415,20 @@ class AppState extends ChangeNotifier {
   Color get secondaryTextColor {
     if (isLight) return const Color(0xFF64748B);
     switch (SettingsService.instance.themeMode) {
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF8E9CB8);
       case AppThemeMode.royalGold:
         return const Color(0xFFB8AFA2);
+      case AppThemeMode.aurora:
+        return const Color(0xFFA8A3C4);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFFB89CA8);
+      case AppThemeMode.iosLiquid:
+        return const Color(0xFF0284C7);
       case AppThemeMode.oled:
+      case AppThemeMode.dark:
+      case AppThemeMode.system:
+      case AppThemeMode.light:
       default:
         return const Color(0xFFA1A7B5);
     }
@@ -398,52 +437,92 @@ class AppState extends ChangeNotifier {
   Color get cardColor => surfaceColor;
 
   Color get cardBorderColor {
+    if (SettingsService.instance.themeMode == AppThemeMode.iosLiquid) {
+      return const Color(0xFF0088FF).withValues(alpha: 0.38);
+    }
+    if (isLight) return const Color(0xFFE2E8F0);
     switch (SettingsService.instance.themeMode) {
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF00F0FF).withValues(alpha: 0.22);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.24);
-      case AppThemeMode.iosLiquid:
-        return const Color(0xFF0088FF).withValues(alpha: 0.38);
+      case AppThemeMode.aurora:
+        return const Color(0xFFA855F7).withValues(alpha: 0.22);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFFFF5E62).withValues(alpha: 0.22);
       case AppThemeMode.oled:
+      case AppThemeMode.system:
         return Colors.white.withValues(alpha: 0.10);
+      case AppThemeMode.dark:
+        return Colors.white.withValues(alpha: 0.13);
       case AppThemeMode.light:
+      default:
         return const Color(0xFFE2E8F0);
     }
   }
 
   Color get dividerColor {
+    if (SettingsService.instance.themeMode == AppThemeMode.iosLiquid) {
+      return const Color(0xFF0088FF).withValues(alpha: 0.15);
+    }
+    if (isLight) return const Color(0xFFE2E8F0);
     switch (SettingsService.instance.themeMode) {
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF00F0FF).withValues(alpha: 0.12);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800).withValues(alpha: 0.12);
-      case AppThemeMode.iosLiquid:
-        return const Color(0xFF0088FF).withValues(alpha: 0.15);
+      case AppThemeMode.aurora:
+        return const Color(0xFFA855F7).withValues(alpha: 0.12);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFFFF5E62).withValues(alpha: 0.12);
       case AppThemeMode.oled:
-        return Colors.white.withValues(alpha: 0.08);
+      case AppThemeMode.dark:
+      case AppThemeMode.system:
       case AppThemeMode.light:
-        return const Color(0xFFE2E8F0);
+      default:
+        return Colors.white.withValues(alpha: 0.08);
     }
   }
 
   Color get themeGlowColor {
     final mode = SettingsService.instance.themeMode;
     switch (mode) {
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF00F0FF);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
+      case AppThemeMode.aurora:
+        return const Color(0xFFA855F7);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFFFF5E62);
       case AppThemeMode.iosLiquid:
         return const Color(0xFF0088FF);
       case AppThemeMode.oled:
+      case AppThemeMode.dark:
       case AppThemeMode.light:
+      case AppThemeMode.system:
+      default:
         return accentColor;
     }
   }
 
   static Color recommendedAccent(AppThemeMode mode) {
     switch (mode) {
+      case AppThemeMode.cyberpunk:
+        return const Color(0xFF00F0FF);
       case AppThemeMode.royalGold:
         return const Color(0xFFFFB800);
+      case AppThemeMode.aurora:
+        return const Color(0xFF9D4EDD);
+      case AppThemeMode.sunsetBliss:
+        return const Color(0xFFFF5E62);
       case AppThemeMode.iosLiquid:
         return const Color(0xFF0088FF);
       case AppThemeMode.oled:
+      case AppThemeMode.dark:
       case AppThemeMode.light:
+      case AppThemeMode.system:
+      default:
         return const Color(0xFFFA2D48);
     }
   }

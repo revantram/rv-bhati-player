@@ -94,14 +94,22 @@ class GlassBottomNav extends StatelessWidget {
     final isLight = app.isLight;
     final accent = app.accentColor;
 
+    final navBg = isLight
+        ? (app.isIosLiquid
+            ? Colors.white.withValues(alpha: 0.96)
+            : const Color(0xFFFFFFFF).withValues(alpha: 0.95))
+        : (app.isOled
+            ? const Color(0xFF000000).withValues(alpha: 0.96)
+            : app.surfaceColor.withValues(alpha: 0.95));
+
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       blur: 22,
-      opacity: isLight ? 0.92 : 0.82,
+      tint: navBg,
       borderWidth: 1.1,
       borderColor: isLight
-          ? Colors.black.withValues(alpha: 0.08)
+          ? (app.isIosLiquid ? const Color(0xFF0088FF).withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.08))
           : Colors.white.withValues(alpha: 0.15),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
