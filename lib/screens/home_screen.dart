@@ -100,6 +100,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      AudioController.instance.player.stop();
+      RadioController.instance.stop();
+      return;
+    }
     if (state != AppLifecycleState.resumed || _loading) return;
     if (_denied) {
       MediaScanner.hasAnyMediaPermission().then((ok) {

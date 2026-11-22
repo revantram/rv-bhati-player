@@ -4,8 +4,10 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 import 'screens/home_screen.dart';
 import 'services/app_state.dart';
+import 'services/audio_controller.dart';
 import 'services/download_service.dart';
 import 'services/jiosaavn_auth_service.dart';
+import 'services/radio_controller.dart';
 import 'services/yt_auth_service.dart';
 
 Future<void> main() async {
@@ -17,8 +19,8 @@ Future<void> main() async {
     androidNotificationChannelDescription: 'RV Bhati Player background audio playback',
     androidNotificationIcon: 'drawable/ic_stat_music',
     notificationColor: const Color(0xFFFA2D48),
-    androidNotificationOngoing: true,
-    androidStopForegroundOnPause: false,
+    androidNotificationOngoing: false,
+    androidStopForegroundOnPause: true,
     androidNotificationClickStartsActivity: true,
     preloadArtwork: true,
   );
@@ -43,8 +45,28 @@ class RvBhatiPlayerApp extends StatefulWidget {
   State<RvBhatiPlayerApp> createState() => _RvBhatiPlayerAppState();
 }
 
-class _RvBhatiPlayerAppState extends State<RvBhatiPlayerApp> {
+class _RvBhatiPlayerAppState extends State<RvBhatiPlayerApp> with WidgetsBindingObserver {
   bool? _lastIsLight;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      AudioController.instance.player.stop();
+      RadioController.instance.stop();
+    }
+  }
 
   void _syncOverlay(bool isLight) {
     if (_lastIsLight == isLight) return;

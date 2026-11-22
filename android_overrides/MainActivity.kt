@@ -695,8 +695,25 @@ class MainActivity : AudioServiceActivity() {
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        try {
+            releaseAudioEffects()
+            val stopIntent = Intent(this, com.ryanheise.audioservice.AudioService::class.java)
+            stopService(stopIntent)
+            val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            notifManager?.cancelAll()
+        } catch (ignored: Exception) {}
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
-        releaseAudioEffects()
+        try {
+            releaseAudioEffects()
+            val stopIntent = Intent(this, com.ryanheise.audioservice.AudioService::class.java)
+            stopService(stopIntent)
+            val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            notifManager?.cancelAll()
+        } catch (ignored: Exception) {}
         super.onDestroy()
     }
 }
