@@ -16,6 +16,7 @@ import '../widgets/art_box.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/liquid_glass_play_pause_button.dart';
 
 class AudioTrimmerScreen extends StatefulWidget {
   const AudioTrimmerScreen({
@@ -630,34 +631,14 @@ class _AudioTrimmerScreenState extends State<AudioTrimmerScreen> {
                             ),
                             const SizedBox(height: 20),
 
-                            // 3. Play Preview Control
+                            // 3. Play Preview Control with smooth AnimatedIcon morphing & tactile glass feedback
                             Center(
-                              child: GestureDetector(
-                                onTap: _togglePreview,
-                                child: Container(
-                                  width: 68,
-                                  height: 68,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      colors: [accent, accent.withValues(alpha: 0.75)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: accent.withValues(alpha: 0.4),
-                                        blurRadius: 18,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                    color: Colors.white,
-                                    size: 36,
-                                  ),
-                                ),
+                              child: LiquidGlassPlayPauseButton(
+                                isPlaying: _isPlaying,
+                                size: 68,
+                                iconSize: 36,
+                                color: accent,
+                                onToggle: _togglePreview,
                               ),
                             ),
                             const SizedBox(height: 8),

@@ -29,6 +29,7 @@ import '../widgets/artist_songs_sheet.dart';
 import '../widgets/equalizer_sheet.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/liquid_glass_play_pause_button.dart';
 import '../widgets/sleep_timer_sheet.dart';
 
 class AudioPlayerScreen extends StatefulWidget {
@@ -1252,43 +1253,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                             ),
                                           ),
 
-                                          // Center Play/Pause button: 68px vibrant accent gradient disc
-                                          GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              _toggle(st);
-                                            },
-                                            child: Container(
-                                              width: 68,
-                                              height: 68,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                  colors: [
-                                                    appAccent,
-                                                    appAccent.withValues(alpha: 0.85),
-                                                  ],
-                                                ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: appAccent.withValues(alpha: 0.55),
-                                                    blurRadius: 22,
-                                                    spreadRadius: 2,
-                                                    offset: const Offset(0, 4),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Center(
-                                                child: Icon(
-                                                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                                  size: 36,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
+                                          // Center Play/Pause button: 68px vibrant accent disc with smooth icon morphing & glass tactile feedback
+                                          LiquidGlassPlayPauseButton(
+                                            isPlaying: isPlaying,
+                                            size: 68,
+                                            iconSize: 36,
+                                            color: appAccent,
+                                            onToggle: () => _toggle(st),
                                           ),
 
                                           // Next

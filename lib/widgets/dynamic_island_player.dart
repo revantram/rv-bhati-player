@@ -11,6 +11,7 @@ import '../services/audio_controller.dart';
 import '../services/radio_controller.dart';
 import 'art_box.dart';
 import 'liquid_glass_container.dart';
+import 'liquid_glass_play_pause_button.dart';
 
 /// iPhone-style floating Dynamic Island player at the top of the screen.
 /// Automatically appears when music plays and smoothly slides away when stopped.
@@ -302,38 +303,19 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                                   ),
                                   const SizedBox(width: 4),
 
-                                  // Play / Pause Button
-                                  GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
+                                  // Play / Pause Button with smooth morphing & tactile glass feedback
+                                  LiquidGlassPlayPauseButton(
+                                    isPlaying: playing,
+                                    size: 32,
+                                    iconSize: 18,
+                                    color: accent,
+                                    onToggle: () {
                                       if (playing) {
                                         player.pause();
                                       } else {
                                         player.play();
                                       }
                                     },
-                                    child: Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        color: accent,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: accent.withValues(alpha: 0.45),
-                                            blurRadius: 8,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        playing
-                                            ? Icons.pause_rounded
-                                            : Icons.play_arrow_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                    ),
                                   ),
                                   const SizedBox(width: 4),
 

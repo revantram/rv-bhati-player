@@ -6,6 +6,7 @@ import '../models/radio_station.dart';
 import '../services/app_state.dart';
 import '../services/radio_controller.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/liquid_glass_play_pause_button.dart';
 
 class RadioScreen extends StatefulWidget {
   final double topOffset;
@@ -437,24 +438,33 @@ class _RadioStationGridCard extends StatelessWidget {
 
                 const SizedBox(width: 4),
 
-                // Status Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isPlaying
-                        ? const Color(0xFF00E676)
-                        : (isLoading ? const Color(0xFFFFB300) : const Color(0xFFEF4444).withValues(alpha: 0.8)),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    isLoading ? '...' : (isPlaying ? 'LIVE' : 'FM'),
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                // Status Badge or Interactive Play/Pause Button
+                if (isActive)
+                  LiquidGlassPlayPauseButton(
+                    isPlaying: isPlaying,
+                    size: 26,
+                    iconSize: 15,
+                    color: station.color,
+                    onToggle: () => radio.toggleStation(station),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isPlaying
+                          ? const Color(0xFF00E676)
+                          : (isLoading ? const Color(0xFFFFB300) : const Color(0xFFEF4444).withValues(alpha: 0.8)),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isLoading ? '...' : (isPlaying ? 'LIVE' : 'FM'),
+                      style: const TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),

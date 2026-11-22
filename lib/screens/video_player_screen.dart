@@ -18,6 +18,7 @@ import '../utils/srt_parser.dart';
 import '../widgets/glass_bars.dart';
 import '../widgets/glass_seek_bar.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/liquid_glass_play_pause_button.dart';
 
 enum VideoFitMode { original, fill, widescreen, ultrawide }
 
@@ -1461,42 +1462,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           onTap: () => _seekBy(-10),
         ),
         const SizedBox(width: 22),
-        // Glowing Main Play / Pause Circle
-        GestureDetector(
-          onTap: _togglePlay,
-          child: Container(
-            width: 74,
-            height: 74,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  accent,
-                  accent.withValues(alpha: 0.85),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withValues(alpha: 0.5),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-                const BoxShadow(
-                  color: Colors.black54,
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
-                ),
-              ],
-              border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
-            ),
-            child: Icon(
-              v.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 42,
-              color: Colors.white,
-            ),
-          ),
+        // Glowing Main Play / Pause Circle with smooth icon morphing & glass tactile feedback
+        LiquidGlassPlayPauseButton(
+          isPlaying: v.isPlaying,
+          size: 74,
+          iconSize: 42,
+          color: accent,
+          onToggle: _togglePlay,
         ),
         const SizedBox(width: 22),
         // 10s Forward

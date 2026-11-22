@@ -11,6 +11,7 @@ import '../services/audio_controller.dart';
 import '../services/radio_controller.dart';
 import '../widgets/art_box.dart';
 import '../widgets/equalizer_sheet.dart';
+import '../widgets/liquid_glass_play_pause_button.dart';
 
 /// Full-screen, high-contrast, distraction-free Car / Driving Mode.
 /// Features extra-large touch targets, high readability, and full-screen swipe gestures.
@@ -283,16 +284,14 @@ class _CarModeScreenState extends State<CarModeScreen> {
                               },
                             ),
 
-                            // Giant Play/Pause
-                            _buildCircleButton(
-                              icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            // Giant Play/Pause with smooth AnimatedIcon morphing & tactile glass feedback
+                            LiquidGlassPlayPauseButton(
+                              isPlaying: playing,
                               size: 96,
                               iconSize: 56,
                               color: accent,
-                              iconColor: Colors.black,
-                              hasGlow: true,
-                              onTap: () {
-                                HapticFeedback.heavyImpact();
+                              iconColor: Colors.white,
+                              onToggle: () {
                                 if (playing) {
                                   player.pause();
                                 } else {
