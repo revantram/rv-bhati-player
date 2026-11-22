@@ -1453,7 +1453,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                   iOSBounceButton(
                     onTap: () {
                       HapticFeedback.lightImpact();
-                      _switchEngine(otherEngine);
+                      SettingsService.instance.setMusicEngine(otherEngine);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1476,7 +1476,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
                     iOSBounceButton(
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        _performSearch(_searchCtrl.text.trim());
+                        _onSearch(_searchCtrl.text.trim());
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

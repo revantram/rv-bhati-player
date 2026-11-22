@@ -3,6 +3,7 @@ package com.rvbhati.player
 import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.media.audiofx.AudioEffect
@@ -279,23 +280,37 @@ class MainActivity : AudioServiceActivity() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         if (!packageManager.canRequestPackageInstalls()) {
                             try {
-                                val manageIntent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                val manageIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                                     data = Uri.parse("package:$packageName")
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
                                 startActivity(manageIntent)
                             } catch (ignored: Exception) {}
+                            result.success(false)
+                            return@setMethodCallHandler
                         }
                     }
-                    val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
+                    // Guarantee FileProvider access by copying to internal cacheDir
+                    val safeFile = if (file.absolutePath.startsWith(cacheDir.absolutePath)) {
+                        file
                     } else {
-                        Uri.fromFile(file)
+                        val destFile = File(cacheDir, "RV-Bhati-Player-install.apk")
+                        file.copyTo(destFile, overwrite = true)
+                        destFile
+                    }
+                    val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", safeFile)
+                    } else {
+                        Uri.fromFile(safeFile)
                     }
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(uri, "application/vnd.android.package-archive")
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                    for (resolveInfo in resInfoList) {
+                        grantUriPermission(resolveInfo.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     startActivity(intent)
                     result.success(true)

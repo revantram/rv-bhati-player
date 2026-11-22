@@ -148,12 +148,22 @@ jobs:
           name: RV-Bhati-Player-ARM64-APK
           path: build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk
 
+      - name: Extract App Version from pubspec.yaml
+        id: app_ver
+        run: |
+          VER=$(grep '^version:' pubspec.yaml | head -n1 | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUM=$(grep '^version:' pubspec.yaml | head -n1 | awk '{print $2}' | cut -d'+' -f2)
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "build=$BUILD_NUM" >> $GITHUB_OUTPUT
+          echo "Extracted App Version: v$VER+$BUILD_NUM"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: ${{ github.ref_name }}
-          name: "RV Bhati Player ${{ github.ref_name }} (ARM64 Optimized Edition)"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.app_ver.outputs.version) }}
+          name: "RV Bhati Player v${{ steps.app_ver.outputs.version }} (ARM64 Optimized Edition)"
+          body: "Official Release v${{ steps.app_ver.outputs.version }}+${{ steps.app_ver.outputs.build }} with in-app updater, iOS 18 Liquid Glass polish, and stream reliability."
           make_latest: true
           files: |
             build/app/outputs/flutter-apk/RV-Bhati-Player-arm64.apk
