@@ -113,16 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const SizedBox(width: 14),
-                    ] else ...[
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(Icons.settings_rounded, color: accent, size: 22),
-                      ),
-                      const SizedBox(width: 12),
                     ],
                     Text(
                       AppState.translate('settings'),

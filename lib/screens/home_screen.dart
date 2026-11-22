@@ -537,24 +537,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onOpenOnline: _openNowPlaying,
                   ),
                 ),
-              // Top-right sleek Settings button (when not searching and not already on Settings tab)
-              if (!_isSearching && _tab != 4)
-                Positioned(
-                  top: pad.top + 8,
-                  right: 16,
-                  child: PressableScale(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      setState(() => _tab = 4);
-                    },
-                    child: LiquidGlassContainer(
-                      borderRadius: BorderRadius.circular(16),
-                      padding: const EdgeInsets.all(9),
-                      blur: 0,
-                      child: Icon(Icons.settings_rounded, color: app.textColor, size: 20),
-                    ),
-                  ),
-                ),
 
               // Bottom Nav: 5 tabs (Videos, Music Hub, FM Radio, Shows, Settings)
               Positioned(
