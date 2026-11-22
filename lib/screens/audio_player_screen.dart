@@ -1618,11 +1618,11 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
     super.initState();
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 2200),
     );
     _playPauseAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 320),
       value: widget.isPlaying ? 1.0 : 0.0,
     );
     if (widget.isPlaying) {
@@ -1635,7 +1635,9 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
     super.didUpdateWidget(oldWidget);
     if (widget.isPlaying != oldWidget.isPlaying) {
       if (widget.isPlaying) {
-        _waveController.repeat();
+        if (!_waveController.isAnimating) {
+          _waveController.repeat();
+        }
         _playPauseAnimController.forward();
       } else {
         _playPauseAnimController.reverse().then((_) {
@@ -1692,6 +1694,9 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
         LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
+            final progressX = (width * currentFraction).clamp(0.0, width);
+            const wavelength = 32.0;
+
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
               onHorizontalDragDown: (d) => _onSeekFromOffset(d.localPosition.dx, width),
@@ -1703,58 +1708,68 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
                 _finalizeSeek(width);
               },
               child: Container(
-                height: 32,
+                height: 44,
                 alignment: Alignment.center,
-                child: Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    // Dynamic tactile audio waveform seek line
-                    AnimatedBuilder(
-                      animation: Listenable.merge([_waveController, _playPauseAnimController]),
-                      builder: (context, _) {
-                        return CustomPaint(
-                          size: Size(width, 24),
-                          painter: _WaveformSeekPainter(
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([_waveController, _playPauseAnimController]),
+                  builder: (context, _) {
+                    final wavePhase = _waveController.value * 2 * math.pi;
+                    final animFactor = _playPauseAnimController.value;
+                    const maxAmp = 4.2;
+                    final amp = maxAmp * animFactor;
+                    final env = (progressX / 16.0).clamp(0.0, 1.0);
+                    final thumbY = 22.0 + amp * env * math.sin((2 * math.pi / wavelength) * progressX - wavePhase);
+                    final thumbDiameter = isDragging ? 18.0 : 14.0;
+                    final thumbRadius = thumbDiameter / 2;
+
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.centerLeft,
+                      children: [
+                        // Dynamic squiggly sinusoidal wave seek line
+                        CustomPaint(
+                          size: Size(width, 44),
+                          painter: _SquigglyWaveSeekPainter(
                             progress: currentFraction,
                             accent: widget.accent,
                             isLight: isLight,
-                            wavePhase: _waveController.value * 2 * math.pi,
-                            animFactor: _playPauseAnimController.value,
+                            wavePhase: wavePhase,
+                            animFactor: animFactor,
                             isPlaying: widget.isPlaying,
                           ),
-                        );
-                      },
-                    ),
-                    // Sleek glowing thumb
-                    Positioned(
-                      left: (width * currentFraction - (isDragging ? 9 : 7))
-                          .clamp(0.0, width - (isDragging ? 18 : 14)),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        width: isDragging ? 18 : 14,
-                        height: isDragging ? 18 : 14,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(
-                            color: widget.accent.withValues(alpha: 0.6),
-                            width: 2.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.35),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                            BoxShadow(
-                              color: widget.accent.withValues(alpha: 0.6),
-                              blurRadius: 8,
-                            ),
-                          ],
                         ),
-                      ),
-                    ),
-                  ],
+                        // Sleek glowing thumb riding the wave
+                        Positioned(
+                          left: (progressX - thumbRadius).clamp(0.0, width - thumbDiameter),
+                          top: (thumbY - thumbRadius).clamp(0.0, 44.0 - thumbDiameter),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 120),
+                            width: thumbDiameter,
+                            height: thumbDiameter,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              border: Border.all(
+                                color: widget.accent.withValues(alpha: 0.85),
+                                width: 2.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isLight ? 0.20 : 0.40),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                                BoxShadow(
+                                  color: widget.accent.withValues(alpha: 0.55),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             );
@@ -1789,7 +1804,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
   }
 }
 
-class _WaveformSeekPainter extends CustomPainter {
+class _SquigglyWaveSeekPainter extends CustomPainter {
   final double progress;
   final Color accent;
   final bool isLight;
@@ -1797,7 +1812,7 @@ class _WaveformSeekPainter extends CustomPainter {
   final double animFactor;
   final bool isPlaying;
 
-  _WaveformSeekPainter({
+  _SquigglyWaveSeekPainter({
     required this.progress,
     required this.accent,
     required this.isLight,
@@ -1808,74 +1823,81 @@ class _WaveformSeekPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final progressX = size.width * progress.clamp(0.0, 1.0);
+    final yMid = size.height / 2;
+    final progressX = (size.width * progress).clamp(0.0, size.width);
+
+    const strokeWidth = 3.6;
 
     final activePaint = Paint()
       ..color = accent
-      ..style = PaintingStyle.fill;
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
     final inactiveColor = isLight
-        ? const Color(0xFF94A3B8).withValues(alpha: 0.40)
-        : Colors.white.withValues(alpha: 0.22);
+        ? const Color(0xFF64748B).withValues(alpha: 0.30)
+        : Colors.white.withValues(alpha: 0.25);
     final inactivePaint = Paint()
       ..color = inactiveColor
-      ..style = PaintingStyle.fill;
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
-    const flatLineHeight = 4.0;
-    final trackY = (size.height - flatLineHeight) / 2;
+    const maxAmplitude = 4.2;
+    final amp = maxAmplitude * animFactor;
+    const wavelength = 32.0;
 
-    // 1. If paused / animFactor ~0: Draw clean straight line
-    if (animFactor < 0.02) {
-      final inactiveRRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, trackY, size.width, flatLineHeight),
-        const Radius.circular(2.0),
-      );
-      canvas.drawRRect(inactiveRRect, inactivePaint);
-
-      if (progressX > 0) {
-        final activeRRect = RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, trackY, progressX.clamp(0.0, size.width), flatLineHeight),
-          const Radius.circular(2.0),
+    // 1. Draw inactive remaining track (from progressX to size.width)
+    if (progressX < size.width) {
+      final inactivePath = Path();
+      if (amp > 0.05 && progressX > 0) {
+        final env = (progressX / 16.0).clamp(0.0, 1.0);
+        final startY = yMid + amp * env * math.sin((2 * math.pi / wavelength) * progressX - wavePhase);
+        final blendEnd = math.min(size.width, progressX + 16.0);
+        inactivePath.moveTo(progressX, startY);
+        inactivePath.quadraticBezierTo(
+          (progressX + blendEnd) / 2,
+          yMid,
+          blendEnd,
+          yMid,
         );
-        canvas.drawRRect(activeRRect, activePaint);
+        if (blendEnd < size.width) {
+          inactivePath.lineTo(size.width, yMid);
+        }
+      } else {
+        inactivePath.moveTo(progressX, yMid);
+        inactivePath.lineTo(size.width, yMid);
       }
-      return;
+      canvas.drawPath(inactivePath, inactivePaint);
     }
 
-    // 2. When playing / animFactor > 0: Equalizer vertical bars jumping up and down
-    const barWidth = 3.2;
-    const spacing = 2.6;
-    final step = barWidth + spacing;
-    final barCount = (size.width / step).floor();
-    if (barCount <= 0) return;
+    // 2. Draw active squiggly wave (from 0 to progressX)
+    if (progressX > 0) {
+      final activePath = Path();
+      activePath.moveTo(0, yMid);
 
-    for (int i = 0; i < barCount; i++) {
-      final x = i * step + spacing / 2;
+      if (amp > 0.05) {
+        const step = 2.0;
+        for (double x = step; x < progressX; x += step) {
+          final env = (x / 16.0).clamp(0.0, 1.0);
+          final y = yMid + amp * env * math.sin((2 * math.pi / wavelength) * x - wavePhase);
+          activePath.lineTo(x, y);
+        }
+        final endEnv = (progressX / 16.0).clamp(0.0, 1.0);
+        final endY = yMid + amp * endEnv * math.sin((2 * math.pi / wavelength) * progressX - wavePhase);
+        activePath.lineTo(progressX, endY);
+      } else {
+        activePath.lineTo(progressX, yMid);
+      }
 
-      // Realistic equalizer frequency harmonics
-      final freq1 = 2.4 + (i % 5) * 1.1;
-      final freq2 = 3.6 + ((i * 3) % 7) * 0.9;
-      final s1 = (math.sin(wavePhase * freq1 + i * 0.75)).abs();
-      final s2 = (math.cos(wavePhase * freq2 + i * 1.25)).abs();
-      final rawBounce = (s1 * 0.6 + s2 * 0.4);
-      final spectrumEnvelope = 0.55 + 0.45 * math.sin((i / barCount) * math.pi);
-      final barBounce = (rawBounce * spectrumEnvelope).clamp(0.08, 1.0);
-      final targetH = 4.0 + 18.0 * barBounce;
-      final h = ui.lerpDouble(flatLineHeight, targetH, animFactor)!.clamp(4.0, size.height);
-
-      final top = (size.height - h) / 2;
-      final rrect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(x, top, barWidth, h),
-        const Radius.circular(2.0),
-      );
-
-      final isPast = (x + barWidth / 2) <= progressX;
-      canvas.drawRRect(rrect, isPast ? activePaint : inactivePaint);
+      canvas.drawPath(activePath, activePaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _WaveformSeekPainter oldDelegate) {
+  bool shouldRepaint(covariant _SquigglyWaveSeekPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.accent != accent ||
         oldDelegate.isLight != isLight ||
