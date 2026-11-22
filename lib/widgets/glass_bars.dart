@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -104,110 +105,142 @@ class GlassBottomNav extends StatelessWidget {
 
     return LiquidGlassContainer(
       borderRadius: LiquidGlassContainer.capsuleRadius,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       blur: 22,
       tint: navBg,
       borderWidth: 1.1,
       borderColor: isLight
           ? (app.isIosLiquid ? const Color(0xFF0088FF).withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.08))
           : Colors.white.withValues(alpha: 0.15),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          for (var i = 0; i < items.length; i++)
-            Expanded(
-              flex: 1,
-              child: PressableScale(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  if (i != index) {
-                    HapticFeedback.selectionClick();
-                    onChanged(i);
-                  }
-                },
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        width: 48,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          gradient: i == index
-                              ? LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    accent.withValues(alpha: isLight ? 0.22 : 0.28),
-                                    accent.withValues(alpha: isLight ? 0.12 : 0.18),
-                                  ],
-                                )
-                              : null,
-                          border: Border.all(
-                            color: i == index
-                                ? accent.withValues(alpha: 0.55)
-                                : Colors.transparent,
-                            width: 1.2,
-                          ),
-                          boxShadow: i == index
-                              ? [
-                                  BoxShadow(
-                                    color: accent.withValues(alpha: 0.25),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            items[i].icon,
-                            size: 20,
-                            color: i == index
-                                ? accent
-                                : (isLight ? const Color(0xFF4B5563) : Colors.white60),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.center,
-                          child: Text(
-                            items[i].label,
-                            maxLines: 1,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: i == index
-                                  ? accent
-                                  : (isLight ? const Color(0xFF4B5563) : Colors.white60),
-                              fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
-                              fontSize: 10,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tabCount = items.length;
+          final tabWidth = constraints.maxWidth / tabCount;
+          final pillWidth = math.min(tabWidth - 6, 68.0);
+          final safeIndex = index.clamp(0, tabCount - 1);
+
+          return Stack(
+            children: [
+              // Smooth sliding active-tab indicator pill underneath selected tab
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                left: safeIndex * tabWidth + (tabWidth - pillWidth) / 2,
+                top: 2,
+                width: pillWidth,
+                height: 44,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        accent.withValues(alpha: isLight ? 0.20 : 0.28),
+                        accent.withValues(alpha: isLight ? 0.08 : 0.15),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.65),
+                      width: 1.3,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.30),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-        ],
+
+              // Interactive Tab Items
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < tabCount; i++)
+                    Expanded(
+                      flex: 1,
+                      child: PressableScale(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () {
+                          if (i != index) {
+                            HapticFeedback.selectionClick();
+                            onChanged(i);
+                          }
+                        },
+                        child: SizedBox(
+                          height: 48,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Icon(
+                                items[i].icon,
+                                size: 21,
+                                color: i == safeIndex
+                                    ? accent
+                                    : (isLight ? const Color(0xFF64748B) : Colors.white70),
+                              ),
+                              const SizedBox(height: 2),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 2),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    items[i].label,
+                                    maxLines: 1,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: i == safeIndex
+                                          ? accent
+                                          : (isLight ? const Color(0xFF64748B) : Colors.white70),
+                                      fontWeight: i == safeIndex ? FontWeight.w700 : FontWeight.w500,
+                                      fontSize: 10,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 Route<T> glassRoute<T>(Widget page) {
-  return MaterialPageRoute<T>(builder: (_) => page);
+  return PageRouteBuilder<T>(
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.0, 0.12),
+          end: Offset.zero,
+        ).animate(curved),
+        child: FadeTransition(
+          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curved),
+          child: child,
+        ),
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 260),
+    reverseTransitionDuration: const Duration(milliseconds: 200),
+  );
 }

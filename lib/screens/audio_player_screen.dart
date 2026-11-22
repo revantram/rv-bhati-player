@@ -16,6 +16,7 @@ import '../models/media_file.dart';
 import '../models/online_song.dart';
 import '../models/playlist_item.dart';
 import '../services/app_state.dart';
+import '../services/artwork_palette_service.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
 import '../services/equalizer_service.dart';
@@ -80,6 +81,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   final _ac = AudioController.instance;
   AppState get app => AppState.instance;
 
+  double _dragOffsetY = 0.0;
   bool _showLyrics = false;
   List<LrcLine> _lyrics = [];
   String? _plainLyrics;
@@ -179,55 +181,11 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
   Future<void> _extractAndApplyThemeColor(_AudioTrackInfo track) async {
     try {
-      Uint8List? imageBytes;
-      if (track.embeddedArt != null && track.embeddedArt!.isNotEmpty) {
-        imageBytes = track.embeddedArt;
-      } else if (track.isOnline && track.imageUrl != null && track.imageUrl!.isNotEmpty) {
-        final res = await http.get(Uri.parse(track.imageUrl!)).timeout(const Duration(seconds: 4));
-        if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
-          imageBytes = res.bodyBytes;
-        }
-      }
-
-      if (imageBytes != null && imageBytes.isNotEmpty) {
-        final codec = await ui.instantiateImageCodec(imageBytes, targetWidth: 24, targetHeight: 24);
-        final frame = await codec.getNextFrame();
-        final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
-        if (byteData != null) {
-          final bytes = byteData.buffer.asUint8List();
-          int bestR = 124, bestG = 108, bestB = 255;
-          double maxScore = -1;
-
-          for (int i = 0; i < bytes.length; i += 4) {
-            final r = bytes[i];
-            final g = bytes[i + 1];
-            final b = bytes[i + 2];
-            final a = bytes[i + 3];
-            if (a < 128) continue;
-
-            final maxVal = math.max(r, math.max(g, b));
-            final minVal = math.min(r, math.min(g, b));
-            final delta = maxVal - minVal;
-            if (delta < 20 || maxVal < 40 || minVal > 220) continue;
-
-            final saturation = delta / maxVal;
-            final brightness = maxVal / 255.0;
-            final score = saturation * 1.5 + (1.0 - (brightness - 0.65).abs());
-            if (score > maxScore) {
-              maxScore = score;
-              bestR = r;
-              bestG = g;
-              bestB = b;
-            }
-          }
-
-          if (maxScore > 0 && mounted) {
-            final vibrant = Color.fromARGB(255, bestR, bestG, bestB);
-            AppState.instance.setDynamicAccentColor(vibrant);
-            return;
-          }
-        }
-      }
+      await ArtworkPaletteService.instance.extractAndApply(
+        bytes: track.embeddedArt,
+        imageUrl: track.imageUrl,
+        cacheKey: track.id,
+      );
     } catch (_) {}
   }
 
@@ -457,6 +415,26 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     onTap: () {
                       Navigator.pop(context);
                       _openQueueSheet();
+                    },
+                  ),
+                  _sheetActionTile(
+                    icon: Icons.equalizer_rounded,
+                    title: 'Equalizer & Bass Boost',
+                    subtitle: '5-Band EQ, 3D Surround & Bass',
+                    accentColor: appAccent,
+                    onTap: () {
+                      Navigator.pop(context);
+                      EqualizerSheet.show(context);
+                    },
+                  ),
+                  _sheetActionTile(
+                    icon: Icons.bedtime_rounded,
+                    title: 'Sleep Timer',
+                    subtitle: app.isSleepTimerActive ? app.sleepTimerFormatted : 'Auto-stop playback',
+                    accentColor: appAccent,
+                    onTap: () {
+                      Navigator.pop(context);
+                      SleepTimerSheet.show(context);
                     },
                   ),
                   _sheetActionTile(
@@ -837,16 +815,39 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
               return GestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onVerticalDragEnd: (details) {
-                  if (details.primaryVelocity != null && details.primaryVelocity! > 300) {
-                    Navigator.of(context).maybePop();
+                onVerticalDragUpdate: (details) {
+                  if (details.delta.dy > 0 || _dragOffsetY > 0) {
+                    setState(() {
+                      _dragOffsetY = math.max(0.0, _dragOffsetY + details.delta.dy);
+                    });
                   }
                 },
-                child: Stack(
-                  children: [
-                    Positioned.fill(child: LiquidBackground(accent: appAccent)),
-                    // 1. DYNAMIC COLOR-MATCHED BLURRED BACKGROUND
-                    Positioned.fill(child: _BlurredArt(track: track)),
+                onVerticalDragEnd: (details) {
+                  final velocity = details.primaryVelocity ?? 0.0;
+                  if (velocity > 380 || _dragOffsetY > 120) {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(context).maybePop();
+                  } else {
+                    setState(() => _dragOffsetY = 0.0);
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: _dragOffsetY == 0.0
+                      ? const Duration(milliseconds: 240)
+                      : Duration.zero,
+                  curve: Curves.easeOutCubic,
+                  transform: Matrix4.translationValues(0.0, _dragOffsetY, 0.0)
+                    ..scale((1.0 - (_dragOffsetY / 1400.0)).clamp(0.88, 1.0)),
+                  transformAlignment: Alignment.topCenter,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      _dragOffsetY > 0 ? math.min(32.0, _dragOffsetY * 0.25) : 0,
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(child: LiquidBackground(accent: appAccent)),
+                        // 1. DYNAMIC COLOR-MATCHED BLURRED BACKGROUND
+                        Positioned.fill(child: _BlurredArt(track: track)),
                     SafeArea(
                       child: LayoutBuilder(
                         builder: (context, box) {
@@ -929,63 +930,66 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                         child: _buildLyricsView(player),
                                       )
                                     else
-                                      AnimatedScale(
-                                        scale: isPlaying ? 1.0 : 0.92,
-                                        duration: const Duration(milliseconds: 400),
-                                        curve: Curves.easeOutBack,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() => _showLyrics = !_showLyrics);
-                                            if (_showLyrics) {
-                                              _lastActiveLyricIdx = null;
-                                              _userInteractingWithLyrics = false;
-                                            }
-                                          },
-                                          child: AnimatedSwitcher(
-                                            duration: const Duration(milliseconds: 350),
-                                            child: Container(
-                                              key: ValueKey('${track.id}_${track.imageUrl}_${track.embeddedArt != null}'),
-                                              width: artSize,
-                                              height: artSize,
-                                              decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(28),
-                                                border: Border.all(
-                                                  color: Colors.white.withValues(alpha: 0.22),
-                                                  width: 1.5,
+                                      Hero(
+                                        tag: 'player_album_art',
+                                        child: AnimatedScale(
+                                          scale: isPlaying ? 1.0 : 0.92,
+                                          duration: const Duration(milliseconds: 400),
+                                          curve: Curves.easeOutBack,
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              setState(() => _showLyrics = !_showLyrics);
+                                              if (_showLyrics) {
+                                                _lastActiveLyricIdx = null;
+                                                _userInteractingWithLyrics = false;
+                                              }
+                                            },
+                                            child: AnimatedSwitcher(
+                                              duration: const Duration(milliseconds: 350),
+                                              child: Container(
+                                                key: ValueKey('${track.id}_${track.imageUrl}_${track.embeddedArt != null}'),
+                                                width: artSize,
+                                                height: artSize,
+                                                decoration: BoxDecoration(
+                                                  borderRadius: BorderRadius.circular(28),
+                                                  border: Border.all(
+                                                    color: Colors.white.withValues(alpha: 0.22),
+                                                    width: 1.5,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: appAccent.withValues(alpha: isPlaying ? 0.45 : 0.22),
+                                                      blurRadius: 35,
+                                                      spreadRadius: -5,
+                                                      offset: const Offset(0, 16),
+                                                    ),
+                                                    BoxShadow(
+                                                      color: Colors.black.withValues(alpha: 0.40),
+                                                      blurRadius: 22,
+                                                      offset: const Offset(0, 10),
+                                                    ),
+                                                  ],
                                                 ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: appAccent.withValues(alpha: isPlaying ? 0.45 : 0.22),
-                                                    blurRadius: 35,
-                                                    spreadRadius: -5,
-                                                    offset: const Offset(0, 16),
-                                                  ),
-                                                  BoxShadow(
-                                                    color: Colors.black.withValues(alpha: 0.40),
-                                                    blurRadius: 22,
-                                                    offset: const Offset(0, 10),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius: BorderRadius.circular(26),
-                                                child: track.imageUrl != null && track.imageUrl!.isNotEmpty
-                                                    ? Image.network(
-                                                        track.imageUrl!,
-                                                        fit: BoxFit.cover,
-                                                        errorBuilder: (_, __, ___) => ArtBox(
-                                                          seed: track.title,
-                                                          radius: 0,
-                                                          iconSize: artSize * 0.35,
-                                                        ),
-                                                      )
-                                                    : (track.embeddedArt != null
-                                                        ? Image.memory(track.embeddedArt!, fit: BoxFit.cover)
-                                                        : ArtBox(
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(26),
+                                                  child: track.imageUrl != null && track.imageUrl!.isNotEmpty
+                                                      ? Image.network(
+                                                          track.imageUrl!,
+                                                          fit: BoxFit.cover,
+                                                          errorBuilder: (_, __, ___) => ArtBox(
                                                             seed: track.title,
                                                             radius: 0,
                                                             iconSize: artSize * 0.35,
-                                                          )),
+                                                          ),
+                                                        )
+                                                      : (track.embeddedArt != null
+                                                          ? Image.memory(track.embeddedArt!, fit: BoxFit.cover)
+                                                          : ArtBox(
+                                                              seed: track.title,
+                                                              radius: 0,
+                                                              iconSize: artSize * 0.35,
+                                                            )),
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1312,8 +1316,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+            ),
+          );
+        },
           ),
         ),
       );

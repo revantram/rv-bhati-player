@@ -52,8 +52,12 @@ class _RadioScreenState extends State<RadioScreen> {
     final isTabletOrTv = screenWidth > 600;
     final crossAxisCount = isTabletOrTv ? 4 : 2;
 
+    final favIds = app.favoriteStations;
     final allStations = RadioStation.stations;
     final filteredStations = allStations.where((s) {
+      if (_selectedCategory == 'Favorites') {
+        return favIds.contains(s.id);
+      }
       if (_selectedCategory != 'All' && s.category != _selectedCategory) {
         return false;
       }
@@ -66,6 +70,17 @@ class _RadioScreenState extends State<RadioScreen> {
       }
       return true;
     }).toList();
+
+    // When "All" is active and user is not searching, pin favorites at the top
+    if (_selectedCategory == 'All' && _searchQuery.isEmpty && favIds.isNotEmpty) {
+      filteredStations.sort((a, b) {
+        final aFav = favIds.contains(a.id);
+        final bFav = favIds.contains(b.id);
+        if (aFav && !bFav) return -1;
+        if (!aFav && bFav) return 1;
+        return 0;
+      });
+    }
 
     return ListView(
       padding: EdgeInsets.fromLTRB(16, widget.topOffset, 16, math.max(140.0, widget.bottomOffset)),
@@ -144,6 +159,14 @@ class _RadioScreenState extends State<RadioScreen> {
   }
 
   Widget _buildHeader(BuildContext context, AppState app, int stationCount) {
+    final favCount = app.favoriteStations.length;
+    final categories = [
+      {'id': 'All', 'label': '🌟 All Stations (${RadioStation.stations.length})'},
+      if (favCount > 0)
+        {'id': 'Favorites', 'label': '⭐ Favorites ($favCount)'},
+      for (final c in _categories.where((c) => c['id'] != 'All'))
+        c,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -264,10 +287,10 @@ class _RadioScreenState extends State<RadioScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: _categories.length,
+            itemCount: categories.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, i) {
-              final cat = _categories[i];
+              final cat = categories[i];
               final isSelected = _selectedCategory == cat['id'];
               return PressableScale(
                 pressedScale: 0.94,
@@ -437,6 +460,28 @@ class _RadioStationGridCard extends StatelessWidget {
                 ),
 
                 const SizedBox(width: 4),
+
+                // Favorite Star Icon Button
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    app.toggleStationFavorite(station.id);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Icon(
+                      app.isStationFavorite(station.id)
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      size: 19,
+                      color: app.isStationFavorite(station.id)
+                          ? const Color(0xFFFFB800)
+                          : app.secondaryTextColor.withValues(alpha: 0.40),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
 
                 // Status Badge or Interactive Play/Pause Button
                 if (isActive)

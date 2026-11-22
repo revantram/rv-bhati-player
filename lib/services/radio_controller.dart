@@ -4,6 +4,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 import '../models/radio_station.dart';
+import 'app_state.dart';
+import 'artwork_palette_service.dart';
 import 'audio_controller.dart';
 
 class RadioController extends ChangeNotifier {
@@ -161,6 +163,15 @@ class RadioController extends ChangeNotifier {
     _currentStation = station;
     _isLoading = true;
     _errorMessage = null;
+
+    if (station.imageUrl != null && station.imageUrl!.isNotEmpty) {
+      ArtworkPaletteService.instance.extractAndApply(
+        imageUrl: station.imageUrl,
+        cacheKey: 'radio_${station.id}',
+      );
+    } else {
+      AppState.instance.setDynamicAccentColor(station.color);
+    }
     notifyListeners();
 
     final p = AudioController.instance.player;

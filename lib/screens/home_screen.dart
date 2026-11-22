@@ -537,7 +537,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onOpenOnline: _openNowPlaying,
                   ),
                 ),
-              // Bottom Nav: 5 items (Videos, Music Hub, FM Radio, Shows & Osho, Settings)
+              // Top-right sleek Settings button (when not searching)
+              if (!_isSearching)
+                Positioned(
+                  top: pad.top + 8,
+                  right: 16,
+                  child: PressableScale(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(context, glassRoute(const SettingsScreen()));
+                    },
+                    child: LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(16),
+                      padding: const EdgeInsets.all(9),
+                      blur: 0,
+                      child: Icon(Icons.settings_rounded, color: app.textColor, size: 20),
+                    ),
+                  ),
+                ),
+
+              // Bottom Nav: 4 tabs (Videos, Music Hub, FM Radio, Shows & Osho)
               Positioned(
                 left: 14,
                 right: 14,
@@ -556,7 +575,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     GlassNavItem(Icons.graphic_eq_rounded, app.tr('bitmusic')),
                     GlassNavItem(Icons.radio_rounded, 'FM Radio'),
                     GlassNavItem(Icons.podcasts_rounded, 'Shows & Osho'),
-                    GlassNavItem(Icons.settings_rounded, 'Settings'),
                   ],
                 ),
               ),
@@ -797,69 +815,102 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         if (recentVideo != null)
-          Positioned(
-            right: 18,
-            bottom: bottomOffset - 72,
-            child: PressableScale(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                _open([recentVideo], 0);
-              },
-              child: LiquidGlassContainer(
-                borderRadius: BorderRadius.circular(24),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                blur: 0,
-                opacity: isLight ? 0.92 : 0.22,
-                borderWidth: 1.2,
-                borderColor: accent.withValues(alpha: 0.6),
-                tint: accent.withValues(alpha: 0.12),
-                glow: true,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [accent, const Color(0xFF00D2FF)],
+          Builder(
+            builder: (context) {
+              final savedSec = app.getVideoPosition(recentVideo.path);
+              final totalSec = recentVideo.duration != null ? (recentVideo.duration! ~/ 1000) : 0;
+              final hasProgress = savedSec > 5;
+              final resumeStr = hasProgress
+                  ? 'Resume (${formatDuration(Duration(seconds: savedSec))})'
+                  : 'Start Video';
+
+              return Positioned(
+                right: 18,
+                bottom: bottomOffset - 72,
+                child: PressableScale(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    _open([recentVideo], 0);
+                  },
+                  child: LiquidGlassContainer(
+                    borderRadius: BorderRadius.circular(24),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    blur: 0,
+                    opacity: isLight ? 0.94 : 0.24,
+                    borderWidth: 1.2,
+                    borderColor: accent.withValues(alpha: 0.65),
+                    tint: accent.withValues(alpha: 0.12),
+                    glow: true,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [accent, const Color(0xFF00D2FF)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: accent.withValues(alpha: 0.4),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
                         ),
-                      ),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
-                    ),
-                    const SizedBox(width: 8),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 150),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Resume Video',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: accent,
-                            ),
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 165),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    resumeStr,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: accent,
+                                    ),
+                                  ),
+                                  if (hasProgress && totalSec > 0) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '• ${(savedSec / totalSec * 100).round()}%',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: accent.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              Text(
+                                VideoFolderScreen.cleanFolderName(recentVideo.displayTitle),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: app.textColor,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            VideoFolderScreen.cleanFolderName(recentVideo.displayTitle),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: app.textColor,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
       ],
     );

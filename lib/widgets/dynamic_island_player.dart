@@ -170,55 +170,58 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                           child: Row(
                             children: [
                               // 1. Spinning Album Artwork / Icon
-                              RotationTransition(
-                                turns: _spinCtrl,
-                                child: Container(
-                                  width: 34,
-                                  height: 34,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: accent.withValues(alpha: 0.6),
-                                      width: 1.2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: accent.withValues(alpha: 0.35),
-                                        blurRadius: 6,
+                              Hero(
+                                tag: 'player_album_art',
+                                child: RotationTransition(
+                                  turns: _spinCtrl,
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: accent.withValues(alpha: 0.6),
+                                        width: 1.2,
                                       ),
-                                    ],
-                                  ),
-                                  child: ClipOval(
-                                    child: isRadio
-                                        ? Container(
-                                            color: currentStation.color,
-                                            child: const Icon(
-                                              Icons.radio_rounded,
-                                              color: Colors.white,
-                                              size: 18,
-                                            ),
-                                          )
-                                        : isOnline && onlineSong != null
-                                            ? Image.network(
-                                                onlineSong.imageUrl,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) =>
-                                                    ArtBox(
-                                                  seed: tag.title,
-                                                  radius: 0,
-                                                  iconSize: 18,
-                                                ),
-                                              )
-                                            : (currentSong?.embeddedArt != null
-                                                ? Image.memory(
-                                                    currentSong!.embeddedArt!,
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : ArtBox(
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: accent.withValues(alpha: 0.35),
+                                          blurRadius: 6,
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipOval(
+                                      child: isRadio
+                                          ? Container(
+                                              color: currentStation.color,
+                                              child: const Icon(
+                                                Icons.radio_rounded,
+                                                color: Colors.white,
+                                                size: 18,
+                                              ),
+                                            )
+                                          : isOnline && onlineSong != null
+                                              ? Image.network(
+                                                  onlineSong.imageUrl,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      ArtBox(
                                                     seed: tag.title,
                                                     radius: 0,
                                                     iconSize: 18,
-                                                  )),
+                                                  ),
+                                                )
+                                              : (currentSong?.embeddedArt != null
+                                                  ? Image.memory(
+                                                      currentSong!.embeddedArt!,
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : ArtBox(
+                                                      seed: tag.title,
+                                                      radius: 0,
+                                                      iconSize: 18,
+                                                    )),
+                                    ),
                                   ),
                                 ),
                               ),

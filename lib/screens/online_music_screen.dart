@@ -10,6 +10,7 @@ import '../services/app_state.dart';
 import '../services/audio_controller.dart';
 import '../services/download_service.dart';
 import '../services/saavn_api_service.dart';
+import '../services/search_history_service.dart';
 import '../services/settings_service.dart';
 import '../services/spotify_service.dart';
 import '../services/yt_music_service.dart';
@@ -139,6 +140,9 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
         songs = await SaavnApiService.instance.searchSongs(clean);
       }
       if (mounted && _searchCtrl.text.trim() == clean) {
+        if (songs.isNotEmpty) {
+          SearchHistoryService.instance.addMusicQuery(clean);
+        }
         setState(() {
           _searchResults = songs;
           _suggestions = [];
@@ -225,6 +229,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: _buildSearchBar(accent),
         ),
+        _buildRecentSearchChips(accent),
         if (_isSearching && _suggestions.isNotEmpty) _buildSuggestionChips(accent),
         Expanded(
           child: _isSearching
@@ -703,6 +708,114 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           contentPadding: const EdgeInsets.symmetric(vertical: 13),
         ),
       ),
+    );
+  }
+
+  Widget _buildRecentSearchChips(Color accent) {
+    return ListenableBuilder(
+      listenable: SearchHistoryService.instance,
+      builder: (context, _) {
+        final history = SearchHistoryService.instance.musicHistory;
+        if (history.isEmpty || (_isSearching && _searchCtrl.text.isNotEmpty)) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.history_rounded, size: 14, color: app.secondaryTextColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Recent Searches',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                          color: app.secondaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      SearchHistoryService.instance.clearMusicHistory();
+                    },
+                    child: Text(
+                      'Clear All',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: accent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: history.map((q) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: PressableScale(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          _searchCtrl.text = q;
+                          _onSearch(q);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: app.surfaceColorSecondary,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: app.cardBorderColor),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                q,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: app.textColor,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  SearchHistoryService.instance.removeMusicQuery(q);
+                                },
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 14,
+                                  color: app.secondaryTextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

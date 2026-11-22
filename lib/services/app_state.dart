@@ -9,6 +9,7 @@ import '../models/playlist_item.dart';
 import 'audio_controller.dart';
 import 'equalizer_service.dart';
 import 'media_scanner.dart';
+import 'search_history_service.dart';
 import 'settings_service.dart';
 
 enum AppLanguage { en, hi }
@@ -530,6 +531,9 @@ class AppState extends ChangeNotifier {
   final Set<String> _favorites = {};
   Set<String> get favorites => _favorites;
 
+  final Set<String> _favoriteStations = {};
+  Set<String> get favoriteStations => _favoriteStations;
+
   final Map<String, PlaylistItem> _favoriteItems = {};
   Map<String, PlaylistItem> get favoriteItems => _favoriteItems;
 
@@ -585,6 +589,7 @@ class AppState extends ChangeNotifier {
   Future<void> init() async {
     try {
       await SettingsService.instance.init();
+      await SearchHistoryService.instance.init();
       SettingsService.instance.addListener(() => notifyListeners());
 
       final dir = Directory('/data/user/0/com.rvbhati.player/files');
@@ -601,6 +606,9 @@ class AppState extends ChangeNotifier {
         if (map['accent'] != null) _accentColor = Color(map['accent'] as int);
         if (map['favorites'] is List) {
           _favorites.addAll((map['favorites'] as List).cast<String>());
+        }
+        if (map['favoriteStations'] is List) {
+          _favoriteStations.addAll((map['favoriteStations'] as List).cast<String>());
         }
         if (map['favoriteItems'] is List) {
           for (final itemJson in map['favoriteItems'] as List) {
@@ -674,6 +682,7 @@ class AppState extends ChangeNotifier {
         'userPhone': _userPhone,
         'accent': _accentColor.toARGB32(),
         'favorites': _favorites.toList(),
+        'favoriteStations': _favoriteStations.toList(),
         'favoriteItems': _favoriteItems.values.map((item) => item.toJson()).toList(),
         'recentlyPlayed': _recentlyPlayed,
         'playlists': _playlists,
@@ -743,6 +752,18 @@ class AppState extends ChangeNotifier {
   void addFavoriteItem(PlaylistItem item) {
     _favorites.add(item.id);
     _favoriteItems[item.id] = item;
+    _save();
+    notifyListeners();
+  }
+
+  bool isStationFavorite(String id) => _favoriteStations.contains(id);
+
+  void toggleStationFavorite(String id) {
+    if (_favoriteStations.contains(id)) {
+      _favoriteStations.remove(id);
+    } else {
+      _favoriteStations.add(id);
+    }
     _save();
     notifyListeners();
   }

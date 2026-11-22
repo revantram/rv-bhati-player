@@ -12,6 +12,7 @@ import '../widgets/equalizer_sheet.dart';
 import '../widgets/ios_bounce_button.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
+import '../widgets/sleep_timer_sheet.dart';
 import '../widgets/jiosaavn_login_sheet.dart';
 import '../services/jiosaavn_auth_service.dart';
 import 'albums_browser_screen.dart';
@@ -203,6 +204,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                             ),
+                            textColor: textColor,
+                            secondaryTextColor: secondaryTextColor,
+                            accent: accent,
+                          ),
+                          _buildDivider(isLight),
+                          _buildNavTile(
+                            icon: Icons.timer_rounded,
+                            title: 'Sleep Timer / स्लीप टाइमर',
+                            subtitle: _app.isSleepTimerActive
+                                ? 'Active: ${_app.sleepTimerFormatted}'
+                                : 'Set auto-pause countdown or end of track',
+                            onTap: () => SleepTimerSheet.show(context),
                             textColor: textColor,
                             secondaryTextColor: secondaryTextColor,
                             accent: accent,
