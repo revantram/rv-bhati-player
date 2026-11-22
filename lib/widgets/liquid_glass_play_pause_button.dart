@@ -86,69 +86,68 @@ class _LiquidGlassPlayPauseButtonState extends State<LiquidGlassPlayPauseButton>
 
     final borderWidth = widget.size > 50 ? 1.5 : 1.1;
 
-    Widget button = PressableScale(
-      pressedScale: widget.pressedScale,
-      onTap: widget.onToggle != null ? _handleTap : null,
-      borderRadius: BorderRadius.circular(widget.size / 2),
-      child: CustomPaint(
+    final borderCol = widget.borderColor ??
+        (widget.isGlass
+            ? (isLight ? Colors.white.withValues(alpha: 0.6) : Colors.white12)
+            : null);
+
+    Widget content = Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: widget.isGlass ? null : accent,
+        gradient: widget.isGlass
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  isLight
+                      ? Colors.white.withValues(alpha: 0.90)
+                      : const Color(0xFF1E2230).withValues(alpha: 0.85),
+                  isLight
+                      ? const Color(0xFFF0F9FF).withValues(alpha: 0.82)
+                      : const Color(0xFF0F121C).withValues(alpha: 0.85),
+                ],
+              )
+            : null,
+        border: borderCol != null ? Border.all(color: borderCol, width: 1.0) : null,
+        boxShadow: widget.glow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isLight ? 0.12 : 0.25),
+                  blurRadius: widget.size > 50 ? 10 : 5,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: Center(
+        child: AnimatedIcon(
+          icon: AnimatedIcons.play_pause,
+          progress: _animCtrl,
+          size: effectiveIconSize,
+          color: iconCol,
+        ),
+      ),
+    );
+
+    if (widget.isGlass) {
+      content = CustomPaint(
         foregroundPainter: _CircleGlassPainter(
           accent: accent,
           isLight: isLight,
           borderWidth: borderWidth,
         ),
-        child: Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: widget.isGlass
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      isLight
-                          ? Colors.white.withValues(alpha: 0.90)
-                          : const Color(0xFF1E2230).withValues(alpha: 0.85),
-                      isLight
-                          ? const Color(0xFFF0F9FF).withValues(alpha: 0.82)
-                          : const Color(0xFF0F121C).withValues(alpha: 0.85),
-                    ],
-                  )
-                : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      accent,
-                      accent.withValues(alpha: 0.86),
-                    ],
-                  ),
-            boxShadow: widget.glow
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: isLight ? 0.35 : 0.45),
-                      blurRadius: widget.size > 50 ? 20 : 8,
-                      spreadRadius: widget.size > 50 ? 1 : 0,
-                      offset: Offset(0, widget.size > 50 ? 4 : 2),
-                    ),
-                    if (widget.size > 50)
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                  ]
-                : null,
-          ),
-          child: Center(
-            child: AnimatedIcon(
-              icon: AnimatedIcons.play_pause,
-              progress: _animCtrl,
-              size: effectiveIconSize,
-              color: iconCol,
-            ),
-          ),
-        ),
-      ),
+        child: content,
+      );
+    }
+
+    Widget button = PressableScale(
+      pressedScale: widget.pressedScale,
+      onTap: widget.onToggle != null ? _handleTap : null,
+      borderRadius: BorderRadius.circular(widget.size / 2),
+      child: content,
     );
 
     if (widget.tooltip != null) {
@@ -198,25 +197,6 @@ class _CircleGlassPainter extends CustomPainter {
       ..strokeWidth = borderWidth;
 
     canvas.drawCircle(rect.center, (size.width - borderWidth) / 2, borderPaint);
-
-    // 2. Top-edge inner refraction shine
-    if (size.width > 40) {
-      final shinePaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.white.withValues(alpha: 0.65),
-            Colors.white.withValues(alpha: 0.0),
-          ],
-          stops: const [0.0, 0.45],
-        ).createShader(rect)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0;
-
-      final innerRadius = (size.width - borderWidth * 2 - 1.5) / 2;
-      canvas.drawCircle(rect.center, innerRadius, shinePaint);
-    }
   }
 
   @override
