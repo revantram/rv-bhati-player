@@ -64,13 +64,14 @@ class PlaylistItem {
       };
 
   factory PlaylistItem.fromJson(Map<String, dynamic> json) {
+    final durSec = (json['durationSeconds'] as num?)?.toInt() ?? 0;
     return PlaylistItem(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       artist: json['artist']?.toString() ?? 'Unknown Artist',
       album: json['album']?.toString(),
-      duration: Duration(seconds: json['durationSeconds'] as int? ?? 0),
-      isOnline: json['isOnline'] as bool? ?? false,
+      duration: Duration(seconds: durSec >= 0 ? durSec : 0),
+      isOnline: json['isOnline'] == true,
       localPath: json['localPath']?.toString(),
       streamUrl: json['streamUrl']?.toString(),
       imageUrl: json['imageUrl']?.toString(),

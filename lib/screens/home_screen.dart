@@ -810,6 +810,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 setState(() {
                   _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
                 });
+                AppState.instance.syncRemovedMedia(deleted.path);
               },
             ),
           ),
@@ -973,6 +974,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         setState(() {
           _videos.removeWhere((v) => v.id == deleted.id || v.path == deleted.path);
         });
+        AppState.instance.syncRemovedMedia(deleted.path);
       },
     );
   }

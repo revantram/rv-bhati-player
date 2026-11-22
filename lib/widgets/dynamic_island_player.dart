@@ -142,9 +142,9 @@ class _DynamicIslandPlayerState extends State<DynamicIslandPlayer>
                             onTapAction?.call();
                           },
                         child: Container(
-                          height: 50,
-                          constraints: const BoxConstraints(maxWidth: 420),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          height: 54,
+                          constraints: const BoxConstraints(maxWidth: 430),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: app.isLight
                                 ? const Color(0xFF14161D).withValues(alpha: 0.94)

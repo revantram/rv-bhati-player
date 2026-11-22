@@ -193,6 +193,16 @@ class BackupRestoreService {
       throw Exception('Incompatible backup file. Expected RV Bhati Player archive.');
     }
 
+    final bool hasValidPayload = decoded.containsKey('playlists') ||
+        decoded.containsKey('customPlaylists') ||
+        decoded.containsKey('favorites') ||
+        decoded.containsKey('favoriteStations') ||
+        decoded.containsKey('settings') ||
+        decoded.containsKey('videoPositions');
+    if (!hasValidPayload) {
+      throw Exception('Empty or malformed backup file. No recoverable data found.');
+    }
+
     final app = AppState.instance;
     final settings = SettingsService.instance;
     final search = SearchHistoryService.instance;
@@ -254,10 +264,15 @@ class BackupRestoreService {
       final cpMap = decoded['customPlaylists'] as Map<String, dynamic>;
       for (final e in cpMap.entries) {
         if (e.value is List) {
-          final items = (e.value as List)
-              .map((itemJson) => PlaylistItem.fromJson(itemJson as Map<String, dynamic>))
-              .toList();
-          app.customPlaylists[e.key] = items;
+          final items = <PlaylistItem>[];
+          for (final itemJson in (e.value as List)) {
+            if (itemJson is Map<String, dynamic>) {
+              try {
+                items.add(PlaylistItem.fromJson(itemJson));
+              } catch (_) {}
+            }
+          }
+          app.setCustomPlaylist(e.key, items);
           restoredCustomPlaylists++;
         }
       }

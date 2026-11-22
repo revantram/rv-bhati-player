@@ -173,6 +173,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   void didChangeMetrics() {
     super.didChangeMetrics();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (_zoomScale > 1.05) {
+      final size = MediaQuery.maybeOf(context)?.size;
+      if (size != null) {
+        final maxPanX = (size.width * (_zoomScale - 1.0)) / 2;
+        final maxPanY = (size.height * (_zoomScale - 1.0)) / 2;
+        setState(() {
+          _panOffset = Offset(
+            _panOffset.dx.clamp(-maxPanX, maxPanX),
+            _panOffset.dy.clamp(-maxPanY, maxPanY),
+          );
+        });
+      }
+    }
   }
 
   @override
@@ -432,7 +445,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   Future<void> _enterPip() async {
     try {
-      setState(() => _showControls = false);
+      setState(() {
+        _showControls = false;
+        _zoomScale = 1.0;
+        _panOffset = Offset.zero;
+      });
       await _pipChannel.invokeMethod('enterPip');
     } catch (_) {}
   }
@@ -478,6 +495,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _baseZoom = _zoomScale;
     _basePan = _panOffset;
     _dragMode = null;
+
+    if (_zoomScale > 1.05) {
+      if (d.pointerCount >= 2) {
+        _isPinching = true;
+        _dragMode = 'pinch';
+      } else {
+        _isPinching = false;
+        _dragMode = 'pan_zoom';
+      }
+      return;
+    }
+
     if (d.pointerCount >= 2) {
       _isPinching = true;
       _dragMode = 'pinch';
@@ -491,21 +520,43 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (_touchLocked || _controller == null) return;
     if (_dragMode == 'edge_ignored') return;
 
+    // Zoomed in 1-finger pan gesture
+    if (_dragMode == 'pan_zoom' && _zoomScale > 1.05) {
+      final maxPanX = (screenWidth * (_zoomScale - 1.0)) / 2;
+      final maxPanY = (screenHeight * (_zoomScale - 1.0)) / 2;
+      final nextPan = _panOffset + d.focalPointDelta;
+      setState(() {
+        _panOffset = Offset(
+          nextPan.dx.clamp(-maxPanX, maxPanX),
+          nextPan.dy.clamp(-maxPanY, maxPanY),
+        );
+      });
+      return;
+    }
+
     // 2-finger pinch-to-zoom & pan
     if (d.pointerCount >= 2 || _isPinching) {
       _isPinching = true;
       _dragMode = 'pinch';
       final newScale = (_baseZoom * d.scale).clamp(1.0, 3.5);
-      final newPan = _basePan + d.focalPointDelta;
+      final maxPanX = (screenWidth * (newScale - 1.0)) / 2;
+      final maxPanY = (screenHeight * (newScale - 1.0)) / 2;
+      final nextPan = _basePan + d.focalPointDelta;
+      final clampedPan = newScale > 1.05
+          ? Offset(
+              nextPan.dx.clamp(-maxPanX, maxPanX),
+              nextPan.dy.clamp(-maxPanY, maxPanY),
+            )
+          : Offset.zero;
       setState(() {
         _zoomScale = newScale;
-        _panOffset = newScale > 1.05 ? newPan : Offset.zero;
+        _panOffset = clampedPan;
       });
       _showHud(_Hud(Icons.zoom_in_rounded, '${_zoomScale.toStringAsFixed(1)}x', const Alignment(0, 0)));
       return;
     }
 
-    // 1-finger gesture: determine if vertical or horizontal
+    // 1-finger gesture: determine if vertical or horizontal (only when not zoomed in)
     if (_dragMode == null) {
       final dx = d.focalPointDelta.dx.abs();
       final dy = d.focalPointDelta.dy.abs();

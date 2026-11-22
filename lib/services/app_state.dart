@@ -859,6 +859,45 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  void setCustomPlaylist(String playlistName, List<PlaylistItem> items) {
+    _customPlaylists[playlistName] = List.from(items);
+    _save();
+    notifyListeners();
+  }
+
+  void reorderCustomPlaylist(String playlistName, int oldIndex, int newIndex) {
+    final list = _customPlaylists[playlistName];
+    if (list != null && oldIndex >= 0 && oldIndex < list.length) {
+      if (oldIndex < newIndex) newIndex -= 1;
+      if (newIndex >= 0 && newIndex <= list.length) {
+        final item = list.removeAt(oldIndex);
+        list.insert(newIndex, item);
+        _save();
+        notifyListeners();
+      }
+    }
+  }
+
+  void syncRemovedMedia(String pathOrId) {
+    bool changed = false;
+    if (_favorites.remove(pathOrId)) changed = true;
+    if (_favoriteItems.remove(pathOrId) != null) changed = true;
+    for (final list in _playlists.values) {
+      if (list.remove(pathOrId)) changed = true;
+    }
+    for (final list in _customPlaylists.values) {
+      final before = list.length;
+      list.removeWhere((t) => t.id == pathOrId || t.localPath == pathOrId);
+      if (list.length != before) changed = true;
+    }
+    if (_videoPositions.remove(pathOrId) != null) changed = true;
+    if (_recentlyPlayed.remove(pathOrId)) changed = true;
+    if (changed) {
+      _save();
+      notifyListeners();
+    }
+  }
+
   void removeFromCustomPlaylist(String playlistName, String itemId) {
     final list = _customPlaylists[playlistName];
     if (list != null) {
@@ -947,6 +986,7 @@ class AppState extends ChangeNotifier {
       final diff = _sleepTargetTime!.difference(DateTime.now());
       if (diff.isNegative) {
         timer.cancel();
+        _sleepTimer = null;
         _sleepMinutesRemaining = 0;
         _sleepTargetTime = null;
         _sleepEndOfSong = false;

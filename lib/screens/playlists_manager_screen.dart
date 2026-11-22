@@ -409,9 +409,44 @@ class _PlaylistsManagerScreenState extends State<PlaylistsManagerScreen> {
         Expanded(
           child: items.isEmpty
               ? Center(
-                  child: Text(
-                    'No songs added to this playlist yet.',
-                    style: TextStyle(color: secondaryTextColor, fontSize: 14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: LiquidGlassContainer(
+                      borderRadius: BorderRadius.circular(20),
+                      padding: const EdgeInsets.all(22),
+                      blur: 0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.playlist_play_rounded, size: 40, color: accent.withValues(alpha: 0.6)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Playlist is Empty',
+                            style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Add local or online songs using the heart or playlist icon.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: secondaryTextColor, fontSize: 13),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.music_note_rounded, size: 18),
+                            label: const Text('Explore Music Hub'),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               : ListView.separated(

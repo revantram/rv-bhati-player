@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -20,6 +22,7 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
   InAppWebViewController? _webViewController;
   bool _isLoading = true;
   bool _useMobileWatch = false;
+  Timer? _stalledWatchdog;
 
   String get _videoId {
     final id = widget.song.id;
@@ -32,10 +35,23 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
     try {
       AudioController.instance.player.pause();
     } catch (_) {}
+    _stalledWatchdog = Timer(const Duration(seconds: 8), () {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+        _switchToMobileWatch();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _stalledWatchdog?.cancel();
+    super.dispose();
   }
 
   void _switchToMobileWatch() {
     if (!mounted || _useMobileWatch) return;
+    _stalledWatchdog?.cancel();
     setState(() {
       _useMobileWatch = true;
       _isLoading = true;
@@ -220,7 +236,12 @@ class _YouTubeMusicSheetState extends State<YouTubeMusicSheet> {
                         },
                       );
                     },
+                    onReceivedError: (ctrl, request, error) {
+                      if (mounted) setState(() => _isLoading = false);
+                      _switchToMobileWatch();
+                    },
                     onLoadStop: (ctrl, url) {
+                      _stalledWatchdog?.cancel();
                       if (mounted) setState(() => _isLoading = false);
                       if (_useMobileWatch) {
                         ctrl.evaluateJavascript(source: '''

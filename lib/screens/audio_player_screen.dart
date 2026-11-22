@@ -82,8 +82,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   final _ac = AudioController.instance;
   AppState get app => AppState.instance;
 
+  static bool _persistedShowLyrics = false;
   double _dragOffsetY = 0.0;
-  bool _showLyrics = false;
+  late bool _showLyrics;
   List<LrcLine> _lyrics = [];
   String? _plainLyrics;
   bool _loadingLyrics = false;
@@ -93,6 +94,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _showLyrics = _persistedShowLyrics;
     if (widget.startPlayback && widget.queue.isNotEmpty) {
       _ac.playQueue(widget.queue, widget.startIndex).catchError((_) {
         if (mounted) {
@@ -939,7 +941,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                           curve: Curves.easeOutBack,
                                           child: GestureDetector(
                                             onTap: () {
-                                              setState(() => _showLyrics = !_showLyrics);
+                                              setState(() {
+                                                _showLyrics = !_showLyrics;
+                                                _persistedShowLyrics = _showLyrics;
+                                              });
                                               if (_showLyrics) {
                                                 _lastActiveLyricIdx = null;
                                                 _userInteractingWithLyrics = false;
@@ -1173,7 +1178,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                         ),
                                         PressableScale(
                                           onTap: () {
-                                            setState(() => _showLyrics = !_showLyrics);
+                                            setState(() {
+                                              _showLyrics = !_showLyrics;
+                                              _persistedShowLyrics = _showLyrics;
+                                            });
                                             if (_showLyrics) {
                                               _lastActiveLyricIdx = null;
                                               _userInteractingWithLyrics = false;

@@ -204,7 +204,7 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
             label: 'Retry',
-            onPressed: () => _play(list, index),
+            onPressed: () => _playSong(list, index),
           ),
         ),
       );
@@ -1378,20 +1378,126 @@ class _OnlineMusicScreenState extends State<OnlineMusicScreen> {
   }
 
   Widget _buildEmptyState(String msg, Color accent) {
+    final hasSearch = _searchCtrl.text.trim().isNotEmpty;
+    final otherEngine = _engine == MusicEngine.jiosaavn ? MusicEngine.spotify : MusicEngine.jiosaavn;
+    final otherEngineLabel = _engine == MusicEngine.jiosaavn ? 'Try on Spotify' : 'Try on JioSaavn HD';
+
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.music_off_rounded, size: 44, color: accent.withValues(alpha: 0.5)),
-            const SizedBox(height: 10),
-            Text(
-              msg,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: app.secondaryTextColor, fontSize: 13.5),
-            ),
-          ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+        child: LiquidGlassContainer(
+          borderRadius: BorderRadius.circular(24),
+          padding: const EdgeInsets.all(24),
+          blur: 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: 0.12),
+                  border: Border.all(color: accent.withValues(alpha: 0.3)),
+                ),
+                child: Icon(Icons.music_off_rounded, size: 28, color: accent),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'No Tracks Found',
+                style: TextStyle(
+                  color: app.textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                msg,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: app.secondaryTextColor, fontSize: 13, height: 1.3),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  if (hasSearch)
+                    iOSBounceButton(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _searchCtrl.clear();
+                        setState(() {
+                          _isSearching = false;
+                          _searchResults = [];
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: app.isLight ? Colors.black.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: app.cardBorderColor),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.close_rounded, size: 16, color: app.textColor),
+                            const SizedBox(width: 6),
+                            Text('Clear Search', style: TextStyle(color: app.textColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  iOSBounceButton(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _switchEngine(otherEngine);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: accent.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.swap_horiz_rounded, size: 16, color: accent),
+                          const SizedBox(width: 6),
+                          Text(otherEngineLabel, style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (hasSearch)
+                    iOSBounceButton(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _performSearch(_searchCtrl.text.trim());
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: accent,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
+                            SizedBox(width: 6),
+                            Text('Retry', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

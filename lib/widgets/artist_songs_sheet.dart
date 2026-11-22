@@ -121,7 +121,7 @@ class _ArtistSongsSheetState extends State<ArtistSongsSheet> {
                 )
               : SnackBarAction(
                   label: 'Retry',
-                  onPressed: () => _play(index),
+                  onPressed: () => _playSong(index),
                 ),
         ),
       );

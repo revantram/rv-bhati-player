@@ -225,6 +225,12 @@ class AudioController {
           return;
         }
 
+        if (player.loopMode == LoopMode.one) {
+          await player.seek(Duration.zero);
+          await player.play();
+          return;
+        }
+
         final curIdx = player.currentIndex;
         if (_handledAutoAdvanceIndex == curIdx) return;
         _handledAutoAdvanceIndex = curIdx;

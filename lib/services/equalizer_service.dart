@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'app_state.dart';
+
 class EqualizerPreset {
   final String name;
   final List<int> levels; // 5 values from -1000 to 1000 mB
@@ -123,6 +125,7 @@ class EqualizerService extends ChangeNotifier {
   Future<void> setEnabled(bool value) async {
     _isEnabled = value;
     notifyListeners();
+    AppState.instance.saveEqualizer();
     try {
       await _channel.invokeMethod('setEnabled', {
         'enabled': value,
@@ -140,6 +143,7 @@ class EqualizerService extends ChangeNotifier {
     _virtualizerStrength = p.virtualizerStrength;
     _surround3D = _virtualizerStrength > 0;
     notifyListeners();
+    AppState.instance.saveEqualizer();
     _syncHardware();
   }
 
@@ -148,6 +152,7 @@ class EqualizerService extends ChangeNotifier {
     _bands[index] = level.clamp(-1000, 1000);
     _currentPreset = 'Custom';
     notifyListeners();
+    AppState.instance.saveEqualizer();
     try {
       await _channel.invokeMethod('setBandLevel', {
         'band': index,
@@ -161,6 +166,7 @@ class EqualizerService extends ChangeNotifier {
     _bassStrength = value.clamp(0, 1000);
     _currentPreset = 'Custom';
     notifyListeners();
+    AppState.instance.saveEqualizer();
     try {
       await _channel.invokeMethod('setBassBoost', {
         'strength': _bassStrength,
@@ -174,6 +180,7 @@ class EqualizerService extends ChangeNotifier {
     _surround3D = _virtualizerStrength > 0;
     _currentPreset = 'Custom';
     notifyListeners();
+    AppState.instance.saveEqualizer();
     try {
       await _channel.invokeMethod('setVirtualizer', {
         'strength': _virtualizerStrength,
@@ -186,6 +193,7 @@ class EqualizerService extends ChangeNotifier {
     _surround3D = value;
     _virtualizerStrength = value ? 600 : 0;
     notifyListeners();
+    AppState.instance.saveEqualizer();
     try {
       await _channel.invokeMethod('setVirtualizer', {
         'strength': _virtualizerStrength,
