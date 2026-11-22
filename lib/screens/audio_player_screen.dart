@@ -1608,8 +1608,9 @@ class _IOSCapsuleSlider extends StatefulWidget {
 }
 
 class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _waveController;
+  late final AnimationController _playPauseAnimController;
   double? _dragFraction;
 
   @override
@@ -1617,7 +1618,12 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
     super.initState();
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 1400),
+    );
+    _playPauseAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+      value: widget.isPlaying ? 1.0 : 0.0,
     );
     if (widget.isPlaying) {
       _waveController.repeat();
@@ -1630,8 +1636,13 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
     if (widget.isPlaying != oldWidget.isPlaying) {
       if (widget.isPlaying) {
         _waveController.repeat();
+        _playPauseAnimController.forward();
       } else {
-        _waveController.stop();
+        _playPauseAnimController.reverse().then((_) {
+          if (!widget.isPlaying && mounted) {
+            _waveController.stop();
+          }
+        });
       }
     }
   }
@@ -1639,6 +1650,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
   @override
   void dispose() {
     _waveController.dispose();
+    _playPauseAnimController.dispose();
     super.dispose();
   }
 
@@ -1698,7 +1710,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
                   children: [
                     // Dynamic tactile audio waveform seek line
                     AnimatedBuilder(
-                      animation: _waveController,
+                      animation: Listenable.merge([_waveController, _playPauseAnimController]),
                       builder: (context, _) {
                         return CustomPaint(
                           size: Size(width, 24),
@@ -1707,6 +1719,7 @@ class _IOSCapsuleSliderState extends State<_IOSCapsuleSlider>
                             accent: widget.accent,
                             isLight: isLight,
                             wavePhase: _waveController.value * 2 * math.pi,
+                            animFactor: _playPauseAnimController.value,
                             isPlaying: widget.isPlaying,
                           ),
                         );
@@ -1781,6 +1794,7 @@ class _WaveformSeekPainter extends CustomPainter {
   final Color accent;
   final bool isLight;
   final double wavePhase;
+  final double animFactor;
   final bool isPlaying;
 
   _WaveformSeekPainter({
@@ -1788,17 +1802,12 @@ class _WaveformSeekPainter extends CustomPainter {
     required this.accent,
     required this.isLight,
     required this.wavePhase,
+    required this.animFactor,
     required this.isPlaying,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barWidth = 3.2;
-    const spacing = 3.0;
-    final step = barWidth + spacing;
-    final barCount = (size.width / step).floor();
-    if (barCount <= 0) return;
-
     final progressX = size.width * progress.clamp(0.0, 1.0);
 
     final activePaint = Paint()
@@ -1806,24 +1815,53 @@ class _WaveformSeekPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final inactiveColor = isLight
-        ? const Color(0xFF94A3B8).withValues(alpha: 0.45)
+        ? const Color(0xFF94A3B8).withValues(alpha: 0.40)
         : Colors.white.withValues(alpha: 0.22);
     final inactivePaint = Paint()
       ..color = inactiveColor
       ..style = PaintingStyle.fill;
 
+    const flatLineHeight = 4.0;
+    final trackY = (size.height - flatLineHeight) / 2;
+
+    // 1. If paused / animFactor ~0: Draw clean straight line
+    if (animFactor < 0.02) {
+      final inactiveRRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, trackY, size.width, flatLineHeight),
+        const Radius.circular(2.0),
+      );
+      canvas.drawRRect(inactiveRRect, inactivePaint);
+
+      if (progressX > 0) {
+        final activeRRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, trackY, progressX.clamp(0.0, size.width), flatLineHeight),
+          const Radius.circular(2.0),
+        );
+        canvas.drawRRect(activeRRect, activePaint);
+      }
+      return;
+    }
+
+    // 2. When playing / animFactor > 0: Equalizer vertical bars jumping up and down
+    const barWidth = 3.2;
+    const spacing = 2.6;
+    final step = barWidth + spacing;
+    final barCount = (size.width / step).floor();
+    if (barCount <= 0) return;
+
     for (int i = 0; i < barCount; i++) {
       final x = i * step + spacing / 2;
-      double h;
-      if (isPlaying) {
-        final phase = (i * 0.42) + wavePhase;
-        final waveVal = (math.sin(phase) + math.cos(phase * 0.75)) / 2;
-        h = 5.0 + 15.0 * ((waveVal + 1) / 2);
-      } else {
-        final phase = i * 0.55;
-        h = 5.0 + 11.0 * (math.sin(phase).abs());
-      }
-      h = h.clamp(4.0, size.height);
+
+      // Realistic equalizer frequency harmonics
+      final freq1 = 2.4 + (i % 5) * 1.1;
+      final freq2 = 3.6 + ((i * 3) % 7) * 0.9;
+      final s1 = (math.sin(wavePhase * freq1 + i * 0.75)).abs();
+      final s2 = (math.cos(wavePhase * freq2 + i * 1.25)).abs();
+      final rawBounce = (s1 * 0.6 + s2 * 0.4);
+      final spectrumEnvelope = 0.55 + 0.45 * math.sin((i / barCount) * math.pi);
+      final barBounce = (rawBounce * spectrumEnvelope).clamp(0.08, 1.0);
+      final targetH = 4.0 + 18.0 * barBounce;
+      final h = ui.lerpDouble(flatLineHeight, targetH, animFactor)!.clamp(4.0, size.height);
 
       final top = (size.height - h) / 2;
       final rrect = RRect.fromRectAndRadius(
@@ -1842,6 +1880,7 @@ class _WaveformSeekPainter extends CustomPainter {
         oldDelegate.accent != accent ||
         oldDelegate.isLight != isLight ||
         oldDelegate.wavePhase != wavePhase ||
+        oldDelegate.animFactor != animFactor ||
         oldDelegate.isPlaying != isPlaying;
   }
 }
