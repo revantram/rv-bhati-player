@@ -496,12 +496,12 @@ class _ArtistsHubScreenState extends State<ArtistsHubScreen> {
       ),
     );
     try {
-      var songs = await YtMusicService.instance.getArtistSongs(query, limit: 35);
+      var songs = await SaavnApiService.instance.getArtistSongs(query, limit: 150);
       if (songs.isEmpty) {
-        songs = await SaavnApiService.instance.getArtistSongs(query, limit: 35);
+        songs = await YtMusicService.instance.getArtistSongs(query, limit: 120);
       }
       if (songs.isEmpty) {
-        songs = await SaavnApiService.instance.searchSongs(query, limit: 35);
+        songs = await SaavnApiService.instance.searchSongs(query, limit: 100);
       }
       if (!mounted) return;
       if (songs.isNotEmpty) {

@@ -704,7 +704,8 @@ class SaavnApiService {
     if (limit > 40) {
       final pagesNeeded = (limit / 50).ceil().clamp(1, 8);
       final futures = <Future<List<OnlineSong>>>[];
-      for (int p = 1; p <= pagesNeeded; p++) {
+      final startP = (page - 1) * pagesNeeded + 1;
+      for (int p = startP; p < startP + pagesNeeded; p++) {
         futures.add(_searchSinglePage(cleanQuery, page: p, limit: 50));
       }
       final results = await Future.wait(futures);
@@ -828,15 +829,15 @@ class SaavnApiService {
     return allSongs;
   }
 
-  /// 4. Artist Catalog Fetcher:
-  /// Specific Artist query se us singer ke top 20-30 songs dynamically load karna
-  Future<List<OnlineSong>> getArtistSongs(String artistName, {int limit = 300}) async {
-    final key = artistName.trim().toLowerCase();
+  /// 4. Comprehensive Artist Discography Fetcher:
+  /// Fetch complete song catalog (up to hundreds of tracks) for any singer
+  Future<List<OnlineSong>> getArtistSongs(String artistName, {int page = 1, int limit = 250}) async {
+    final key = '${artistName.trim().toLowerCase()}_p${page}_l$limit';
     if (_cachedArtists.containsKey(key)) {
       return _cachedArtists[key]!;
     }
 
-    final songs = await searchSongs(artistName, limit: limit);
+    final songs = await searchSongs(artistName, page: page, limit: limit);
     if (songs.isNotEmpty) {
       _cachedArtists[key] = songs;
     }

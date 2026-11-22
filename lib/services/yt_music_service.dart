@@ -421,12 +421,43 @@ class YtMusicService {
     ];
   }
 
-  /// Fetch top songs for a specific artist
-  Future<List<OnlineSong>> getArtistSongs(String artistName, {int limit = 40}) async {
+  /// Fetch comprehensive discography for a specific artist
+  Future<List<OnlineSong>> getArtistSongs(String artistName, {int limit = 120}) async {
     final clean = artistName.trim();
     if (clean.isEmpty) return const [];
-    final list = await search('$clean best songs audio');
-    return list.take(limit).toList();
+    final cacheKey = 'artist_${clean.toLowerCase()}_$limit';
+    if (_cache.containsKey(cacheKey) && _cache[cacheKey]!.isNotEmpty) {
+      return _cache[cacheKey]!;
+    }
+
+    final queries = [
+      '$clean songs',
+      '$clean hit songs',
+      '$clean all songs audio',
+      '$clean jukebox',
+      '$clean live',
+    ];
+
+    final futures = queries.map((q) => search(q)).toList();
+    final results = await Future.wait(futures);
+
+    final combined = <OnlineSong>[];
+    final seenIds = <String>{};
+
+    for (final list in results) {
+      for (final s in list) {
+        if (s.id.isNotEmpty && seenIds.add(s.id)) {
+          combined.add(s);
+          if (combined.length >= limit) break;
+        }
+      }
+      if (combined.length >= limit) break;
+    }
+
+    if (combined.isNotEmpty) {
+      _cache[cacheKey] = combined;
+    }
+    return combined;
   }
 
   Future<List<OnlineSong>> search(String query) async {
