@@ -35,19 +35,41 @@ class AudioController {
   }
   static final AudioController instance = AudioController._();
 
+  bool _playInterruptedByFocus = false;
+  bool _isHandlingInterruption = false;
+  DateTime? _interruptedAt;
+
   Future<void> _initAudioSession() async {
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
-      session.interruptionEventStream.listen((event) {
+
+      session.interruptionEventStream.listen((event) async {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              player.setVolume(0.5);
+              if (player.playing) {
+                player.setVolume(0.5);
+              }
               break;
             case AudioInterruptionType.pause:
             case AudioInterruptionType.unknown:
-              player.pause();
+              // Only mark as interrupted if player was actively playing right now
+              if (player.playing) {
+                _playInterruptedByFocus = true;
+                _interruptedAt = DateTime.now();
+                _isHandlingInterruption = true;
+                try {
+                  await player.pause();
+                } catch (_) {} finally {
+                  _isHandlingInterruption = false;
+                }
+              } else {
+                // If the player was already paused or idle by the user,
+                // NEVER resume when this interruption ends!
+                _playInterruptedByFocus = false;
+                _interruptedAt = null;
+              }
               break;
           }
         } else {
@@ -56,15 +78,48 @@ class AudioController {
               player.setVolume(1.0);
               break;
             case AudioInterruptionType.pause:
-              player.play();
+              final wasPlaying = _playInterruptedByFocus;
+              _playInterruptedByFocus = false;
+              final interruptedTime = _interruptedAt;
+              _interruptedAt = null;
+
+              // Strictly only resume if music was actively playing right before the interruption,
+              // AND the interruption was brief (<= 90 seconds, such as a short notification or voice query).
+              // NEVER resume after long phone calls, or if the user had paused playback!
+              if (wasPlaying && interruptedTime != null) {
+                final duration = DateTime.now().difference(interruptedTime);
+                if (duration.inSeconds <= 90) {
+                  try {
+                    await session.setActive(true);
+                    await player.play();
+                  } catch (_) {}
+                }
+              }
               break;
             case AudioInterruptionType.unknown:
+              _playInterruptedByFocus = false;
+              _interruptedAt = null;
               break;
           }
         }
       });
+
       session.becomingNoisyEventStream.listen((_) {
+        _playInterruptedByFocus = false;
+        _interruptedAt = null;
         player.pause();
+        session.setActive(false).catchError((_) => false);
+      });
+
+      // Clear interruption flag whenever playback state becomes paused or completed naturally
+      player.playerStateStream.listen((state) {
+        if (!state.playing && !_isHandlingInterruption) {
+          _playInterruptedByFocus = false;
+          _interruptedAt = null;
+          session.setActive(false).catchError((_) => false);
+        } else if (state.playing) {
+          session.setActive(true).catchError((_) => false);
+        }
       });
     } catch (e) {
       debugPrint('[AudioController] AudioSession configure error: $e');
